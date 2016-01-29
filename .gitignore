@@ -1,0 +1,11 @@
+/.env
+/.venv
+*.pyc
+*.swp
+CMakeCache.txt
+CMakeFiles/
+CTestTestfile.cmake
+Testing/
+Thumbs.db
+cmake_install.cmake
+
