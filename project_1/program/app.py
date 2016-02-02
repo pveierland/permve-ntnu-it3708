@@ -18,8 +18,11 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
+ENTITY_RADIUS     = 0
+ENTITY_POSITION_X = 1
+ENTITY_POSITION_Y = 2
+
 BOID_ATTRIBUTES   = 17
-BOID_RADIUS       = 0
 BOID_POSITION_X   = 1
 BOID_POSITION_Y   = 2
 BOID_VELOCITY_X   = 3
@@ -38,9 +41,6 @@ BOID_OBSTACLES    = 15
 BOID_NEIGHBORS    = 16
 
 OBSTACLE_ATTRIBUTES = 3
-OBSTACLE_RADIUS     = 0
-OBSTACLE_POSITION_X = 1
-OBSTACLE_POSITION_Y = 2
 
 class BoidSimulation(object):
 
@@ -55,10 +55,10 @@ class BoidSimulation(object):
         neighbor_range        = (8, 1.0, 200.0, 80.0)
         separation_range      = (9, 1.0, 100.0, 25.0)
         predator_range        = (10, 1.0, 100.0, 75.0)
-        prey_velocity_limit     = (11, 0.1, 10.0, 4.0)
-        predator_velocity_limit = (12, 0.1, 10.0, 5.0)
+        prey_velocity_limit     = (11, 0.1, 10.0, 5.0)
+        predator_velocity_limit = (12, 0.1, 10.0, 4.0)
         predator_chase_weight = (13, 0.0, 10.0, 0.05)
-        prey_obstacle_weight  = (14, 0.0, 10.0, 1.0)
+        prey_obstacle_weight  = (14, 0.0, 10.0, 8.0)
         obstacle_test_range   = (15, 0.0, 100.0, 50.0)
 
         def __init__(self, identity, min_value, max_value, default_value):
@@ -79,9 +79,9 @@ class BoidSimulation(object):
 
     def __add_obstacle(self, x, y, radius):
         obstacle = array.array('f', (0.0,) * OBSTACLE_ATTRIBUTES)
-        obstacle[OBSTACLE_RADIUS]     = radius
-        obstacle[OBSTACLE_POSITION_X] = x
-        obstacle[OBSTACLE_POSITION_Y] = y
+        obstacle[ENTITY_RADIUS]     = radius
+        obstacle[ENTITY_POSITION_X] = x
+        obstacle[ENTITY_POSITION_Y] = y
         self.obstacles.append(obstacle)
 
     def __build_random_boid(self, velocity_magnitude, radius):
@@ -94,7 +94,7 @@ class BoidSimulation(object):
             math.sin(velocity_direction) * velocity_magnitude])
 
         boid                  = array.array('f', (0.0,) * BOID_ATTRIBUTES)
-        boid[BOID_RADIUS]     = radius
+        boid[ENTITY_RADIUS]     = radius
         boid[BOID_POSITION_X] = random.random() * self.world_size[0]
         boid[BOID_POSITION_Y] = random.random() * self.world_size[1]
         boid[BOID_VELOCITY_X] = math.cos(velocity_direction) * velocity_magnitude
@@ -163,6 +163,44 @@ class BoidSimulation(object):
             y=random.random() * self.world_size[1])
 
     def step(self):
+        def calculate_obstacle_force(obstacle, boid):
+            velocity_magnitude = math.hypot(boid[BOID_VELOCITY_X], boid[BOID_VELOCITY_Y])
+
+            forward_x = boid[BOID_VELOCITY_X] / velocity_magnitude
+            forward_y = boid[BOID_VELOCITY_Y] / velocity_magnitude
+
+            diff_x = obstacle[ENTITY_POSITION_X] - boid[BOID_POSITION_X]
+            diff_y = obstacle[ENTITY_POSITION_Y] - boid[BOID_POSITION_Y]
+
+            projection_magnitude = diff_x * forward_x + diff_y * forward_y
+
+            if projection_magnitude > 0.0 and projection_magnitude < obstacle_test_range:
+                # Obstacle is in front of boid
+                projection_x = forward_x * projection_magnitude
+                projection_y = forward_y * projection_magnitude
+
+                dist_x = projection_x - diff_x
+                dist_y = projection_y - diff_y
+
+                dist_magnitude = math.hypot(dist_x, dist_y)
+
+                if dist_magnitude < obstacle[ENTITY_RADIUS] + boid[ENTITY_RADIUS]:
+                    forward_direction = math.atan2(forward_y, forward_x)
+
+                    is_diff_left_of_velocity = \
+                        1.0 if (-diff_y * boid[BOID_VELOCITY_X] + diff_x * boid[BOID_VELOCITY_Y]) >= 0.0 else -1.0
+
+                    forward_direction += is_diff_left_of_velocity * math.pi / 2.0
+
+                    ratio = projection_magnitude / obstacle_test_range
+
+                    force_x = math.cos(forward_direction) * velocity_limit * (1.0 - ratio) * ratio
+                    force_y = math.sin(forward_direction) * velocity_limit * (1.0 - ratio) * ratio
+
+                    boid[BOID_OBSTACLE_X] += force_x
+                    boid[BOID_OBSTACLE_Y] += force_y
+                    boid[BOID_OBSTACLES] += 1
+
         #time_a = timeit.default_timer()
 
         neighbor_range    = self.get_parameter_value(BoidSimulation.Parameter.neighbor_range)
@@ -195,74 +233,25 @@ class BoidSimulation(object):
         #time_b = timeit.default_timer()
 
         for obstacle in self.obstacles:
-            offset_x, remainder_x = divmod(obstacle[OBSTACLE_POSITION_X], neighbor_range)
-            offset_y, remainder_y = divmod(obstacle[OBSTACLE_POSITION_Y], neighbor_range)
+            offset_x, remainder_x = divmod(obstacle[ENTITY_POSITION_X], neighbor_range)
+            offset_y, remainder_y = divmod(obstacle[ENTITY_POSITION_Y], neighbor_range)
 
             offset_x = int(offset_x)
             offset_y = int(offset_y)
 
-            start_x = max(0, offset_x - int(math.ceil(max(0.0, (obstacle[OBSTACLE_RADIUS] + 12.0) - remainder_x) / neighbor_range)))
+            start_x = max(0, offset_x - int(math.ceil(max(0.0, (obstacle[ENTITY_RADIUS] + 12.0) - remainder_x) / neighbor_range)))
             end_x   = min(self.prey_cells.shape[0], offset_x + 1 + int(math.ceil(max(0.0, predator_range - (neighbor_range - remainder_x)) / neighbor_range)))
 
-            start_y = max(0, offset_y - int(math.ceil(max(0.0, (obstacle[OBSTACLE_RADIUS] + 12.0) - remainder_y) / neighbor_range)))
+            start_y = max(0, offset_y - int(math.ceil(max(0.0, (obstacle[ENTITY_RADIUS] + 12.0) - remainder_y) / neighbor_range)))
             end_y   = min(self.prey_cells.shape[1], offset_y + 1 + int(math.ceil(max(0.0, predator_range - (neighbor_range - remainder_y)) / neighbor_range)))
+
+            for predator in self.predator_boids:
+                calculate_obstacle_force(obstacle, predator)
 
             for x in range(start_x, end_x):
                 for y in range(start_y, end_y):
                     for prey in self.prey_cells[x, y]:
-
-                        velocity_magnitude = math.hypot(prey[BOID_VELOCITY_X], prey[BOID_VELOCITY_Y])
-
-                        forward_x = prey[BOID_VELOCITY_X] / velocity_magnitude
-                        forward_y = prey[BOID_VELOCITY_Y] / velocity_magnitude
-
-                        diff_x = obstacle[OBSTACLE_POSITION_X] - prey[BOID_POSITION_X]
-                        diff_y = obstacle[OBSTACLE_POSITION_Y] - prey[BOID_POSITION_Y]
-
-                        projection_magnitude = diff_x * forward_x + diff_y * forward_y
-
-                        if projection_magnitude > 0.0 and projection_magnitude < obstacle_test_range:
-                            # Obstacle is in front of boid
-                            projection_x = forward_x * projection_magnitude
-                            projection_y = forward_y * projection_magnitude
-
-                            dist_x = projection_x - diff_x
-                            dist_y = projection_y - diff_y
-
-                            dist_magnitude = math.hypot(dist_x, dist_y)
-
-                            if dist_magnitude < obstacle[OBSTACLE_RADIUS] + prey[BOID_RADIUS]:
-                                forward_direction = math.atan2(forward_y, forward_x)
-
-                                is_diff_left_of_velocity = \
-                                    1.0 if (-diff_y * prey[BOID_VELOCITY_X] + diff_x * prey[BOID_VELOCITY_Y]) >= 0.0 else -1.0
-
-                                forward_direction += is_diff_left_of_velocity * math.pi / 2.0
-
-                                ratio = projection_magnitude / obstacle_test_range
-
-                                force_x = math.cos(forward_direction) * velocity_limit * (1.0 - ratio) * ratio
-                                force_y = math.sin(forward_direction) * velocity_limit * (1.0 - ratio) * ratio
-
-                                prey[BOID_OBSTACLE_X] += force_x
-                                prey[BOID_OBSTACLE_Y] += force_y
-                                prey[BOID_OBSTACLES] += 1
-
-                        #position_delta_x = prey[BOID_POSITION_X] - obstacle[OBSTACLE_POSITION_X]
-                        #position_delta_y = prey[BOID_POSITION_Y] - obstacle[OBSTACLE_POSITION_Y]
-
-                        #if abs(position_delta_x) > obstacle[OBSTACLE_RADIUS] + 12.0 or \
-                        #   abs(position_delta_y) > obstacle[OBSTACLE_RADIUS] + 12.0:
-                        #    continue
-
-                        #position_delta_magnitude = math.hypot(position_delta_y, position_delta_x)
-
-                        #if position_delta_magnitude == 0.0 or position_delta_magnitude > obstacle[OBSTACLE_RADIUS] + 12.0:
-                        #    continue
-
-                        #prey[BOID_OBSTACLE_X] += position_delta_x / position_delta_magnitude
-                        #prey[BOID_OBSTACLE_Y] += position_delta_y / position_delta_magnitude
-                        #prey[BOID_OBSTACLES] += 1
+                        calculate_obstacle_force(obstacle, prey)
 
         for predator in self.predator_boids:
             offset_x, remainder_x = divmod(predator[BOID_POSITION_X], neighbor_range)
@@ -301,13 +290,15 @@ class BoidSimulation(object):
 
             num_neighbors = predator[BOID_NEIGHBORS]
 
-            if num_neighbors:
+            velocity_x = predator[BOID_VELOCITY_X]
+            velocity_y = predator[BOID_VELOCITY_Y]
 
+            if num_neighbors:
                 cohesion_force_x = predator[BOID_COHESION_X] / num_neighbors - predator[BOID_POSITION_X]
                 cohesion_force_y = predator[BOID_COHESION_Y] / num_neighbors - predator[BOID_POSITION_Y]
 
-                velocity_x = predator[BOID_VELOCITY_X] + predator_chase_weight * cohesion_force_x
-                velocity_y = predator[BOID_VELOCITY_Y] + predator_chase_weight * cohesion_force_y
+                velocity_x += predator_chase_weight * cohesion_force_x
+                velocity_y += predator_chase_weight * cohesion_force_y
 
                 velocity_magnitude = math.hypot(velocity_x, velocity_y)
 
@@ -315,16 +306,15 @@ class BoidSimulation(object):
                     velocity_x = velocity_x / velocity_magnitude * predator_velocity_limit
                     velocity_y = velocity_y / velocity_magnitude * predator_velocity_limit
 
-                predator[BOID_VELOCITY_X] = velocity_x
-                predator[BOID_VELOCITY_Y] = velocity_y
+            if predator[BOID_OBSTACLES]:
+                velocity_x += predator[BOID_OBSTACLE_X]
+                velocity_y += predator[BOID_OBSTACLE_Y]
+
+            predator[BOID_VELOCITY_X] = velocity_x
+            predator[BOID_VELOCITY_Y] = velocity_y
 
             predator[BOID_POSITION_X] = (predator[BOID_POSITION_X] + predator[BOID_VELOCITY_X]) % self.world_size[0]
             predator[BOID_POSITION_Y] = (predator[BOID_POSITION_Y] + predator[BOID_VELOCITY_Y]) % self.world_size[1]
-
-        #print('sum = {0}/{1}'.format(sum(len(x) for x in self.prey_cells.flat), len(self.prey_boids)))
-
-        #for y in range(self.prey_cells.shape[1]):
-        #    print(' '.join('{0}'.format(len(self.prey_cells[x, y])) for x in range(self.prey_cells.shape[0])))
 
         for boid in self.prey_boids:
             offset_x, remainder_x = divmod(boid[BOID_POSITION_X], neighbor_range)
@@ -338,8 +328,6 @@ class BoidSimulation(object):
 
             for x in range(max(ox, 0), min(ox + 2, self.prey_cells.shape[0])):
                 for y in range(max(oy, 0), min(oy + 2, self.prey_cells.shape[1])):
-            #for x in range(offset_x - 1, offset_x + 1):
-            #    for y in range(offset_y - 1, offset_y + 1):
                     for other in self.prey_cells[x, y]:
                         if boid is other:
                             continue
@@ -377,20 +365,10 @@ class BoidSimulation(object):
                         other[BOID_SEPARATION_X] += -scaled_separation_x
                         other[BOID_SEPARATION_Y] += -scaled_separation_y
 
-                #    scaled_position_delta = position_delta / (position_delta_magnitude ** 2)
-
-                #    prey[i].separation_count += 1
-                #    prey[j].separation_count += 1
-
-                #    prey[i].separation_acc_buffer +=  scaled_position_delta
-                #    prey[j].separation_acc_buffer += -scaled_position_delta
-
                         boid[BOID_NEIGHBORS] += 1
                         other[BOID_NEIGHBORS] += 1
 
             self.prey_cells[offset_x, offset_y].remove(boid)
-
-        #time_c = timeit.default_timer()
 
         for boid in self.prey_boids:
             num_neighbors = boid[BOID_NEIGHBORS]
@@ -436,13 +414,6 @@ class BoidSimulation(object):
             boid[BOID_POSITION_X] = (boid[BOID_POSITION_X] + boid[BOID_VELOCITY_X]) % self.world_size[0]
             boid[BOID_POSITION_Y] = (boid[BOID_POSITION_Y] + boid[BOID_VELOCITY_Y]) % self.world_size[1]
 
-            #for i in range(5, 12):
-            #    boid[i] = 0.0
-
-        #time_d = timeit.default_timer()
-        #print('step {0:.5f} {1:.5f} {2:.5f} = {3:.2f} Hz'.format(time_b - time_a, time_c - time_b, time_d - time_c, 1.0 / (time_d - time_a)))
-        #print('step {0:.2f} Hz'.format(1.0 / (time_d - time_a)))
-
 class BoidSimulationWidget(QWidget):
 
     class Action(enum.Enum):
@@ -483,19 +454,6 @@ class BoidSimulationWidget(QWidget):
         self.fps_update_counter = 0
 
         self.__post_simulation_state()
-
-#    def __build_random_boid(self, velocity_magnitude, radius):
-#        random_position = numpy.array([
-#            random.random() * self.world_size[0],
-#            random.random() * self.world_size[1]])
-#
-#        velocity_direction = random.uniform(-math.pi, math.pi)
-#
-#        random_velocity = numpy.array([
-#            math.cos(velocity_direction) * velocity_magnitude,
-#            math.sin(velocity_direction) * velocity_magnitude])
-#
-#        return Boid(random_position, random_velocity, radius)
 
     def __calculate_prey_neighbors(self, prey):
         return [other for other in self.prey_boids
@@ -544,7 +502,6 @@ class BoidSimulationWidget(QWidget):
         self.boid_path.lineTo(-0.5,  1.0)
         self.boid_path.lineTo( 0.5,  1.0)
         self.boid_path.lineTo( 0.0, -1.0)
-
 
     def __post_simulation_state(self):
         num_prey      = len(self.boid_simulation.prey_boids)
@@ -603,6 +560,13 @@ class BoidSimulationWidget(QWidget):
 #
 #        self.update()
 
+#    def mousePressEvent(self, event):
+#        if self.left_click_action is BoidSimulationWidget.Action.add_obstacle:
+#            entity = 
+#
+#
+#        add_obstacle  = 3
+
     def mouseReleaseEvent(self, event):
         #self.focus_boid = None
 
@@ -614,7 +578,7 @@ class BoidSimulationWidget(QWidget):
         #self.boid_simulation.spawn_random_prey()
 
         #boid = array.array('f', (0.0,) * 12)
-        #boid[BOID_RADIUS]     = 10.0
+        #boid[ENTITY_RADIUS]     = 10.0
         #boid[BOID_POSITION_X] = float(event.x())
         #boid[BOID_POSITION_Y] = float(event.y())
         #boid[BOID_VELOCITY_X] = 2.5
@@ -630,7 +594,7 @@ class BoidSimulationWidget(QWidget):
 
     def paintEvent(self, event):
         def paint_boid(painter, boid, brush):
-            boid_radius    = boid[BOID_RADIUS]
+            boid_radius    = boid[ENTITY_RADIUS]
             boid_direction = math.atan2(boid[BOID_VELOCITY_Y], boid[BOID_VELOCITY_X])
 
             painter.save()
@@ -643,7 +607,6 @@ class BoidSimulationWidget(QWidget):
         time_a = timeit.default_timer()
 
         with self.drawing_lock:
-
             painter = QPainter(self)
             painter.setRenderHint(QPainter.Antialiasing, True)
 
@@ -657,105 +620,18 @@ class BoidSimulationWidget(QWidget):
 
             for obstacle in self.boid_simulation.obstacles:
                 painter.drawEllipse(
-                    QPointF(obstacle[OBSTACLE_POSITION_X], obstacle[OBSTACLE_POSITION_Y]),
-                    obstacle[OBSTACLE_RADIUS], obstacle[OBSTACLE_RADIUS])
+                    QPointF(obstacle[ENTITY_POSITION_X], obstacle[ENTITY_POSITION_Y]),
+                    obstacle[ENTITY_RADIUS], obstacle[ENTITY_RADIUS])
                 painter.setBrush(self.obstacle_brush)
                 painter.drawEllipse(
-                    QPointF(obstacle[OBSTACLE_POSITION_X], obstacle[OBSTACLE_POSITION_Y]),
-                    obstacle[OBSTACLE_RADIUS], obstacle[OBSTACLE_RADIUS])
-
-            # Draw prey boids
-            painter.setPen(self.boid_pen)
+                    QPointF(obstacle[ENTITY_POSITION_X], obstacle[ENTITY_POSITION_Y]),
+                    obstacle[ENTITY_RADIUS], obstacle[ENTITY_RADIUS])
 
             for prey in self.boid_simulation.prey_boids:
                 paint_boid(painter, prey, self.__get_prey_brush(prey))
-                #painter.setBrush(self.__get_prey_brush(prey))
-                #painter.drawEllipse(
-                #    QPointF(prey[BOID_POSITION_X], prey[BOID_POSITION_Y]),
-                #    prey[BOID_RADIUS], prey[BOID_RADIUS])
 
-
-#                if neighbors:
-#                    cohesion_force_x = prey[BOID_COHESION_X] / prey[BOID_NEIGHBORS]
-#                    cohesion_force_y = prey[BOID_COHESION_Y] / prey[BOID_NEIGHBORS]
-#
-#                    painter.drawLine(
-#                        QPointF(prey[BOID_POSITION_X], prey[BOID_POSITION_Y]),
-#                        QPointF(cohesion_force_x, cohesion_force_y))
-
-                # Draw direction indicator
-                #velocity_magnitude = math.hypot(prey[BOID_VELOCITY_X], prey[BOID_VELOCITY_Y])
-
-                #if velocity_magnitude:
-                #    s_x = prey[BOID_VELOCITY_X] / velocity_magnitude * prey[BOID_RADIUS]
-                #    s_y = prey[BOID_VELOCITY_Y] / velocity_magnitude * prey[BOID_RADIUS]
-
-                #    painter.drawLine(
-                #        QPointF(prey[BOID_POSITION_X] + s_x * 0.8,
-                #                prey[BOID_POSITION_Y] + s_y * 0.8),
-                #        QPointF(prey[BOID_POSITION_X] + s_x * 1.2,
-                #                prey[BOID_POSITION_Y] + s_y * 1.2))
-
-            # Draw predator
             for predator in self.boid_simulation.predator_boids:
                 paint_boid(painter, predator, self.predator_brush)
-
-            #painter.setPen(QPen(QBrush(Qt.red), 0))
-            #x = neighbor_range
-
-            #while x < self.boid_simulation.world_size[0]:
-            #    painter.drawLine(QPointF(x, 0.0), QPointF(x, self.boid_simulation.world_size[1]))
-            #    x += neighbor_range
-
-            #y = neighbor_range
-
-            #while y < self.boid_simulation.world_size[1]:
-            #    painter.drawLine(QPointF(0.0, y), QPointF(self.boid_simulation.world_size[0], y))
-            #    y += neighbor_range
-
-
-            #velocity_magnitude = math.hypot(self.prey_boids[offset + BOID_VELOCITY_X], self.prey_boids[offset + BOID_VELOCITY_Y])
-            #if velocity_magnitude:
-            #    direction = self.prey_boids[offset + BOID_VELOCITY] / velocity_magnitude
-
-            #    a_x = self.prey_boids[offset + BOID_POSITION_X] +
-
-            #    a = self.prey_boids[offset + BOID_POSITION] + self.prey_boids[offset + BOID_RADIUS] * 0.8 * direction
-            #    b = self.prey_boids[offset + BOID_POSITION] + self.prey_boids[offset + BOID_RADIUS] * 1.2 * direction
-            #    painter.drawLine(QPointF(a[0], a[1]), QPointF(b[0], b[1]))
-
-        #time_b = timeit.default_timer()
-        #print('draw = {0}'.format(time_b - time_a))
-
-            #for prey in self.prey_boids:
-            #    paint_boid(painter, prey)
-
-#                neighbors = self.__calculate_prey_neighbors(prey)
-#                if neighbors:
-#                    cohesion_vector = numpy.mean(list(neighbor.position for neighbor in neighbors), axis=0)
-#
-#                    painter.setPen(QPen(QBrush(Qt.red), 0))
-#                    painter.drawLine(QPointF(prey.position[0], prey.position[1]), QPointF(cohesion_vector[0], cohesion_vector[1]))
-#                    painter.setPen(self.boid_pen)
-
-
-
-
-#                neighbors = calculate_neighbors(boid)
-#
-#                if neighbors:
-#                    print(neighbors)
-#
-#                    print(numpy.mean(list(neighbor.position for neighbor in neighbors)))
-#
-#                    cohesion = self.get_parameter_value(BoidSimulation.Parameter.cohesion) * \
-#                               (numpy.mean(list(neighbor.position for neighbor in neighbors)) - boid.position)
-
-            # Draw predator boids
-            #painter.setBrush(self.predator_brush)
-
-            #for predator in self.predator_boids:
-            #    paint_boid(painter, predator)
 
     def play(self):
         while self.is_playing:
@@ -869,12 +745,6 @@ class BoidApplication(QMainWindow):
         self.slider_frequency.setValue(50)
 
         self.show()
-
-#%    def event(self, e):
-#%        if e.type() == QEvent.LayoutRequest:
-#%            self.setFixedSize(self.sizeHint())
-#%
-#%        return super(BoidApplication, self).event(e)
 
     def initialize_group_box_action(self):
         actions = [ ('Add Prey',        BoidSimulationWidget.Action.add_prey),
