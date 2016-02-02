@@ -1,0 +1,82 @@
+\input{../../../permve-ntnu-latex/assignment.tex}
+
+\usepackage{tabularx} % for 'tabularx' environment and 'X' column type
+\usepackage{ragged2e} % for '\RaggedRight' macro (allows hyphenation)
+\usepackage{relsize} % larger math symbols
+
+\def\tabularxcolumn#1{m{#1}}
+\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
+
+\title{
+\normalfont \normalsize
+\textsc{Norwegian University of Science and Technology\\IT3708 -- Subsymbolic Methods in AI}
+\horrule{0.5pt} \\[0.4cm]
+\huge Project 1:\\ Flocking and Avoidance with Boids\\
+\horrule{2pt} \\[0.5cm]
+}
+
+\author{Per Magnus Veierland\\permve@stud.ntnu.no}
+
+\date{\normalsize\today}
+
+\newacro{GUI}{Graphical User Interface}
+
+\begin{document}
+
+\fancyfoot[C]{}
+\maketitle
+
+\newpage
+\fancyfoot[C]{\thepage~of~\pageref{LastPage}} % Page numbering for right footer
+\setcounter{page}{1}
+
+\section*{Program implementation}
+
+The project has been implemented using the \textit{Python} language with the \textit{Qt} \ac{GUI} framework through the \textit{PyQt} bindings.
+
+With a naive implementation, the update function of a boid program would have an $O(N^2)$ time complexity; which significantly limits the scalability of the program. For the average case this can be improved by using a spatial data structure to store boids. The implemented structure consists of a 2D-grid of square cells, where each cell has a width and height equal to the boid neighbor radius. This allows the neighbors of a boid to be found by examining only four cells; the cell which the boid is currently in, plus the three cells cornering the quadrant of the current cell which is occupied by the boid in question.
+
+Such a spatial data structure works well as long as not too many boids congest within the same neighborhood. Since the number of obstacles and predators is low, the structure is only used for prey boids.
+
+\subsection*{Forces}
+
+TODO Separation force...
+
+The alignment force (equation~\ref{eq:alignment}) is intended to align the heading and speed of a boid with its neighbors. For a given prey boid, $b$, the alignment force is calculated as the average velocity vector, $\textbf{v}$, for the boid's neighborhood $N_b$.
+
+\begin{equation}
+\label{eq:alignment}
+\textbf{F}_\textit{alignment}(b) = \frac{1}{\left\vert N_b \right\vert}~\mathlarger{\sum}_{n~\in~N_b} \textbf{v}_b
+\end{equation}
+
+The cohesion force (equation~\ref{eq:cohesion}) is intended to force prey boids towards their neighbors. For a given prey boid, $b$, the cohesion force is calculated as the average position of its neighbors, $N_b$, minus its position; $\textbf{p}_b$.
+
+\begin{equation}
+\label{eq:cohesion}
+\textbf{F}_\textit{cohesion}(b) = \Bigg[\frac{1}{\left\vert N_b \right\vert}~\mathlarger{\sum}_{n~\in~N_b} \textbf{p}_n\Bigg] - \textbf{p}_b
+\end{equation}
+
+TODO OBSTACLE AVOIDANCE FORCE
+
+TODO PREDATOR FLEE FORCE
+
+%#\begin{displaymath}
+%#\textbf{SeparationForce}(b) =
+
+\section*{Emergent behavior}
+
+\begin{tabularx}{\textwidth}{@{} c c c c Y @{}}
+\toprule
+Scenario & Separation & Alignment & Cohesion & Outcome \\
+\midrule
+1 & Low  & Low  & High & Whatever \\
+2 & Low  & High & Low  & Whatever \\
+3 & High & Low  & Low  & Whatever \\
+4 & Low  & High & High & Whatever \\
+5 & High & Low  & High & Whatever \\
+6 & High & High & Low  & Whatever \\
+\bottomrule
+\end{tabularx}
+
+\end{document}
+
