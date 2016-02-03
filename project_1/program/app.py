@@ -42,24 +42,25 @@ BOID_NEIGHBORS    = 16
 
 OBSTACLE_ATTRIBUTES = 3
 
+OBSTACLE_DEFAULT_RADIUS = 25.0
+
 class BoidSimulation(object):
 
     class Parameter(enum.Enum):
-        prey                  = (1, 0, 200, 0)
-        predators             = (2, 0, 100, 0)
-        obstacles             = (3, 0, 50, 0)
-        separation            = (4, 0.0, 100.0, 11.0)
-        alignment             = (5, 0.0, 2.0, 0.18)
-        cohesion              = (6, 0.0, 2.0, 0.22)
-        predator_weight       = (7, 0.0, 10.0, 2.0)
-        neighbor_range        = (8, 1.0, 200.0, 80.0)
-        separation_range      = (9, 1.0, 100.0, 25.0)
-        predator_range        = (10, 1.0, 100.0, 75.0)
-        prey_velocity_limit     = (11, 0.1, 10.0, 5.0)
-        predator_velocity_limit = (12, 0.1, 10.0, 4.0)
-        predator_chase_weight = (13, 0.0, 10.0, 0.05)
-        prey_obstacle_weight  = (14, 0.0, 10.0, 8.0)
-        obstacle_test_range   = (15, 0.0, 100.0, 50.0)
+        prey                      = (  1,   0, 200  ,   0    )
+        predators                 = (  2,   0, 100  ,   0    )
+        obstacles                 = (  3,   0,  50  ,   0    )
+        separation_weight         = (  4, 0.0, 100.0,  11.0  )
+        alignment_weight          = (  5, 0.0,   2.0,   0.18 )
+        cohesion_weight           = (  6, 0.0,   2.0,   0.22 )
+        obstacle_weight           = (  7, 0.0, 100.0,  80.0  )
+        predator_avoidance_weight = (  8, 0.0,  10.0,   2.0  )
+        predator_chase_weight     = (  9, 0.0,  10.0,   0.05 )
+        neighbor_range            = ( 10, 1.0, 200.0,  80.0  )
+        predator_range            = ( 12, 1.0, 100.0,  75.0  )
+        obstacle_test_range       = ( 13, 0.0, 200.0, 100.0  )
+        prey_velocity_limit       = ( 14, 0.1,  10.0,   5.0  )
+        predator_velocity_limit   = ( 15, 0.1,  10.0,   4.0  )
 
         def __init__(self, identity, min_value, max_value, default_value):
             self.identity      = identity
@@ -69,20 +70,13 @@ class BoidSimulation(object):
 
     def __init__(self):
         self.world_size     = (1.0, 1.0)
-        self.prey_boids     = collections.deque(maxlen=500)
+        self.prey_boids     = collections.deque()
         self.obstacles      = collections.deque()
         self.predator_boids = collections.deque()
 
         self.parameters = {}
         for parameter in BoidSimulation.Parameter:
             self.set_parameter_value(parameter, parameter.default_value)
-
-    def __add_obstacle(self, x, y, radius):
-        obstacle = array.array('f', (0.0,) * OBSTACLE_ATTRIBUTES)
-        obstacle[ENTITY_RADIUS]     = radius
-        obstacle[ENTITY_POSITION_X] = x
-        obstacle[ENTITY_POSITION_Y] = y
-        self.obstacles.append(obstacle)
 
     def __build_random_boid(self, velocity_magnitude, radius):
         random_position = self.world_size * numpy.random.rand(2)
@@ -103,16 +97,22 @@ class BoidSimulation(object):
         return boid
 
     def __update_prey_cells(self):
-        neighbor_range = self.get_parameter_value(BoidSimulation.Parameter.neighbor_range)
-
-        num_prey_cells = (int(math.ceil(self.world_size[0] / neighbor_range)),
-                          int(math.ceil(self.world_size[1] / neighbor_range)))
+        num_prey_cells = \
+            (int(math.ceil(self.world_size[0] / self.parameters[BoidSimulation.Parameter.neighbor_range])),
+             int(math.ceil(self.world_size[1] / self.parameters[BoidSimulation.Parameter.neighbor_range])))
 
         self.prey_cells = numpy.empty(num_prey_cells, dtype=object)
 
         for x in range(num_prey_cells[0]):
             for y in range(num_prey_cells[1]):
-                self.prey_cells[x, y] = collections.deque(maxlen=500)
+                self.prey_cells[x, y] = collections.deque()
+
+    def add_obstacle(self, x, y, radius):
+        obstacle = array.array('f', (0.0,) * OBSTACLE_ATTRIBUTES)
+        obstacle[ENTITY_RADIUS]     = radius
+        obstacle[ENTITY_POSITION_X] = x
+        obstacle[ENTITY_POSITION_Y] = y
+        self.obstacles.append(obstacle)
 
     def get_parameter_value(self, parameter):
         return self.parameters[parameter]
@@ -157,7 +157,7 @@ class BoidSimulation(object):
             self.get_parameter_value(BoidSimulation.Parameter.prey_velocity_limit), 12.0))
 
     def spawn_random_obstacle(self):
-        self.__add_obstacle(
+        self.add_obstacle(
             radius=random.uniform(5.0, 25.0),
             x=random.random() * self.world_size[0],
             y=random.random() * self.world_size[1])
@@ -184,39 +184,74 @@ class BoidSimulation(object):
 
                 dist_magnitude = math.hypot(dist_x, dist_y)
 
-                if dist_magnitude < obstacle[ENTITY_RADIUS] + boid[ENTITY_RADIUS]:
+                if (dist_magnitude < obstacle[ENTITY_RADIUS] + boid[ENTITY_RADIUS]) and \
+                    (boid[BOID_OBSTACLES] == 0.0 or projection_magnitude < boid[BOID_OBSTACLES]):
+
                     forward_direction = math.atan2(forward_y, forward_x)
 
-                    is_diff_left_of_velocity = \
-                        1.0 if (-diff_y * boid[BOID_VELOCITY_X] + diff_x * boid[BOID_VELOCITY_Y]) >= 0.0 else -1.0
+                    force_x = dist_x / dist_magnitude * (obstacle[ENTITY_RADIUS] + boid[ENTITY_RADIUS])
+                    force_y = dist_y / dist_magnitude * (obstacle[ENTITY_RADIUS] + boid[ENTITY_RADIUS])
 
-                    forward_direction += is_diff_left_of_velocity * math.pi / 2.0
+                    boid[BOID_OBSTACLE_X] = force_x
+                    boid[BOID_OBSTACLE_Y] = force_y
+                    boid[BOID_OBSTACLES]  = projection_magnitude
 
-                    ratio = projection_magnitude / obstacle_test_range
+        def calculate_obstacle_forces():
+            for obstacle in self.obstacles:
+                offset_x, remainder_x = divmod(obstacle[ENTITY_POSITION_X], neighbor_range)
+                offset_y, remainder_y = divmod(obstacle[ENTITY_POSITION_Y], neighbor_range)
 
-                    force_x = math.cos(forward_direction) * velocity_limit * (1.0 - ratio) * ratio
-                    force_y = math.sin(forward_direction) * velocity_limit * (1.0 - ratio) * ratio
+                offset_x = int(offset_x)
+                offset_y = int(offset_y)
 
-                    boid[BOID_OBSTACLE_X] += force_x
-                    boid[BOID_OBSTACLE_Y] += force_y
-                    boid[BOID_OBSTACLES] += 1
+                left_overflow  = \
+                    + obstacle[ENTITY_RADIUS] \
+                    + obstacle_test_range \
+                    - remainder_x
 
-        #time_a = timeit.default_timer()
+                right_overflow = \
+                    + obstacle_test_range \
+                    - neighbor_range \
+                    + remainder_x
 
-        neighbor_range    = self.get_parameter_value(BoidSimulation.Parameter.neighbor_range)
-        separation_range  = self.get_parameter_value(BoidSimulation.Parameter.separation_range)
-        cohesion_weight   = self.get_parameter_value(BoidSimulation.Parameter.cohesion)
-        alignment_weight  = self.get_parameter_value(BoidSimulation.Parameter.alignment)
-        separation_weight = self.get_parameter_value(BoidSimulation.Parameter.separation)
-        predator_weight   = self.get_parameter_value(BoidSimulation.Parameter.predator_weight)
-        velocity_limit    = self.get_parameter_value(BoidSimulation.Parameter.prey_velocity_limit)
-        predator_range    = self.get_parameter_value(BoidSimulation.Parameter.predator_range)
-        predator_chase_weight = self.get_parameter_value(BoidSimulation.Parameter.predator_chase_weight)
-        predator_velocity_limit = self.get_parameter_value(BoidSimulation.Parameter.predator_velocity_limit)
-        prey_obstacle_weight = self.get_parameter_value(BoidSimulation.Parameter.prey_obstacle_weight)
-        obstacle_test_range = self.get_parameter_value(BoidSimulation.Parameter.obstacle_test_range)
+                top_overflow = \
+                    + obstacle[ENTITY_RADIUS] \
+                    + obstacle_test_range \
+                    - remainder_y
 
-        half_range = neighbor_range / 2.0
+                bottom_overflow = \
+                    + obstacle_test_range \
+                    - neighbor_range \
+                    + remainder_y
+
+                start_x = max(0, offset_x - int(math.ceil(max(0.0, left_overflow) / neighbor_range)))
+                end_x   = min(self.prey_cells.shape[0],
+                              offset_x + 1 + int(math.ceil(max(0.0, right_overflow) / neighbor_range)))
+
+                start_y = max(0, offset_y - int(math.ceil(max(0.0, top_overflow) / neighbor_range)))
+                end_y   = min(self.prey_cells.shape[1],
+                              offset_y + 1 + int(math.ceil(max(0.0, bottom_overflow)) / neighbor_range))
+
+                for predator in self.predator_boids:
+                    calculate_obstacle_force(obstacle, predator)
+
+                for x in range(start_x, end_x):
+                    for y in range(start_y, end_y):
+                        for prey in self.prey_cells[x, y]:
+                            calculate_obstacle_force(obstacle, prey)
+
+        separation_weight         = self.parameters[BoidSimulation.Parameter.separation_weight]
+        alignment_weight          = self.parameters[BoidSimulation.Parameter.alignment_weight]
+        cohesion_weight           = self.parameters[BoidSimulation.Parameter.cohesion_weight]
+        obstacle_weight           = self.parameters[BoidSimulation.Parameter.obstacle_weight]
+        predator_avoidance_weight = self.parameters[BoidSimulation.Parameter.predator_avoidance_weight]
+        predator_chase_weight     = self.parameters[BoidSimulation.Parameter.predator_chase_weight]
+        neighbor_range            = self.parameters[BoidSimulation.Parameter.neighbor_range]
+        predator_range            = self.parameters[BoidSimulation.Parameter.predator_range]
+        obstacle_test_range       = self.parameters[BoidSimulation.Parameter.obstacle_test_range]
+        prey_velocity_limit       = self.parameters[BoidSimulation.Parameter.prey_velocity_limit]
+        predator_velocity_limit   = self.parameters[BoidSimulation.Parameter.predator_velocity_limit]
+        x_factor                  = self.parameters[BoidSimulation.Parameter.x_factor]
 
         for boid in self.prey_boids:
             offsets = (int(boid[BOID_POSITION_X] // neighbor_range),
@@ -230,28 +265,7 @@ class BoidSimulation(object):
             for i in range(5, BOID_ATTRIBUTES):
                 predator[i] = 0.0
 
-        #time_b = timeit.default_timer()
-
-        for obstacle in self.obstacles:
-            offset_x, remainder_x = divmod(obstacle[ENTITY_POSITION_X], neighbor_range)
-            offset_y, remainder_y = divmod(obstacle[ENTITY_POSITION_Y], neighbor_range)
-
-            offset_x = int(offset_x)
-            offset_y = int(offset_y)
-
-            start_x = max(0, offset_x - int(math.ceil(max(0.0, (obstacle[ENTITY_RADIUS] + 12.0) - remainder_x) / neighbor_range)))
-            end_x   = min(self.prey_cells.shape[0], offset_x + 1 + int(math.ceil(max(0.0, predator_range - (neighbor_range - remainder_x)) / neighbor_range)))
-
-            start_y = max(0, offset_y - int(math.ceil(max(0.0, (obstacle[ENTITY_RADIUS] + 12.0) - remainder_y) / neighbor_range)))
-            end_y   = min(self.prey_cells.shape[1], offset_y + 1 + int(math.ceil(max(0.0, predator_range - (neighbor_range - remainder_y)) / neighbor_range)))
-
-            for predator in self.predator_boids:
-                calculate_obstacle_force(obstacle, predator)
-
-            for x in range(start_x, end_x):
-                for y in range(start_y, end_y):
-                    for prey in self.prey_cells[x, y]:
-                        calculate_obstacle_force(obstacle, prey)
+        calculate_obstacle_forces()
 
         for predator in self.predator_boids:
             offset_x, remainder_x = divmod(predator[BOID_POSITION_X], neighbor_range)
@@ -300,21 +314,23 @@ class BoidSimulation(object):
                 velocity_x += predator_chase_weight * cohesion_force_x
                 velocity_y += predator_chase_weight * cohesion_force_y
 
-                velocity_magnitude = math.hypot(velocity_x, velocity_y)
-
-                if velocity_magnitude > predator_velocity_limit:
-                    velocity_x = velocity_x / velocity_magnitude * predator_velocity_limit
-                    velocity_y = velocity_y / velocity_magnitude * predator_velocity_limit
-
             if predator[BOID_OBSTACLES]:
-                velocity_x += predator[BOID_OBSTACLE_X]
-                velocity_y += predator[BOID_OBSTACLE_Y]
+                velocity_x += obstacle_weight * predator[BOID_OBSTACLE_X]
+                velocity_y += obstacle_weight * predator[BOID_OBSTACLE_Y]
+
+            velocity_magnitude = math.hypot(velocity_x, velocity_y)
+
+            if velocity_magnitude > predator_velocity_limit:
+                velocity_x = velocity_x / velocity_magnitude * predator_velocity_limit
+                velocity_y = velocity_y / velocity_magnitude * predator_velocity_limit
 
             predator[BOID_VELOCITY_X] = velocity_x
             predator[BOID_VELOCITY_Y] = velocity_y
 
             predator[BOID_POSITION_X] = (predator[BOID_POSITION_X] + predator[BOID_VELOCITY_X]) % self.world_size[0]
             predator[BOID_POSITION_Y] = (predator[BOID_POSITION_Y] + predator[BOID_VELOCITY_Y]) % self.world_size[1]
+
+        half_range = neighbor_range / 2.0
 
         for boid in self.prey_boids:
             offset_x, remainder_x = divmod(boid[BOID_POSITION_X], neighbor_range)
@@ -389,24 +405,22 @@ class BoidSimulation(object):
                 velocity_x += cohesion_weight * cohesion_force_x \
                     + alignment_weight * alignment_force_x \
                     + separation_weight * separation_force_x \
-                    + predator_weight * boid[BOID_PREDATOR_X]
+                    + predator_avoidance_weight * boid[BOID_PREDATOR_X]
 
                 velocity_y += cohesion_weight * cohesion_force_y \
                     + alignment_weight * alignment_force_y \
                     + separation_weight * separation_force_y \
-                    + predator_weight * boid[BOID_PREDATOR_Y]
+                    + predator_avoidance_weight * boid[BOID_PREDATOR_Y]
 
             if boid[BOID_OBSTACLES]:
-                obstacle_force_x = boid[BOID_OBSTACLE_X] / boid[BOID_OBSTACLES]
-                obstacle_force_y = boid[BOID_OBSTACLE_Y] / boid[BOID_OBSTACLES]
-                velocity_x += prey_obstacle_weight * obstacle_force_x
-                velocity_y += prey_obstacle_weight * obstacle_force_y
+                velocity_x += obstacle_weight * boid[BOID_OBSTACLE_X]
+                velocity_y += obstacle_weight * boid[BOID_OBSTACLE_Y]
 
             velocity_magnitude = math.hypot(velocity_x, velocity_y)
 
-            if velocity_magnitude > velocity_limit:
-                velocity_x = velocity_x / velocity_magnitude * velocity_limit
-                velocity_y = velocity_y / velocity_magnitude * velocity_limit
+            if velocity_magnitude > prey_velocity_limit:
+                velocity_x = velocity_x / velocity_magnitude * prey_velocity_limit
+                velocity_y = velocity_y / velocity_magnitude * prey_velocity_limit
 
             boid[BOID_VELOCITY_X] = velocity_x
             boid[BOID_VELOCITY_Y] = velocity_y
@@ -415,12 +429,6 @@ class BoidSimulation(object):
             boid[BOID_POSITION_Y] = (boid[BOID_POSITION_Y] + boid[BOID_VELOCITY_Y]) % self.world_size[1]
 
 class BoidSimulationWidget(QWidget):
-
-    class Action(enum.Enum):
-        add_prey      = 1
-        add_predator  = 2
-        add_obstacle  = 3
-        delete_object = 4
 
     colors = {
         'background':          QColor(255, 255, 255),
@@ -443,7 +451,6 @@ class BoidSimulationWidget(QWidget):
             QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding))
 
         self.drawing_lock      = threading.Lock()
-        self.left_click_action = BoidSimulationWidget.Action.add_prey
         self.frequency         = 1
         self.play_thread       = None
         self.is_playing        = False
@@ -454,12 +461,6 @@ class BoidSimulationWidget(QWidget):
         self.fps_update_counter = 0
 
         self.__post_simulation_state()
-
-    def __calculate_prey_neighbors(self, prey):
-        return [other for other in self.prey_boids
-                if other is not prey and
-                math.hypot(other.position[1] - prey.position[1], other.position[0] - prey.position[0])
-                    <= self.get_parameter_value(BoidSimulation.Parameter.neighbor_range)]
 
     def __get_prey_brush(self, prey):
         neighbor_count = prey[BOID_NEIGHBORS]
@@ -530,66 +531,15 @@ class BoidSimulationWidget(QWidget):
         self.frame_timings.append(time_b)
         self.fps_update_counter += 1
 
-    def get_left_click_action(self):
-        return self.left_click_action
-
     def get_parameter_value(self, parameter):
         with self.drawing_lock:
             return self.boid_simulation.parameters[parameter]
 
-#    def mouseMoveEvent(self, event):
-#        if self.focus_boid:
-#            new_velocity = numpy.array([float(event.x()), float(event.y())]) - self.focus_boid.position
-#            new_velocity_magnitude = numpy.linalg.norm(new_velocity)
-#
-#            if new_velocity_magnitude and new_velocity_magnitude > self.get_parameter_value(BoidSimulation.Parameter.max_velocity):
-#                new_velocity = new_velocity / new_velocity_magnitude * self.get_parameter_value(BoidSimulation.Parameter.max_velocity)
-#
-#            self.focus_boid.velocity = new_velocity
-#            self.update()
-#
-#    def mousePressEvent(self, event):
-#        if self.left_click_action is BoidSimulationWidget.Action.add_prey:
-#            boid = Prey(numpy.array([float(event.x()), float(event.y())]))
-#        elif self.left_click_action is BoidSimulationWidget.Action.add_predator:
-#            boid = Predator(numpy.array([float(event.x()), float(event.y())]))
-#
-#        if boid:
-#            self.boids.append(boid)
-#            self.focus_boid = boid
-#
-#        self.update()
-
-#    def mousePressEvent(self, event):
-#        if self.left_click_action is BoidSimulationWidget.Action.add_obstacle:
-#            entity = 
-#
-#
-#        add_obstacle  = 3
-
-    def mouseReleaseEvent(self, event):
-        #self.focus_boid = None
-
+    def mousePressEvent(self, event):
         with self.drawing_lock:
-            self.boid_simulation.spawn_random_prey()
-            self.__post_simulation_state()
-
-        #for _ in range(100):
-        #self.boid_simulation.spawn_random_prey()
-
-        #boid = array.array('f', (0.0,) * 12)
-        #boid[ENTITY_RADIUS]     = 10.0
-        #boid[BOID_POSITION_X] = float(event.x())
-        #boid[BOID_POSITION_Y] = float(event.y())
-        #boid[BOID_VELOCITY_X] = 2.5
-        #boid[BOID_VELOCITY_Y] = 0.0
-
-        #with self.drawing_lock:
-        #    self.boid_simulation.prey_boids.append(boid)
-
-#        for _ in range(1000):
-#            self.step()
-
+            obstacle_radius = 8.0 if event.button() == Qt.RightButton else 15.0
+            self.boid_simulation.add_obstacle(radius=obstacle_radius, x=float(event.x()), y=float(event.y()))
+        self.__post_simulation_state()
         self.update()
 
     def paintEvent(self, event):
@@ -635,9 +585,6 @@ class BoidSimulationWidget(QWidget):
 
     def play(self):
         while self.is_playing:
-            #now = time.time()
-            #t = 1.0 / self.frequency
-            #time.sleep(t - (now - self.thread_start) % t)
             time.sleep(1.0 / self.frequency)
 
             with self.drawing_lock:
@@ -653,9 +600,6 @@ class BoidSimulationWidget(QWidget):
 
     def set_frequency(self, frequency):
         self.frequency = frequency
-
-    def set_left_click_action(self, action):
-        self.left_click_action = action
 
     def set_parameter_value(self, parameter, value):
         with self.drawing_lock:
@@ -682,8 +626,7 @@ class BoidSimulationWidget(QWidget):
     def toggle_play(self):
         if not self.is_playing:
             self.set_playing(True)
-            self.thread_start = time.time()
-            self.play_thread  = threading.Thread(target=self.play)
+            self.play_thread = threading.Thread(target=self.play)
             self.play_thread.start()
         else:
             self.set_playing(False)
@@ -706,7 +649,6 @@ class BoidApplication(QMainWindow):
 
         self.initialize_group_box_parameters()
         self.initialize_group_box_control()
-        self.initialize_group_box_action()
 
         label_layout = QHBoxLayout()
         label_layout.addWidget(self.label_simulation_state)
@@ -719,7 +661,6 @@ class BoidApplication(QMainWindow):
 
         right_layout = QVBoxLayout()
         right_layout.addWidget(self.group_box_control)
-        right_layout.addWidget(self.group_box_action)
         right_layout.addWidget(self.group_box_parameters)
         right_layout.addStretch(1)
 
@@ -741,31 +682,9 @@ class BoidApplication(QMainWindow):
         self.setCentralWidget(widget)
 
         self.update_fps_value(0.0)
-        self.action_button_group.buttons()[0].setChecked(True)
         self.slider_frequency.setValue(50)
 
         self.show()
-
-    def initialize_group_box_action(self):
-        actions = [ ('Add Prey',        BoidSimulationWidget.Action.add_prey),
-                    ('Add Predator',    BoidSimulationWidget.Action.add_predator),
-                    ('Add Obstacle',    BoidSimulationWidget.Action.add_obstacle),
-                    ('Delete Obstacle', BoidSimulationWidget.Action.delete_object) ]
-
-        self.action_button_group = QButtonGroup()
-        layout = QVBoxLayout()
-
-        for label, action in actions:
-            radio_button = QRadioButton(label)
-            radio_button.toggled.connect(
-                lambda is_set, action=action:
-                    self.boid_simulation_widget.set_left_click_action(action) if is_set else None)
-
-            self.action_button_group.addButton(radio_button)
-            layout.addWidget(radio_button)
-
-        self.group_box_action = QGroupBox('Left button action')
-        self.group_box_action.setLayout(layout)
 
     def initialize_group_box_parameters(self):
         class ParameterWidgets(object):
@@ -888,16 +807,6 @@ class BoidApplication(QMainWindow):
         self.label_simulation_state.setText(state)
 
 def main():
-    #sim = BoidSimulation()
-
-    #for _ in range(500):
-    #    sim.spawn_random_prey()
-
-    #for _ in range(100):
-    #    sim.step()
-
-    #return
-
     app = QApplication(sys.argv)
     boid_application = BoidApplication()
     sys.exit(app.exec_())
