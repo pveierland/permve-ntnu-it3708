@@ -1,7 +1,5 @@
 \input{../../../permve-ntnu-latex/assignment.tex}
 
-\usepackage{tabularx} % for 'tabularx' environment and 'X' column type
-\usepackage{ragged2e} % for '\RaggedRight' macro (allows hyphenation)
 \usepackage{relsize} % larger math symbols
 
 \def\tabularxcolumn#1{m{#1}}
@@ -32,51 +30,69 @@
 
 \section*{Program implementation}
 
-The project has been implemented using the \textit{Python} language with the \textit{Qt} \ac{GUI} framework through the \textit{PyQt} bindings.
+The project has been implemented using the \textit{Python} language with the \textit{Qt} \ac{GUI} framework through the \textit{PyQt} bindings library.
 
-With a naive implementation, the update function of a boid program would have an $O(N^2)$ time complexity; which significantly limits the scalability of the program. For the average case this can be improved by using a spatial data structure to store boids. The implemented structure consists of a 2D-grid of square cells, where each cell has a width and height equal to the boid neighbor radius. This allows the neighbors of a boid to be found by examining only four cells; the cell which the boid is currently in, plus the three cells cornering the quadrant of the current cell which is occupied by the boid in question.
+With a naive implementation, the update function of a boid program would have an $O(N^2)$ time complexity which significantly limits the scalability of the program. For the average case this can be improved by using a spatial data structure to store boids. The implemented structure consists of a 2D-grid of square cells, where each cell has a width and height equal to the boid neighbor radius. This allows the neighbors of a boid to be found by examining only four cells; the cell which the boid is currently in, plus the three cells cornering the quadrant of the current cell which is occupied by the boid in question. This approach scales well as long as not too many boids congest within the same neighborhood.
 
-Such a spatial data structure works well as long as not too many boids congest within the same neighborhood. Since the number of obstacles and predators is low, the structure is only used for prey boids.
+After beginning an implementation using a class hierarchy it was found that the memory layout of the boid values could be made more efficient by using plain arrays to represent each boid. Each boid, both prey and predators, is represented as an array of 17~floats -- and each obstacle is represented by an array of 3~floats. Due to overheads experienced with using \textit{numpy} data structures, plain trigonometric math was implemented directly.
 
-\subsection*{Forces}
+\section*{Forces}
 
-TODO Separation force...
+The separation force (equation~\ref{eq:separation}) is intended to prevent boids from establishing singular flocks through forcing them apart. For a given boid $b$, the separation force is calculated as the average normalized difference between the position of the boid, $\textbf{p}_b$, and the position of each neighbor, $\textbf{p}_n$.
 
-The alignment force (equation~\ref{eq:alignment}) is intended to align the heading and speed of a boid with its neighbors. For a given prey boid, $b$, the alignment force is calculated as the average velocity vector, $\textbf{v}$, for the boid's neighborhood $N_b$.
+\begin{equation}
+\label{eq:separation}
+\textbf{F}_\textit{separation}(b) = \frac{1}{\left\vert N_b \right\vert}~\mathlarger{\sum}_{n~\in~N_b} \frac{\textbf{p}_b - \textbf{p}_n}{\left\vert\textbf{p}_b - \textbf{p}_n\right\vert}
+\end{equation}
+
+The alignment force (equation~\ref{eq:alignment}) is intended to align the heading and speed of a boid with its neighbors. For a given boid, $b$, the alignment force is calculated as the average velocity vector, $\textbf{v}$, for the boid's neighborhood $N_b$.
 
 \begin{equation}
 \label{eq:alignment}
 \textbf{F}_\textit{alignment}(b) = \frac{1}{\left\vert N_b \right\vert}~\mathlarger{\sum}_{n~\in~N_b} \textbf{v}_b
 \end{equation}
 
-The cohesion force (equation~\ref{eq:cohesion}) is intended to force prey boids towards their neighbors. For a given prey boid, $b$, the cohesion force is calculated as the average position of its neighbors, $N_b$, minus its position; $\textbf{p}_b$.
+The cohesion force (equation~\ref{eq:cohesion}) is intended to force boids towards their neighbors. For a given boid, $b$, the cohesion force is calculated as the average position of its neighbors, $N_b$, minus its position; $\textbf{p}_b$.
 
 \begin{equation}
 \label{eq:cohesion}
 \textbf{F}_\textit{cohesion}(b) = \Bigg[\frac{1}{\left\vert N_b \right\vert}~\mathlarger{\sum}_{n~\in~N_b} \textbf{p}_n\Bigg] - \textbf{p}_b
 \end{equation}
 
-TODO OBSTACLE AVOIDANCE FORCE
+The obstacle avoidance force is intended to keep boids from colliding with objects. Its calculation can be described in three steps, see equation~\ref{eq:ob1}-\ref{eq:ob3}. First the difference of the position of the obstacle closest and in front of the boid, $\textbf{p}_o$, and the position of the boid, $\textbf{p}_b$, is projected in the velocity direction of the boid to create the vector $\boldsymbol{\xi}_b$ (equation~\ref{eq:ob1}). If the magnitude of $\boldsymbol{\xi}_b$ is positive, then the obstacle is in front of the boid. Further, $\delta_b$ is calculated as the difference between the projected vector $\boldsymbol{\xi}_b$ and the center of the obstacle (equation~\ref{eq:ob2}). If the magnitude of $\delta_b$ is less than the radius of the obstacle, $R_o$, plus the radius of the boid, $R_b$, then a corrective force, $\textbf{F}_\textit{object}(b)$, is calculated (equation~\ref{eq:ob3}).
 
-TODO PREDATOR FLEE FORCE
+\begin{equation}
+\label{eq:ob1}
+\boldsymbol{\xi}_b = (\textbf{p}_o - \textbf{p}_b) \cdot \frac{\textbf{v}_b}{\left\vert\textbf{v}_b\right\vert}
+\end{equation}
 
-%#\begin{displaymath}
-%#\textbf{SeparationForce}(b) =
+\begin{equation}
+\label{eq:ob2}
+\boldsymbol{\delta}_b = \boldsymbol{\xi}_b - (\textbf{p}_o - \textbf{p}_b)
+\end{equation}
+
+\begin{equation}
+\label{eq:ob3}
+\textbf{F}_\textit{object}(b) = \frac{\boldsymbol{\delta}_b}{\left\vert\boldsymbol{\delta}_b\right\vert} \cdot (R_o + R_b - \left\vert\boldsymbol{\delta}_b\right\vert)
+\end{equation}
+
+The predator avoidance force is used by prey boids to avoid predator boids (equation~\ref{eq:predator}). It is calculated as the sum of the normalized differences between the position of the boid, $\textbf{p}_b$, and the position of each predator, $\textbf{p}_p$, which are within a given predator distance of the boid; denoted as the set $P_b$.
+
+\begin{equation}
+\label{eq:predator}
+\textbf{F}_\textit{predator}(b) = \mathlarger{\sum}_{p~\in~P_b} \frac{\textbf{p}_b - \textbf{p}_p}{\left\vert\textbf{p}_b - \textbf{p}_p\right\vert}
+\end{equation}
 
 \section*{Emergent behavior}
 
-\begin{tabularx}{\textwidth}{@{} c c c c Y @{}}
-\toprule
-Scenario & Separation & Alignment & Cohesion & Outcome \\
-\midrule
-1 & Low  & Low  & High & Whatever \\
-2 & Low  & High & Low  & Whatever \\
-3 & High & Low  & Low  & Whatever \\
-4 & Low  & High & High & Whatever \\
-5 & High & Low  & High & Whatever \\
-6 & High & High & Low  & Whatever \\
-\bottomrule
-\end{tabularx}
+\begin{enumerate}
+\item \textbf{Low separation, low alignment, high cohesion:} Existing flocks of boids gather into tighly formed packs. Flocks keep merging until there is only a single tight flock consisting of every boid.
+\item \textbf{Low separation, high alignment, low cohesion:} Flocks grow into large structures as the boids all agree on their direction. Over time all flocks assemble into a single monolithic structure.
+\item \textbf{High separation, low alignment, low cohesion:} Boids spread out across the world and keep away from each other; resulting in evenly distributed boids and no flocking. Boid behavior is erratic as they continuously attempt to keep separated.
+\item \textbf{Low separation, high alignment, high cohesion:} Boids gather into tight packs with a shared heading. Due to the increased alignment weight, the resulting single tight flock gathers quicker and is better maintained compared to scenario \#1.
+\item \textbf{High separation, low alignment, high cohesion:} With large and equal separation and cohesion weights, erratic normal-sized flocks emerge with boids rapidly switching between gathering and separation within their flocks.
+\item \textbf{High separation, high alignment, low cohesion:} Using large weights for alignment and separation, broadly spaced large fields of boids moving in a single direction can be created. No distinct flocks occur, but there is a clear global pattern of uniformly moving and evenly spaced boids.
+\end{enumerate}
 
 \end{document}
 

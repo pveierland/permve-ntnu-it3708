@@ -53,12 +53,12 @@ class BoidSimulation(object):
         separation_weight         = (  4, 0.0, 100.0,  11.0  )
         alignment_weight          = (  5, 0.0,   2.0,   0.18 )
         cohesion_weight           = (  6, 0.0,   2.0,   0.22 )
-        obstacle_weight           = (  7, 0.0, 100.0,  80.0  )
+        obstacle_weight           = (  7, 0.0, 100.0,  20.0  )
         predator_avoidance_weight = (  8, 0.0,  10.0,   2.0  )
         predator_chase_weight     = (  9, 0.0,  10.0,   0.05 )
         neighbor_range            = ( 10, 1.0, 200.0,  80.0  )
         predator_range            = ( 12, 1.0, 100.0,  75.0  )
-        obstacle_test_range       = ( 13, 0.0, 200.0, 100.0  )
+        obstacle_test_range       = ( 13, 0.0, 200.0,  50.0  )
         prey_velocity_limit       = ( 14, 0.1,  10.0,   5.0  )
         predator_velocity_limit   = ( 15, 0.1,  10.0,   4.0  )
 
@@ -88,7 +88,7 @@ class BoidSimulation(object):
             math.sin(velocity_direction) * velocity_magnitude])
 
         boid                  = array.array('f', (0.0,) * BOID_ATTRIBUTES)
-        boid[ENTITY_RADIUS]     = radius
+        boid[ENTITY_RADIUS]   = radius
         boid[BOID_POSITION_X] = random.random() * self.world_size[0]
         boid[BOID_POSITION_Y] = random.random() * self.world_size[1]
         boid[BOID_VELOCITY_X] = math.cos(velocity_direction) * velocity_magnitude
@@ -189,8 +189,8 @@ class BoidSimulation(object):
 
                     forward_direction = math.atan2(forward_y, forward_x)
 
-                    force_x = dist_x / dist_magnitude * (obstacle[ENTITY_RADIUS] + boid[ENTITY_RADIUS])
-                    force_y = dist_y / dist_magnitude * (obstacle[ENTITY_RADIUS] + boid[ENTITY_RADIUS])
+                    force_x = dist_x / dist_magnitude * (obstacle[ENTITY_RADIUS] + boid[ENTITY_RADIUS] - dist_magnitude)
+                    force_y = dist_y / dist_magnitude * (obstacle[ENTITY_RADIUS] + boid[ENTITY_RADIUS] - dist_magnitude)
 
                     boid[BOID_OBSTACLE_X] = force_x
                     boid[BOID_OBSTACLE_Y] = force_y
@@ -251,7 +251,6 @@ class BoidSimulation(object):
         obstacle_test_range       = self.parameters[BoidSimulation.Parameter.obstacle_test_range]
         prey_velocity_limit       = self.parameters[BoidSimulation.Parameter.prey_velocity_limit]
         predator_velocity_limit   = self.parameters[BoidSimulation.Parameter.predator_velocity_limit]
-        x_factor                  = self.parameters[BoidSimulation.Parameter.x_factor]
 
         for boid in self.prey_boids:
             offsets = (int(boid[BOID_POSITION_X] // neighbor_range),
@@ -744,7 +743,7 @@ class BoidApplication(QMainWindow):
                 self.parameter_manager.set_parameter_value(self.parameter, value)
 
             def text_editing_finished(self):
-                value = float(self.value_text.text())
+                value = int(self.value_text.text()) if self.is_parameter_int else float(self.value_text.text())
                 self.set_slider_value(value)
                 self.parameter_manager.set_parameter_value(self.parameter, value)
 
