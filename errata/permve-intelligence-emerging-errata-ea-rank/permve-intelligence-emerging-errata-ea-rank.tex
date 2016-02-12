@@ -1,0 +1,50 @@
+\input{permve-ntnu-latex-assignment.tex}
+
+\title{
+\normalfont \normalsize
+\textsc{Norwegian University of Science and Technology\\IT3708 -- Subsymbolic Methods in AI}
+}
+
+\author{Per Magnus Veierland\\permve@stud.ntnu.no}
+
+\date{\normalsize\today}
+
+\begin{document}
+
+\fancyfoot[C]{}
+\maketitle
+
+\section*{Intelligence Emerging: EA Rank Errata Suggestion}
+
+In the description of the rank selection in evolutionary algorithms on page 434 in section A.5.2 I've found a small error concerning the derivation in Equation A.6 and A.7.
+
+Equation A.6 shows that Equation~\ref{eq:a6a} is equal to Equation~\ref{eq:a6b}.
+
+\begin{equation}
+\label{eq:a6a}
+\sum_{i=1}^{N}\Bigg[ \text{min} + (\text{max} - \text{min})\frac{\textit{rank}(i, g) - 1}{N - 1}\Bigg]
+\end{equation}
+
+\begin{equation}
+\label{eq:a6b}
+N \cdot \text{min} + (\text{max} - \text{min}) \sum_{i=1}^{N}\frac{i}{N - 1}
+\end{equation}
+
+However these are not equivalent, and Equation~\ref{eq:a6b} should instead be:
+
+\begin{equation}
+N \cdot \text{min} + (\text{max} - \text{min}) \sum_{i=1}^{N}\frac{i - 1}{N - 1}
+\end{equation}
+
+This results in the following derivation, which differs from the first two steps of Equation A.7:
+
+\begin{equation}
+\sum_{i=1}^{N}\frac{i - 1}{N - 1} =
+\frac{1}{N - 1}\sum_{i=1}^{N}(i - 1) =
+\frac{1}{N - 1}\sum_{i=1}^{N - 1}i =
+\frac{1}{N - 1} \cdot \frac{(N - 1)N}{2} =
+\frac{N}{2}
+\end{equation}
+
+\end{document}
+
