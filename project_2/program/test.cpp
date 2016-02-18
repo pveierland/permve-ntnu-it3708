@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cassert>
 #include <functional>
 #include <iostream>
 #include <random>
@@ -12,6 +13,32 @@
 
 namespace vi
 {
+    namespace algo
+    {
+        template <class bidirectional_iterator>
+        bidirectional_iterator random_unique(
+            bidirectional_iterator first, bidirectional_iterator last, std::size_t num_random)
+        {
+            const auto left = std::distance(first, last);
+
+            while (num_random--)
+            {
+                auto r = first;
+                std::advance(r, rand() % left);
+                std::swap(*first, *r);
+
+            }
+        }
+                                                bidiiter r = first;
+                                                        std::advance(r, rand()%left);
+                                                                std::swap(*first, *r);n
+                                                                        ++first;
+                                                                                --left;
+                                                                                    }
+                                        return first;
+                        }
+    }
+
     namespace ea
     {
         template <typename genotype_t,
@@ -96,8 +123,14 @@ namespace vi
 //                private:
 //                    typename individual_type::fitness_type population_fitness_mean_{};
 //            };
+//
+//            class fitness_proportionate
+//            {
+//                public:
+//
+//
+//            }
 
-            template <typename individual_type>
             class tournament
             {
                 public:
@@ -105,35 +138,54 @@ namespace vi
                         : group_size_{group_size},
                           select_best_individual_distribution_{1.0 - epsilon} {}
 
-                    template <typename random_generator_type>
+                    template <typename random_generator_type, typename individual_type>
                     const individual_type&
-                    operator()(random_generator_type& random_generator)
+                    operator()(random_generator_type& random_generator, const std::vector<individual_type>& population)
                     {
                         const bool select_best = select_best_individual_distribution_(random_generator);
 
-//                        if (select_best)
-//                        {
-                            const auto best_individual = std::max_element(
-                                population_->begin(), population_->end(),
+                        if (select_best)
+                        {
+                            for (int i = 0; i != group_size_; ++i)
+                            {
+                                const auto random_individual_index = select_random_individual_distribution_(random_generator);
+
+                            }
+
+
+
+
+                            const auto best_individual_iterator = std::max_element(
+                                population.begin(), population.end(),
                                 [](const individual_type& a, const individual_type& b)
                                 {
                                     return a.fitness < b.fitness;
                                 });
-//                        }
 
-//                        std::uniform_int_distribution<std::size_t> dist{};
+                            return *best_individual_iterator;
+                        }
+                        else
+                        {
+                            const auto random_individual_index = select_random_individual_distribution_(random_generator);
+                            return population[random_individual_index];
+                        }
                     }
 
-//                    void set_population(const std::vector<individual_type>& population)
-//                    {
-//                        distribution_ = std::uniform_int_distribution<std::size_t>{0, population.size()};
-//                    }
+
+                     
+
+
+                    template <typename individual_type>
+                    void register_population(const std::vector<individual_type>& population)
+                    {
+                        assert(population.size() > 1);
+                        select_random_individual_distribution_ = std::uniform_int_distribution<std::size_t>{0, population.size() - 1};
+                    }
 
                 private:
                     std::size_t                                group_size_{};
                     std::bernoulli_distribution                select_best_individual_distribution_{};
                     std::uniform_int_distribution<std::size_t> select_random_individual_distribution_{};
-                    const std::vector<individual_type>*        population_{};
             };
         }
 
@@ -223,9 +275,13 @@ int main()
     population[3].fitness = 4.0;
     population[4].fitness = 5.0;
 
-    auto selection = vi::ea::selection::tournament<individual_type>{5, 0.0};
+    auto selection = vi::ea::selection::tournament{5, 0.5};
 
-    selection.set_population(population);
+    selection.register_population(population);
+
+    auto x = selection(rng, population);
+
+    std::cout << "THE VERY BEST ->" << std::endl << x.genotype << std::endl;
 
 
 
