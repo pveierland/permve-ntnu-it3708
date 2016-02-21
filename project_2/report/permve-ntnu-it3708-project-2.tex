@@ -1,0 +1,52 @@
+\input{permve-ntnu-latex-assignment.tex}
+
+\newacro{EA}{Evolutionary Algorithm}
+
+\title{
+\normalfont \normalsize
+\textsc{Norwegian University of Science and Technology\\IT3708 -- Subsymbolic Methods in AI}
+\horrule{0.5pt} \\[0.4cm]
+\huge Project 2:\\ Programming an \acf{EA}\\
+\horrule{2pt} \\[0.5cm]
+}
+
+\author{Per Magnus Veierland\\permve@stud.ntnu.no}
+
+\date{\normalsize\today}
+
+\begin{document}
+
+\fancyfoot[C]{}
+\maketitle
+
+\pgfplotsset{compat=1.5}
+
+\pgfplotsset{
+every axis/.append style={
+scale only axis,
+width=0.42\textwidth,height=0.3\textwidth,
+},
+/tikz/every picture/.append style={
+trim axis left,
+trim axis right,
+baseline
+}
+}
+
+\section*{Program implementation}
+
+\resizebox {8cm} {!} {
+\begin{tikzpicture}
+\begin{axis}[xlabel={N},ylabel={Running time [ns]}]
+\addplot table[x index=0,y index=1,col sep=space] {../data/1.txt};
+\addplot table[x index=0,y index=2,col sep=space] {../data/1.txt};
+\addlegendentry{P=1}
+\addlegendentry{P=2}
+\addlegendentry{P=4}
+\addlegendentry{P=8}
+\end{axis}
+\end{tikzpicture}
+}
+
+\end{document}
+
