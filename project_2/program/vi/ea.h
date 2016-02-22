@@ -213,98 +213,6 @@ namespace vi
                     std::uniform_real_distribution<double> random_fitness_distribution_{};
             };
 
-            class sigma
-            {
-                public:
-                    template <typename random_generator_type, typename individual_type>
-                    const individual_type&
-                    operator()(random_generator_type&        random_generator,
-                               std::vector<individual_type>& population)
-                    {
-                        return *population.begin();
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//                        const auto* random_individual = &*population.rbegin();
-//                        auto        random_fitness    = random_fitness_distribution_(random_generator);
-//
-//                        auto rank_index = 1.0;
-//
-//                        for (auto individual = population.cbegin();
-//                             individual != population.cend();
-//                             ++individual, ++rank_index)
-//                        {
-//                            const auto expected_reproduction =
-//                                min_ + (max_ - min_) * (rank_index - 1.0) / (static_cast<double>(population.size()) - 1.0);
-//
-//                            random_fitness -= expected_reproduction;
-//
-//                            if (random_fitness < 0.0)
-//                            {
-//                                random_individual = &*individual;
-//                                break;
-//                            }
-//                        }
-//
-//                        return *random_individual;
-                    }
-
-                    template <typename individual_type>
-                    void register_population(std::vector<individual_type>& population)
-                    {
-                        using namespace boost::accumulators;
-
-                        std::for_each(population.begin(), population.end(),
-                            [&](const auto& individual)
-                            {
-                                acc(individual.fitness);
-                            });
-
-
-
-
-                        const auto fitness_sum = std::accumulate(
-                            population.begin(), population.end(), 0.0,
-                            [](const auto& a, const auto& b)
-                            {
-                                return a + b.fitness;
-                            });
-
-                        const auto fitness_mean = fitness_sum / static_cast<double>(population.size());
-
-                        std::vector<double>
-
-
-
-
-
-//                        random_fitness_distribution_ = std::uniform_real_distribution<double>{
-//                            0.0, static_cast<double>(population.size())};
-//
-//                        std::sort(population.begin(), population.end(),
-//                                  [] (const auto& a, const auto& b)
-//                                  {
-//                                      return a.fitness < b.fitness;
-//                                  });
-                    }
-
-                private:
-                    //std::uniform_real_distribution<double> random_fitness_distribution_{};
-            };
-
             class rank
             {
                 public:
@@ -356,6 +264,76 @@ namespace vi
                     double                                 min_{};
                     double                                 max_{};
                     std::uniform_real_distribution<double> random_fitness_distribution_{};
+            };
+
+            class sigma
+            {
+                public:
+                    template <typename random_generator_type, typename individual_type>
+                    const individual_type&
+                    operator()(random_generator_type&        random_generator,
+                               std::vector<individual_type>& population)
+                    {
+                        auto selected_individual   = population.cbegin();
+                        auto random_expected_value = random_expected_value_distribution_(random_generator);
+
+                        auto individual     = population.cbegin();
+                        auto expected_value = expected_values_.cbegin();
+
+                        for (; individual != population.cend(); ++individual, ++expected_value)
+                        {
+                            selected_individual    = individual;
+                            random_expected_value -= *expected_value;
+
+                            if (random_expected_value < 0.0)
+                            {
+                                break;
+                            }
+                        }
+
+                        return *selected_individual;
+                    }
+
+                    template <typename individual_type>
+                    void register_population(std::vector<individual_type>& population)
+                    {
+                        const auto fitness_sum = std::accumulate(
+                            population.begin(), population.end(), 0.0,
+                            [](const auto& sum, const auto& individual)
+                            {
+                                return sum + individual.fitness;
+                            });
+
+                        const auto fitness_mean = fitness_sum / static_cast<double>(population.size());
+
+                        expected_values_.resize(population.size());
+
+                        std::transform(population.begin(), population.end(), expected_values_.begin(),
+                            [fitness_mean](const auto& individual)
+                            {
+                                return individual.fitness - fitness_mean;
+                            });
+
+                        const auto fitness_square_sum = std::inner_product(
+                            expected_values_.begin(), expected_values_.end(), expected_values_.begin(), 0.0);
+                        const auto fitness_std_dev = std::sqrt(
+                            fitness_square_sum / static_cast<double>(population.size()));
+
+                        std::transform(population.begin(), population.end(), expected_values_.begin(),
+                            [fitness_mean, fitness_std_dev](const auto& individual)
+                            {
+                                return 1.0 + (individual.fitness - fitness_mean) / (2.0 * fitness_std_dev);
+                            });
+
+                        const auto sum_expected_values = std::accumulate(
+                            expected_values_.begin(), expected_values_.end(), 0.0);
+
+                        random_expected_value_distribution_ = std::uniform_real_distribution<double>{0.0, sum_expected_values};
+                    }
+
+                private:
+                    std::uniform_real_distribution<double> random_expected_value_distribution_{};
+                    std::vector<double>                    expected_values_{};
             };
 
 
