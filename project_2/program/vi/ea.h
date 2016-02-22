@@ -4,9 +4,6 @@
 
 #include <vi/algo.h>
 
-#include <boost/accumulators/accumulators.hpp>
-#include <boost/accumulators/statistics/mean.hpp>
-#include <boost/accumulators/statistics/stats.hpp>
 #include <boost/dynamic_bitset.hpp>
 #include <boost/optional.hpp>
 
@@ -94,9 +91,9 @@ namespace vi
                 using creation_type = boost::dynamic_bitset<>;
 
                 dynamic_bit_vector_creator(
-                    const std::size_t min_length,
-                    const std::size_t max_length,
-                    const double      value_distribution_parameter = 0.5)
+                    const unsigned min_length,
+                    const unsigned max_length,
+                    const double   value_distribution_parameter = 0.5)
                     : length_distribution_{min_length, max_length},
                       value_distribution_{value_distribution_parameter} {}
 
@@ -115,8 +112,8 @@ namespace vi
                 }
 
             private:
-                std::uniform_int_distribution<std::size_t> length_distribution_{};
-                std::bernoulli_distribution                value_distribution_{};
+                std::uniform_int_distribution<unsigned> length_distribution_{};
+                std::bernoulli_distribution             value_distribution_{};
         };
 
         namespace adult_selection
@@ -336,59 +333,54 @@ namespace vi
                     std::vector<double>                    expected_values_{};
             };
 
+            class tournament
+            {
+                public:
+                    tournament(const unsigned group_size, const double epsilon)
+                        : group_size_{group_size},
+                          select_best_individual_distribution_{1.0 - epsilon},
+                          select_random_individual_distribution_{0U, group_size - 1U} {}
 
-//            class tournament
-//            {
-//                public:
-//                    tournament(const std::size_t group_size, const double epsilon)
-//                        : group_size_{group_size},
-//                          select_best_individual_distribution_{1.0 - epsilon} {}
-//
-//                    template <typename random_generator_type, typename individual_type>
-//                    const individual_type&
-//                    operator()(random_generator_type& random_generator, const std::vector<individual_type>& population)
-//                    {
-//                        const bool select_best = select_best_individual_distribution_(random_generator);
-//
-//                        if (select_best)
-//                        {
-//                            for (int i = 0; i != group_size_; ++i)
-//                            {
-//                                const auto random_individual_index = select_random_individual_distribution_(random_generator);
-//
-//                            }
-//
-//
-//
-//
-//                            const auto best_individual_iterator = std::max_element(
-//                                population.begin(), population.end(),
-//                                [](const individual_type& a, const individual_type& b)
-//                                {
-//                                    return a.fitness < b.fitness;
-//                                });
-//
-//                            return *best_individual_iterator;
-//                        }
-//                        else
-//                        {
-//                            const auto random_individual_index = select_random_individual_distribution_(random_generator);
-//                            return population[random_individual_index];
-//                        }
-//                    }
-//
-//                    template <typename individual_type>
-//                    void register_population(const std::vector<individual_type>& population)
-//                    {
-//                        assert(population.size() > 1);
-//                        select_random_individual_distribution_ = std::uniform_int_distribution<std::size_t>{0, population.size() - 1};
-//                    }
-//
-//                private:
-//                    std::size_t                                group_size_{};
-//                    std::bernoulli_distribution                select_best_individual_distribution_{};
-//                    std::uniform_int_distribution<std::size_t> select_random_individual_distribution_{};
-//            };
+                    template <typename random_generator_type, typename individual_type>
+                    const individual_type&
+                    operator()(random_generator_type& random_generator, const std::vector<individual_type>& population)
+                    {
+                        ::vi::algo::generate_unique_in_range(
+                            random_generator, group_member_indexes_, 0U, static_cast<unsigned>(population.size()) - 1U, group_size_);
+
+                        const auto* selected_individual = &population[*group_member_indexes_.begin()];
+                        const bool  select_best         = select_best_individual_distribution_(random_generator);
+
+                        if (select_best)
+                        {
+                            for (const auto& index : group_member_indexes_)
+                            {
+                                if (population[index].fitness > selected_individual->fitness)
+                                {
+                                    selected_individual = &population[index];
+                                }
+                            }
+                        }
+                        else
+                        {
+                            selected_individual = &population[
+                                select_random_individual_distribution_(random_generator)];
+                        }
+
+                        return *selected_individual;
+                    }
+
+                    template <typename individual_type>
+                    void register_population(const std::vector<individual_type>& population)
+                    {
+                    }
+
+                private:
+                    unsigned                                group_size_{};
+                    std::bernoulli_distribution             select_best_individual_distribution_{};
+                    std::uniform_int_distribution<unsigned> select_random_individual_distribution_{};
+                    std::set<unsigned>                      group_member_indexes_{};
+            };
         }
 
         namespace reproduction
@@ -472,7 +464,7 @@ namespace vi
                     reproduction_function_type    reproduction_function,
                     fitness_function_type         fitness_function,
                     generational_replacement_type generational_replacement,
-                    std::size_t                   population_size)
+                    unsigned                      population_size)
                     : random_generator_{random_generator},
                       genotype_creator_{genotype_creator},
                       //development_function_{development_function},
@@ -545,7 +537,7 @@ namespace vi
 //                development_function_type    development_function_{};
                 fitness_function_type         fitness_function_{};
                 generational_replacement_type generational_replacement_{};
-                std::size_t                   population_size_{};
+                unsigned                      population_size_{};
 
                 std::vector<individual_type>  current_generation_{};
                 std::vector<individual_type>  next_generation_{};
@@ -563,7 +555,7 @@ namespace vi
                           parent_selector_type          parent_selector,
                           reproduction_function_type    reproduction_function,
                           generational_replacement_type generational_replacement,
-                          std::size_t                   population_size,
+                          unsigned                      population_size,
                           fitness_function_type         fitness_function)
         {
             return system<random_generator_type,

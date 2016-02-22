@@ -5,27 +5,6 @@
 
 namespace vi
 {
-    //namespace algo
-    //{
-    //    template <class bidirectional_iterator>
-    //    bidirectional_iterator random_unique(
-    //        bidirectional_iterator first, bidirectional_iterator last, std::size_t num_random)
-    //    {
-    //        auto left = std::distance(first, last);
-
-    //        while (num_random--)
-    //        {
-    //            auto r = first;
-    //            std::advance(r, rand() % left);
-    //            std::swap(*first, *r);
-    //            ++first;
-    //            --left;
-    //        }
-
-    //        return first;
-    //    }
-    //}
-
     namespace algo
     {
         // Based on Floyd's algorithm for generating random numbers in range
