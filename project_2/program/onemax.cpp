@@ -1,6 +1,12 @@
 #include <vi/ea.h>
+
+#include <boost/lexical_cast.hpp>
 #include <boost/program_options.hpp>
+
+#include <cstdio>
 #include <iostream>
+#include <random>
+#include <string>
 
 // Merciful C++ gods, please absolve me of these sins
 
@@ -18,24 +24,47 @@
         variables["population_size"].as<unsigned>(), \
         [] (const auto& genotype) \
         { \
-            return static_cast<double>(genotype.count()) / static_cast<double>(genotype.size()); \
+            unsigned sum = 0; \
+            for (boost::dynamic_bitset<>::size_type i = 0; i != target_value.size(); ++i) \
+            { \
+                if (target_value[i] == genotype[i]) \
+                { \
+                    ++sum; \
+                } \
+            } \
+            return static_cast<double>(sum) / static_cast<double>(genotype.size()); \
         })
 
 namespace po = boost::program_options;
 po::variables_map variables{};
 
+boost::dynamic_bitset<> target_value{};
+
 template <typename system_type>
 void run_system(system_type&& system)
 {
-    std::cout << 0 << " " << system.mean_fitness() << " " << system.max_fitness() << std::endl;
+    unsigned generation;
+    double fitness_mean, fitness_std_dev;
+    typename system_type::individual_type const* best_individual;
 
-    for (int generation = 1; generation < variables["generations"].as<unsigned>(); ++generation)
+    while (true)
     {
-        system.evolve();
-        std::cout << generation << " " << system.mean_fitness() << " " << system.max_fitness() << std::endl;
-    }
+        std::tie(generation, fitness_mean, fitness_std_dev, best_individual) = system.stats();
 
-    std::cout << "WINNER: " << system.best_individual().genotype << std::endl;
+        std::printf("%d %f %f %f %s\n",
+                    generation,
+                    best_individual->fitness,
+                    fitness_mean,
+                    fitness_std_dev,
+                    boost::lexical_cast<std::string>(best_individual->genotype).c_str());
+
+        if (generation >= variables["generations"].as<unsigned>())
+        {
+            break;
+        }
+
+        system.evolve();
+    }
 }
 
 int main(int argc, char** argv)
@@ -52,9 +81,27 @@ int main(int argc, char** argv)
             ("parent_selection", po::value<std::string>()->default_value("proportionate"), "Parent selection (proportionate/rank/sigma/tournament)")
             ("population_size", po::value<unsigned>()->default_value(100), "Population size")
             ("problem_size", po::value<unsigned>()->default_value(40), "Problem size")
+            ("random_target", "Random target string")
             ("rank_max", po::value<double>()->default_value(1.5), "Rank selection pressure ('max')");
 
         po::store(po::parse_command_line(argc, argv, description), variables);
+
+        target_value = boost::dynamic_bitset<>{variables["problem_size"].as<unsigned>()};
+
+        if (variables.count("random_target"))
+        {
+            auto random_generator   = std::default_random_engine{std::random_device{}()};
+            auto value_distribution = std::bernoulli_distribution{};
+
+            for (boost::dynamic_bitset<>::size_type i = 0; i != target_value.size(); ++i)
+            {
+                target_value[i] = value_distribution(random_generator);
+            }
+        }
+        else
+        {
+            target_value.set();
+        }
 
         const auto adult_selection  = variables["adult_selection"].as<std::string>();
         const auto parent_selection = variables["parent_selection"].as<std::string>();

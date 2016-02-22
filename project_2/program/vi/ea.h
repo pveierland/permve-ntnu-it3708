@@ -1,7 +1,5 @@
 #pragma once
 
-#include <iostream>
-
 #include <vi/algo.h>
 
 #include <boost/dynamic_bitset.hpp>
@@ -11,6 +9,7 @@
 #include <cassert>
 #include <random>
 #include <set>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -569,7 +568,7 @@ namespace vi
         }
 
         template <typename random_generator_type,
-                  typename individual_type,
+                  typename individual_type_,
                   typename genotype_creator_type,
                   typename parent_selector_type,
                   typename reproduction_function_type,
@@ -579,6 +578,8 @@ namespace vi
         class system
         {
             public:
+                using individual_type = individual_type_;
+
                 system(
                     random_generator_type         random_generator,
                     genotype_creator_type         genotype_creator,
@@ -616,36 +617,41 @@ namespace vi
                     child_pool_.clear();
 
                     std::swap(current_generation_, next_generation_);
+                    ++generation_;
                 }
 
-                const individual_type& best_individual()
+                auto stats()
                 {
-                    return *std::max_element(
+                    const auto fitness_sum = std::accumulate(
+                        current_generation_.begin(), current_generation_.end(), 0.0,
+                        [&](const auto& sum, const auto& individual)
+                        {
+                            return sum + individual.fitness;
+                        });
+
+                    const auto fitness_mean = fitness_sum / static_cast<double>(current_generation_.size());
+
+                    deviations_.resize(current_generation_.size());
+
+                    std::transform(current_generation_.begin(), current_generation_.end(), deviations_.begin(),
+                        [fitness_mean](const auto& individual)
+                        {
+                            return individual.fitness - fitness_mean;
+                        });
+
+                    const auto fitness_square_sum = std::inner_product(
+                        deviations_.begin(), deviations_.end(), deviations_.begin(), 0.0);
+
+                    const auto fitness_std_dev = std::sqrt(fitness_square_sum / static_cast<double>(current_generation_.size()));
+
+                    const auto best_individual = std::max_element(
                         current_generation_.begin(), current_generation_.end(),
                         [](const auto& a, const auto& b)
                         {
                             return a.fitness < b.fitness;
                         });
-                }
 
-                double max_fitness()
-                {
-                    double max_fitness = 0.0;
-                    for (const auto& individual : current_generation_)
-                    {
-                        max_fitness = std::max(max_fitness, individual.fitness);
-                    }
-                    return max_fitness;
-                }
-
-                double mean_fitness()
-                {
-                    double sum = 0.0;
-                    for (const auto& individual : current_generation_)
-                    {
-                        sum += individual.fitness;
-                    }
-                    return sum / current_generation_.size();
+                    return std::make_tuple(generation_, fitness_mean, fitness_std_dev, &*best_individual);
                 }
 
             private:
@@ -672,9 +678,11 @@ namespace vi
                 generational_replacement_type generational_replacement_{};
                 unsigned                      population_size_{};
 
+                unsigned                      generation_{};
                 std::vector<individual_type>  current_generation_{};
                 std::vector<individual_type>  next_generation_{};
                 std::vector<individual_type>  child_pool_{};
+                std::vector<double>           deviations_{};
         };
 
         template <typename random_generator_type,
