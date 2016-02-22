@@ -159,6 +159,129 @@ namespace vi
                         }
                     }
             };
+
+            class generational_mixing
+            {
+                public:
+                    generational_mixing(const unsigned num_children)
+                        : num_children_(num_children) {}
+
+                    template <typename random_generator_type,
+                              typename individual_type,
+                              typename parent_selector_type,
+                              typename reproduction_function_type,
+                              typename fitness_function_type>
+                    void operator()(random_generator_type&        random_generator,
+                                    std::vector<individual_type>& past_generation,
+                                    std::vector<individual_type>& next_generation,
+                                    std::vector<individual_type>& child_pool,
+                                    parent_selector_type&         parent_selector,
+                                    reproduction_function_type&   reproduction_function,
+                                    fitness_function_type&        fitness_function)
+                    {
+                        const auto population_size = past_generation.size();
+                        const auto num_competitors = population_size + num_children_;
+
+                        while (past_generation.size() < num_competitors)
+                        {
+                            child_pool.clear();
+
+                            reproduction_function(random_generator,
+                                                  parent_selector,
+                                                  past_generation,
+                                                  child_pool);
+
+                            for (auto& child : child_pool)
+                            {
+                                if (past_generation.size() == num_competitors)
+                                {
+                                    break;
+                                }
+                                else if (child.develop(fitness_function))
+                                {
+                                    past_generation.push_back(std::move(child));
+                                }
+                            }
+                        }
+
+                        std::sort(past_generation.begin(), past_generation.end(),
+                                  [](const auto& a, const auto& b)
+                                  {
+                                      return b.fitness < a.fitness;
+                                  });
+
+                        if (past_generation.size() > population_size)
+                        {
+                            past_generation.erase(past_generation.begin() + population_size, past_generation.end());
+                        }
+
+                        std::swap(past_generation, next_generation);
+                    }
+
+                private:
+                    unsigned num_children_{};
+            };
+
+            class overproduction
+            {
+                public:
+                    overproduction(const unsigned num_children)
+                        : num_children_(num_children) {}
+
+                    template <typename random_generator_type,
+                              typename individual_type,
+                              typename parent_selector_type,
+                              typename reproduction_function_type,
+                              typename fitness_function_type>
+                    void operator()(random_generator_type&        random_generator,
+                                    std::vector<individual_type>& past_generation,
+                                    std::vector<individual_type>& next_generation,
+                                    std::vector<individual_type>& child_pool,
+                                    parent_selector_type&         parent_selector,
+                                    reproduction_function_type&   reproduction_function,
+                                    fitness_function_type&        fitness_function)
+                    {
+                        const auto population_size = past_generation.size();
+
+                        next_generation.clear();
+
+                        while (next_generation.size() < num_children_)
+                        {
+                            child_pool.clear();
+
+                            reproduction_function(random_generator,
+                                                  parent_selector,
+                                                  past_generation,
+                                                  child_pool);
+
+                            for (auto& child : child_pool)
+                            {
+                                if (next_generation.size() == num_children_)
+                                {
+                                    break;
+                                }
+                                else if (child.develop(fitness_function))
+                                {
+                                    next_generation.push_back(std::move(child));
+                                }
+                            }
+                        }
+
+                        std::sort(next_generation.begin(), next_generation.end(),
+                                  [](const auto& a, const auto& b)
+                                  {
+                                      return b.fitness < a.fitness;
+                                  });
+
+                        if (next_generation.size() > population_size)
+                        {
+                            next_generation.erase(next_generation.begin() + population_size, next_generation.end());
+                        }
+                    }
+
+                private:
+                    unsigned num_children_{};
+            };
         }
 
         namespace parent_selection
@@ -493,6 +616,16 @@ namespace vi
                     child_pool_.clear();
 
                     std::swap(current_generation_, next_generation_);
+                }
+
+                const individual_type& best_individual()
+                {
+                    return *std::max_element(
+                        current_generation_.begin(), current_generation_.end(),
+                        [](const auto& a, const auto& b)
+                        {
+                            return a.fitness < b.fitness;
+                        });
                 }
 
                 double max_fitness()

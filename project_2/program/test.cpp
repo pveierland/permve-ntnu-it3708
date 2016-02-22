@@ -10,9 +10,9 @@ int main(int argc, char** argv)
     {
         po::options_description description{"Options"};
         description.add_options()
-            ("crossover_points", po::value<unsigned>()->default_value(4), "Crossover points")
+            ("crossover_points", po::value<unsigned>()->default_value(5), "Crossover points")
             ("generations", po::value<unsigned>()->default_value(1000), "Generation count")
-            ("mutation_rate", po::value<double>()->default_value(0.0), "Mutation rate")
+            ("mutation_rate", po::value<double>()->default_value(0.001), "Mutation rate")
             ("population_size", po::value<unsigned>()->default_value(100), "Population size")
             ("problem_size", po::value<unsigned>()->default_value(40), "Problem size");
 
@@ -24,16 +24,36 @@ int main(int argc, char** argv)
             vi::ea::dynamic_bit_vector_creator{
                 variables["problem_size"].as<unsigned>(),
                 variables["problem_size"].as<unsigned>()},
-            vi::ea::parent_selection::sigma{},
+            vi::ea::parent_selection::rank{1.5},
             vi::ea::reproduction::sexual{
                 variables["mutation_rate"].as<double>(),
                 variables["crossover_points"].as<unsigned>()},
-            vi::ea::adult_selection::full_generational_replacement{},
+            vi::ea::adult_selection::overproduction{150},
             variables["population_size"].as<unsigned>(),
             [] (const auto& genotype)
             {
-                return static_cast<double>(genotype.count()) / static_cast<double>(genotype.size());
+                const bool leading_value = genotype[0];
+                auto score = 1.0;
+
+                for (boost::dynamic_bitset<>::size_type i = 1; i != genotype.size(); ++i)
+                {
+                    if (genotype[i] == leading_value)
+                    {
+                        ++score;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+
+                return leading_value ? score : std::min(21.0, score);
             });
+
+//            [] (const auto& genotype)
+//            {
+//                return static_cast<double>(genotype.count()) / static_cast<double>(genotype.size());
+//            });
 
         std::cout << 0 << " " << system.mean_fitness() << " " << system.max_fitness() << std::endl;
 
@@ -57,6 +77,8 @@ int main(int argc, char** argv)
             system.evolve();
             std::cout << generation << " " << system.mean_fitness() << " " << system.max_fitness() << std::endl;
         }
+
+        std::cout << "WINNER: " << system.best_individual().genotype << std::endl;
     }
     catch (const po::error& error)
     {
