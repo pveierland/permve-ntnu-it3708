@@ -44,7 +44,10 @@ namespace vi
             return genotype.size();
         }
 
-        void mutate(boost::dynamic_bitset<>& genotype, const unsigned pos)
+        template <typename random_generator_type>
+        void mutate(random_generator_type    random_generator,
+                    boost::dynamic_bitset<>& genotype,
+                    const unsigned           pos)
         {
             genotype.flip(pos);
         }
@@ -114,6 +117,123 @@ namespace vi
                 std::uniform_int_distribution<unsigned> length_distribution_{};
                 std::bernoulli_distribution             value_distribution_{};
         };
+
+        class dynamic_int_vector : public std::vector<unsigned>
+        {
+            public:
+                dynamic_int_vector(
+                    std::uniform_int_distribution<unsigned> value_distribution)
+                    : value_distribution_{value_distribution} {}
+
+                auto& value_distribution()
+                {
+                    return value_distribution_;
+                }
+
+            private:
+                std::uniform_int_distribution<unsigned> value_distribution_{};
+        };
+
+        std::ostream&
+        operator<<(std::ostream& os, const dynamic_int_vector& genotype)
+        {
+            bool first = true;
+
+            for (const auto& x : genotype)
+            {
+                if (!first)
+                {
+                    os << ", ";
+                }
+
+                os << x;
+                first = false;
+            }
+
+            return os;
+        }
+
+        class dynamic_int_vector_creator
+        {
+            public:
+                using creation_type = dynamic_int_vector;
+
+                dynamic_int_vector_creator(
+                    const unsigned                          min_length,
+                    const unsigned                          max_length,
+                    std::uniform_int_distribution<unsigned> value_distribution)
+                    : length_distribution_{min_length, max_length},
+                      value_distribution_{value_distribution} {}
+
+                template <typename random_generator_type>
+                creation_type operator()(random_generator_type& random_generator)
+                {
+                    const auto length = length_distribution_(random_generator);
+                    creation_type creation(value_distribution_);
+                    creation.resize(length);
+
+                    for (creation_type::size_type i = 0; i != creation.size(); ++i)
+                    {
+                        creation[i] = creation.value_distribution()(random_generator);
+                    }
+
+                    return creation;
+                }
+
+            private:
+                std::uniform_int_distribution<unsigned> length_distribution_{};
+                std::uniform_int_distribution<unsigned> value_distribution_{};
+        };
+
+        unsigned genotype_length(const dynamic_int_vector& genotype)
+        {
+            return genotype.size();
+        }
+
+        template <typename random_generator_type>
+        void mutate(random_generator_type random_generator,
+                    dynamic_int_vector&   genotype,
+                    const unsigned        pos)
+        {
+            genotype[pos] = genotype.value_distribution()(random_generator);
+        }
+
+        void crossover_at_points(const std::set<unsigned>& points,
+                                 dynamic_int_vector&       a,
+                                 dynamic_int_vector&       b)
+        {
+            dynamic_int_vector temp_a{a.value_distribution()};
+            dynamic_int_vector temp_b{b.value_distribution()};
+
+            auto *to_x = &temp_a, *to_y = &temp_b;
+
+            unsigned from_point = 0;
+
+            for (const auto point : points)
+            {
+                for (auto i = from_point; i < point; ++i)
+                {
+                    to_x->push_back(b[i]);
+                    to_y->push_back(a[i]);
+                }
+
+                std::swap(to_x, to_y);
+                from_point = point;
+            }
+
+            for (auto i = from_point; i != b.size(); ++i)
+            {
+                to_x->push_back(b[i]);
+            }
+
+            for (auto i = from_point; i != a.size(); ++i)
+            {
+                to_y->push_back(a[i]);
+            }
+
+            a = temp_a;
+            b = temp_b;
+        }
 
         namespace adult_selection
         {
@@ -544,7 +664,7 @@ namespace vi
                         {
                             if (mutation_distribution_(random_generator))
                             {
-                                mutate(child_a_genotype, pos);
+                                mutate(random_generator, child_a_genotype, pos);
                             }
                         }
 
@@ -552,7 +672,7 @@ namespace vi
                         {
                             if (mutation_distribution_(random_generator))
                             {
-                                mutate(child_b_genotype, pos);
+                                mutate(random_generator, child_b_genotype, pos);
                             }
                         }
 

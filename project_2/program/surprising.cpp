@@ -13,36 +13,30 @@
 #define BUILD_SYSTEM(PARENT_SELECTION, ADULT_SELECTION) \
     vi::ea::build_system( \
         std::default_random_engine{std::random_device{}()}, \
-        vi::ea::dynamic_bit_vector_creator{ \
-            variables["problem_size"].as<unsigned>(), \
-            variables["problem_size"].as<unsigned>()}, \
+        vi::ea::dynamic_int_vector_creator{ \
+            variables["L"].as<unsigned>(), \
+            variables["L"].as<unsigned>(), \
+            std::uniform_int_distribution<unsigned>{0U, variables["S"].as<unsigned>() - 1U}}, \
         PARENT_SELECTION, \
         vi::ea::reproduction::sexual{ \
             variables["mutation_rate"].as<double>(), \
             variables["crossover_points"].as<unsigned>()}, \
         ADULT_SELECTION, \
         variables["population_size"].as<unsigned>(), \
-        [] (const auto& genotype) \
+        [=, &tags] (const auto& genotype) \
         { \
-            unsigned sum = 0; \
-            for (boost::dynamic_bitset<>::size_type i = 0; i != target_value.size(); ++i) \
+            unsigned collisions = 0; \
+            const int d_max = variables.count("global") ? genotype.size() / 2 : 0; \
+            for (int d = 0; d <= d_max; ++d) \
             { \
-                if (target_value[i] == genotype[i]) \
-                { \
-                    ++sum; \
-                } \
+                collisions += evaluate_surprising_sequence_collisions(genotype, variables["S"].as<unsigned>(), d); \
             } \
-            if (sum == genotype.size()) \
-            { \
-                solution_found = true; \
-            } \
-            return static_cast<double>(sum) / static_cast<double>(genotype.size()); \
+            return 1.0 / (1.0 + static_cast<double>(collisions)); \
         })
 
 namespace po = boost::program_options;
 po::variables_map variables{};
 
-boost::dynamic_bitset<> target_value{};
 bool solution_found = false;
 
 template <typename system_type>
@@ -72,42 +66,59 @@ void run_system(system_type&& system)
     }
 }
 
+std::vector<bool> tags{};
+
+unsigned evaluate_surprising_sequence_collisions(
+    const std::vector<unsigned>& sentence, const unsigned s, const unsigned d)
+{
+    tags.resize(s * s);
+    std::fill(tags.begin(), tags.end(), false);
+
+    unsigned collisions = 0;
+
+    for (std::size_t i = 0; i != sentence.size() - d - 1; ++i)
+    {
+        const auto offset = s * sentence[i] + sentence[i + d + 1];
+        if (tags[offset])
+        {
+            ++collisions;
+        }
+        else
+        {
+            tags[offset] = true;
+        }
+    }
+
+    return collisions;
+}
+
 int main(int argc, char** argv)
 {
     try
     {
         po::options_description description{"Options"};
         description.add_options()
+            ("L", po::value<unsigned>()->default_value(40), "Surprising string length")
+            ("S", po::value<unsigned>()->default_value(40), "Surprising string symbol set size")
             ("adult_selection", po::value<std::string>()->default_value("full"), "Adult selection (full/mixed/over)")
             ("child_count", po::value<unsigned>()->default_value(150), "Child count used in mixed/over adult selection")
             ("crossover_points", po::value<unsigned>()->default_value(5), "Crossover points")
             ("epsilon", po::value<double>()->default_value(0.1), "Tournament probability of selecting random winner")
             ("generations", po::value<unsigned>()->default_value(1000), "Generation count")
+            ("global", "Global surprising sequence")
             ("group_size", po::value<unsigned>()->default_value(10), "Tournament group size")
+            ("local", "Local surprising sequence")
             ("mutation_rate", po::value<double>()->default_value(0.001), "Mutation rate")
             ("parent_selection", po::value<std::string>()->default_value("proportionate"), "Parent selection (proportionate/rank/sigma/tournament)")
             ("population_size", po::value<unsigned>()->default_value(100), "Population size")
-            ("problem_size", po::value<unsigned>()->default_value(40), "Problem size")
-            ("random_target", "Random target string")
             ("rank_max", po::value<double>()->default_value(1.5), "Rank selection pressure ('max')");
 
         po::store(po::parse_command_line(argc, argv, description), variables);
 
-        target_value = boost::dynamic_bitset<>{variables["problem_size"].as<unsigned>()};
-
-        if (variables.count("random_target"))
+        if (variables.count("global") == 0 and variables.count("local") == 0)
         {
-            auto random_generator   = std::default_random_engine{std::random_device{}()};
-            auto value_distribution = std::bernoulli_distribution{};
-
-            for (boost::dynamic_bitset<>::size_type i = 0; i != target_value.size(); ++i)
-            {
-                target_value[i] = value_distribution(random_generator);
-            }
-        }
-        else
-        {
-            target_value.set();
+            std::cerr << "error: use --global or --local switch" << std::endl;
+            return EXIT_FAILURE;
         }
 
         const auto adult_selection  = variables["adult_selection"].as<std::string>();

@@ -9,3 +9,6 @@ include_directories(. ${Boost_INCLUDE_DIR})
 add_executable(onemax onemax.cpp)
 target_link_libraries(onemax ${Boost_LIBRARIES})
 
+add_executable(surprising surprising.cpp)
+target_link_libraries(surprising ${Boost_LIBRARIES})
+
