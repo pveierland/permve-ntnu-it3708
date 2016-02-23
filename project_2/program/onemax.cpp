@@ -32,6 +32,10 @@
                     ++sum; \
                 } \
             } \
+            if (sum == genotype.size()) \
+            { \
+                solution_found = true; \
+            } \
             return static_cast<double>(sum) / static_cast<double>(genotype.size()); \
         })
 
@@ -39,6 +43,7 @@ namespace po = boost::program_options;
 po::variables_map variables{};
 
 boost::dynamic_bitset<> target_value{};
+bool solution_found = false;
 
 template <typename system_type>
 void run_system(system_type&& system)
@@ -195,6 +200,6 @@ int main(int argc, char** argv)
         return EXIT_FAILURE;
     }
 
-    return EXIT_SUCCESS;
+    return solution_found ? 1 : 0;
 }
 
