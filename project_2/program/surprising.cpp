@@ -23,7 +23,7 @@
             variables["crossover_points"].as<unsigned>()}, \
         ADULT_SELECTION, \
         variables["population_size"].as<unsigned>(), \
-        [=, &tags] (const auto& genotype) \
+        [=] (const auto& genotype) \
         { \
             unsigned collisions = 0; \
             const int d_max = variables.count("global") ? genotype.size() / 2 : 0; \
