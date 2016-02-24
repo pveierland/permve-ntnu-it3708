@@ -26,7 +26,7 @@
         { \
             const bool leading_value = genotype[0]; \
             auto score = 1U; \
-            for (boost::dynamic_bitset<>::size_type i = 1; i != genotype.size(); ++i) \
+            for (vi::ea::dynamic_bit_vector::size_type i = 1; i != genotype.size(); ++i) \
             { \
                 if (genotype[i] == leading_value) \
                 { \

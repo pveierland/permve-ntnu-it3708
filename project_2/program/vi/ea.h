@@ -39,24 +39,79 @@ namespace vi
             double                          fitness{};
         };
 
-        unsigned genotype_length(const boost::dynamic_bitset<>& genotype)
+        class dynamic_bit_vector : public boost::dynamic_bitset<>
+        {
+            public:
+                dynamic_bit_vector() = default;
+                dynamic_bit_vector(const unsigned length)
+                    : boost::dynamic_bitset<>{length} {}
+        };
+
+        std::ostream&
+        operator<<(std::ostream& os, const dynamic_bit_vector& genotype)
+        {
+            for (dynamic_bit_vector::size_type i = 0; i != genotype.size(); ++i)
+            {
+                if (i > 0)
+                {
+                    os << ", ";
+                }
+
+                os << genotype[i];
+            }
+
+            return os;
+        }
+
+        class dynamic_bit_vector_creator
+        {
+            public:
+                using creation_type = dynamic_bit_vector;
+
+                dynamic_bit_vector_creator(
+                    const unsigned min_length,
+                    const unsigned max_length,
+                    const double   value_distribution_parameter = 0.5)
+                    : length_distribution_{min_length, max_length},
+                      value_distribution_{value_distribution_parameter} {}
+
+                template <typename random_generator_type>
+                creation_type operator()(random_generator_type& random_generator)
+                {
+                    const auto length = length_distribution_(random_generator);
+                    creation_type creation{length};
+
+                    for (creation_type::size_type i = 0; i != creation.size(); ++i)
+                    {
+                        creation[i] = value_distribution_(random_generator);
+                    }
+
+                    return creation;
+                }
+
+            private:
+                std::uniform_int_distribution<unsigned> length_distribution_{};
+                std::bernoulli_distribution             value_distribution_{};
+        };
+
+        unsigned genotype_length(const dynamic_bit_vector& genotype)
         {
             return genotype.size();
         }
 
         template <typename random_generator_type>
-        void mutate(random_generator_type    random_generator,
-                    boost::dynamic_bitset<>& genotype,
-                    const unsigned           pos)
+        void mutate(random_generator_type random_generator,
+                    dynamic_bit_vector&   genotype,
+                    const unsigned        pos)
         {
             genotype.flip(pos);
         }
 
         void crossover_at_points(const std::set<unsigned>& points,
-                                 boost::dynamic_bitset<>&  a,
-                                 boost::dynamic_bitset<>&  b)
+                                 dynamic_bit_vector&       a,
+                                 dynamic_bit_vector&       b)
         {
-            boost::dynamic_bitset<> temp_a{}, temp_b{};
+            dynamic_bit_vector temp_a{}, temp_b{};
             auto *to_x = &temp_a, *to_y = &temp_b;
 
             unsigned from_point = 0;
@@ -86,37 +141,6 @@ namespace vi
             a = temp_a;
             b = temp_b;
         }
-
-        class dynamic_bit_vector_creator
-        {
-            public:
-                using creation_type = boost::dynamic_bitset<>;
-
-                dynamic_bit_vector_creator(
-                    const unsigned min_length,
-                    const unsigned max_length,
-                    const double   value_distribution_parameter = 0.5)
-                    : length_distribution_{min_length, max_length},
-                      value_distribution_{value_distribution_parameter} {}
-
-                template <typename random_generator_type>
-                creation_type operator()(random_generator_type& random_generator)
-                {
-                    const auto length = length_distribution_(random_generator);
-                    creation_type creation{length};
-
-                    for (creation_type::size_type i = 0; i != creation.size(); ++i)
-                    {
-                        creation[i] = value_distribution_(random_generator);
-                    }
-
-                    return creation;
-                }
-
-            private:
-                std::uniform_int_distribution<unsigned> length_distribution_{};
-                std::bernoulli_distribution             value_distribution_{};
-        };
 
         class dynamic_int_vector : public std::vector<unsigned>
         {

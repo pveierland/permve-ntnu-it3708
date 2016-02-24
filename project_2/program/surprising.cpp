@@ -46,6 +46,8 @@ void run_system(system_type&& system)
     double fitness_mean, fitness_std_dev;
     typename system_type::individual_type const* best_individual;
 
+    const auto early_stop = variables.count("stop") > 0;
+
     while (true)
     {
         std::tie(generation, fitness_mean, fitness_std_dev, best_individual) = system.stats();
@@ -57,7 +59,7 @@ void run_system(system_type&& system)
                     fitness_std_dev,
                     boost::lexical_cast<std::string>(best_individual->genotype).c_str());
 
-        if (generation >= variables["generations"].as<unsigned>())
+        if (early_stop and best_individual->fitness == 1.0 or generation >= variables["generations"].as<unsigned>())
         {
             break;
         }
@@ -111,7 +113,8 @@ int main(int argc, char** argv)
             ("mutation_rate", po::value<double>()->default_value(0.001), "Mutation rate")
             ("parent_selection", po::value<std::string>()->default_value("proportionate"), "Parent selection (proportionate/rank/sigma/tournament)")
             ("population_size", po::value<unsigned>()->default_value(100), "Population size")
-            ("rank_max", po::value<double>()->default_value(1.5), "Rank selection pressure ('max')");
+            ("rank_max", po::value<double>()->default_value(1.5), "Rank selection pressure ('max')")
+            ("stop", "Stop on first encountered solution");
 
         po::store(po::parse_command_line(argc, argv, description), variables);
 

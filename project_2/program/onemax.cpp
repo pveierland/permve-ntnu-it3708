@@ -25,7 +25,7 @@
         [] (const auto& genotype) \
         { \
             unsigned sum = 0; \
-            for (boost::dynamic_bitset<>::size_type i = 0; i != target_value.size(); ++i) \
+            for (vi::ea::dynamic_bit_vector::size_type i = 0; i != target_value.size(); ++i) \
             { \
                 if (target_value[i] == genotype[i]) \
                 { \
@@ -42,7 +42,7 @@
 namespace po = boost::program_options;
 po::variables_map variables{};
 
-boost::dynamic_bitset<> target_value{};
+vi::ea::dynamic_bit_vector target_value{};
 bool solution_found = false;
 
 template <typename system_type>
@@ -93,14 +93,14 @@ int main(int argc, char** argv)
 
         po::store(po::parse_command_line(argc, argv, description), variables);
 
-        target_value = boost::dynamic_bitset<>{variables["problem_size"].as<unsigned>()};
+        target_value = vi::ea::dynamic_bit_vector{variables["problem_size"].as<unsigned>()};
 
         if (variables.count("random_target"))
         {
             auto random_generator   = std::default_random_engine{std::random_device{}()};
             auto value_distribution = std::bernoulli_distribution{};
 
-            for (boost::dynamic_bitset<>::size_type i = 0; i != target_value.size(); ++i)
+            for (vi::ea::dynamic_bit_vector::size_type i = 0; i != target_value.size(); ++i)
             {
                 target_value[i] = value_distribution(random_generator);
             }
