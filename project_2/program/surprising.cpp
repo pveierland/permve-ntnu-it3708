@@ -27,7 +27,7 @@
         [=] (const auto& genotype) \
         { \
             unsigned collisions = 0; \
-            const int d_max = variables.count("global") ? genotype.size() / 2 : 0; \
+            const auto d_max = variables.count("local") ? 0 : genotype.size() - 3; \
             for (int d = 0; d <= d_max; ++d) \
             { \
                 collisions += evaluate_surprising_sequence_collisions(genotype, variables["S"].as<unsigned>(), d); \
@@ -97,6 +97,16 @@ unsigned evaluate_surprising_sequence_collisions(
 
 int main(int argc, char** argv)
 {
+//    std::vector<unsigned> sentence{6, 4, 12, 33, 20, 10, 2, 36, 22, 7, 0, 9, 21, 27, 24, 34, 24, 13, 16, 19, 1, 15, 0, 17, 31, 4, 35, 30, 14, 36, 11, 2, 12, 24, 3, 31, 22, 5, 25, 32, 5, 14, 35, 4, 17, 9, 10, 29, 28, 32, 19, 20, 28, 30, 29, 26, 8, 13, 23, 17, 33, 25, 6, 26, 16, 7, 2, 34, 11, 5, 8, 27, 18, 36, 7, 21, 4, 18, 31, 35, 19, 22, 33, 26, 3, 15, 6, 12, 1, 6};
+//
+//    for (unsigned int d = 0; d != sentence.size(); ++d)
+//    {
+//        std::cout << "d = " << d << " : " << evaluate_surprising_sequence_collisions(
+//                sentence, 37, d) << std::endl;
+//    }
+//
+//    return 0;
+
     try
     {
         po::options_description description{"Options"};
