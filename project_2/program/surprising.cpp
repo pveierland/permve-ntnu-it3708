@@ -20,6 +20,7 @@
         PARENT_SELECTION, \
         vi::ea::reproduction::sexual{ \
             variables["mutation_rate"].as<double>(), \
+            variables["crossover_rate"].as<double>(), \
             variables["crossover_points"].as<unsigned>()}, \
         ADULT_SELECTION, \
         variables["population_size"].as<unsigned>(), \
@@ -104,7 +105,8 @@ int main(int argc, char** argv)
             ("S", po::value<unsigned>()->default_value(40), "Surprising string symbol set size")
             ("adult_selection", po::value<std::string>()->default_value("full"), "Adult selection (full/mixed/over)")
             ("child_count", po::value<unsigned>()->default_value(150), "Child count used in mixed/over adult selection")
-            ("crossover_points", po::value<unsigned>()->default_value(5), "Crossover points")
+            ("crossover_points", po::value<unsigned>()->default_value(1), "Crossover points")
+            ("crossover_rate", po::value<double>()->default_value(1.0), "Crossover rate")
             ("epsilon", po::value<double>()->default_value(0.1), "Tournament probability of selecting random winner")
             ("generations", po::value<unsigned>()->default_value(1000), "Generation count")
             ("global", "Global surprising sequence")

@@ -654,8 +654,11 @@ namespace vi
             class sexual
             {
                 public:
-                    sexual(const double mutation_rate, const unsigned num_crossover_points)
+                    sexual(const double   mutation_rate,
+                           const double   crossover_rate,
+                           const unsigned num_crossover_points)
                         : mutation_distribution_{mutation_rate},
+                          crossover_distribution_{crossover_rate},
                           num_crossover_points_{num_crossover_points}
                     {
                         assert(num_crossover_points > 0);
@@ -682,7 +685,10 @@ namespace vi
                         ::vi::algo::generate_unique_in_range(
                             random_generator, crossover_points_, 1U, shortest_genotype_length - 1U, num_crossover_points_);
 
-                        crossover_at_points(crossover_points_, child_a_genotype, child_b_genotype);
+                        if (crossover_distribution_(random_generator))
+                        {
+                            crossover_at_points(crossover_points_, child_a_genotype, child_b_genotype);
+                        }
 
                         for (auto pos = 0; pos != genotype_length(child_a_genotype); ++pos)
                         {
@@ -706,6 +712,7 @@ namespace vi
 
                 private:
                     std::bernoulli_distribution mutation_distribution_{};
+                    std::bernoulli_distribution crossover_distribution_{};
                     unsigned                    num_crossover_points_{};
                     std::set<unsigned>          crossover_points_{};
             };
