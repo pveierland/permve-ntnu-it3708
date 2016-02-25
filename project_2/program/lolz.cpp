@@ -14,8 +14,8 @@
     vi::ea::build_system( \
         std::default_random_engine{std::random_device{}()}, \
         vi::ea::dynamic_bit_vector_creator{ \
-            variables["problem_size"].as<unsigned>(), \
-            variables["problem_size"].as<unsigned>()}, \
+            variables["L"].as<unsigned>(), \
+            variables["L"].as<unsigned>()}, \
         PARENT_SELECTION, \
         vi::ea::reproduction::sexual{ \
             variables["mutation_rate"].as<double>(), \
@@ -78,6 +78,7 @@ int main(int argc, char** argv)
     {
         po::options_description description{"Options"};
         description.add_options()
+            ("L", po::value<unsigned>()->default_value(40U), "String length")
             ("Z", po::value<unsigned>()->default_value(1U), "Leading zeros score cap")
             ("adult_selection", po::value<std::string>()->default_value("full"), "Adult selection (full/mixed/over)")
             ("child_count", po::value<unsigned>()->default_value(150), "Child count used in mixed/over adult selection")
@@ -89,7 +90,6 @@ int main(int argc, char** argv)
             ("mutation_rate", po::value<double>()->default_value(0.001), "Mutation rate")
             ("parent_selection", po::value<std::string>()->default_value("proportionate"), "Parent selection (proportionate/rank/sigma/tournament)")
             ("population_size", po::value<unsigned>()->default_value(100), "Population size")
-            ("problem_size", po::value<unsigned>()->default_value(40), "Problem size")
             ("random_target", "Random target string")
             ("rank_max", po::value<double>()->default_value(1.5), "Rank selection pressure ('max')");
 
