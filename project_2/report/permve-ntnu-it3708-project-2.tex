@@ -1,9 +1,11 @@
 \input{permve-ntnu-latex-assignment.tex}
 
 \usepackage{float}
+\usepackage[htt]{hyphenat}
 \usepackage{tabularx}
 
 \newacro{EA}{Evolutionary Algorithm}
+\newacro{LOLZ}{Leading-One Leading-Zero}
 
 \title{
 \normalfont \normalsize
@@ -22,7 +24,7 @@
 \pgfplotsset{
 every axis/.append style={
 scale only axis,
-width=0.42\textwidth,height=0.3\textwidth,
+width=0.40\textwidth,height=0.3\textwidth,
 },
 /tikz/every picture/.append style={
 trim axis left,
@@ -36,103 +38,209 @@ baseline
 \fancyfoot[C]{}
 \maketitle
 
-
-%../program/onemax --adult_selection full --parent_selection proportionate --crossover_points 5 --mutation_rate 0.001 --population_size 250 --problem_size 40 --generations 100
+\newpage
+\fancyfoot[C]{\thepage~of~\pageref{LastPage}} % Page numbering for right footer
+\setcounter{page}{1}
 
 \section*{Program implementation}
 
-\section*{One-Max performance}
+The \ac{EA} framework for this assignment is written in \textsc{C++14} and consists of a \texttt{individual} class which holds the genotype representation, the optional phenotype representation, and the fitness score; representation classes, e.g. \texttt{dynamic\_bit\_vector} with a matched function to spawn an instance of the representation, e.g. \texttt{dynamic\_bit\_vector\_creator}. Further it has classes to handle adult selection; \texttt{full\_generational\_replacement}, \texttt{generational\_mixing}, etc. Truthfully, the adult selection classes are best described as ``generational replacement policy'' classes, since they decide how to apply a reproduction function and develop the resulting children until the next generation has been built according to the policy. Further there are parent selection classes, \texttt{fitness\_proportionate}, \texttt{rank}, etc. which are used to select a single parent from a population. Reproduction classes, for which there currently is only \texttt{sexual}, are used to produce a set of children according to the reproduction policy, given a population and a parent selection policy. The reproduction class is responsible for invoking the selection of two parents, and applying crossover and mutation operators to form the resulting children. A \texttt{system} class is used to contain the parts and perform bookkeeping, but all evolution logic is handled by the parts.
 
-%When analyzing the One-Max problem with full-generational replacement, there will always be a chance of regression where fit individuals are replaced by less fit individuals. To consistently find a solution to the 40-bit One-Max problem in less than 100 generations with full-generational replacement, proportional fitness parent selection, 5~crossover points, and a mutation rate of 0.001, a population of 250~individuals was found to be appropriate. Across 100~runs, a population size of 250~individuals was found to consistently yield a valid solution.
-%
-%\newcommand{\displaytenplots}[2]{
-%    \addplot[#2, mark=none] table[x index=0,y index=2,col sep=space] {../data/#1-run-1.txt};
-%    \addplot[#2, mark=none] table[x index=0,y index=2,col sep=space] {../data/#1-run-2.txt};
-%    \addplot[#2, mark=none] table[x index=0,y index=2,col sep=space] {../data/#1-run-3.txt};
-%    \addplot[#2, mark=none] table[x index=0,y index=2,col sep=space] {../data/#1-run-4.txt};
-%    \addplot[#2, mark=none] table[x index=0,y index=2,col sep=space] {../data/#1-run-5.txt};
-%    \addplot[#2, mark=none] table[x index=0,y index=2,col sep=space] {../data/#1-run-6.txt};
-%    \addplot[#2, mark=none] table[x index=0,y index=2,col sep=space] {../data/#1-run-7.txt};
-%    \addplot[#2, mark=none] table[x index=0,y index=2,col sep=space] {../data/#1-run-8.txt};
-%    \addplot[#2, mark=none] table[x index=0,y index=2,col sep=space] {../data/#1-run-9.txt};
-%    \addplot[#2, mark=none] table[x index=0,y index=2,col sep=space] {../data/#1-run-10.txt};
-%}
-%
-%\begin{figure}[H]
-%\centering
-%\begin{tabularx}{\textwidth}{XcXc}
-%~ &
-%\begin{tikzpicture}
-%\begin{axis}[xlabel={Generation},ylabel={Mean population fitness}]
-%\displaytenplots{onemax-adult-proportionate-crossover-1-mutation-0.01-population-250-problem-40-generations-100}{red}
-%\end{axis}
-%\end{tikzpicture}
-%& ~ &
-%\begin{tikzpicture}
-%\begin{axis}[xlabel={Generation},ylabel={Mean fitness}, cycle list name=color list, mark=none]
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-2-mutation-0.01-population-250-problem-40-generations-100-run-1.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-2-mutation-0.01-population-250-problem-40-generations-100-run-2.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-2-mutation-0.01-population-250-problem-40-generations-100-run-3.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-2-mutation-0.01-population-250-problem-40-generations-100-run-4.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-2-mutation-0.01-population-250-problem-40-generations-100-run-5.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-2-mutation-0.01-population-250-problem-40-generations-100-run-6.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-2-mutation-0.01-population-250-problem-40-generations-100-run-7.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-2-mutation-0.01-population-250-problem-40-generations-100-run-8.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-2-mutation-0.01-population-250-problem-40-generations-100-run-9.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-2-mutation-0.01-population-250-problem-40-generations-100-run-10.txt};
-%\end{axis}
-%\end{tikzpicture}
-%\\
-%~ &
-%\begin{tikzpicture}
-%\begin{axis}[xlabel={Generation},ylabel={Mean fitness}, cycle list name=color list, mark=none]
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-1-mutation-0.01-population-250-problem-40-generations-100-run-1.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-1-mutation-0.01-population-250-problem-40-generations-100-run-2.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-1-mutation-0.01-population-250-problem-40-generations-100-run-3.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-1-mutation-0.01-population-250-problem-40-generations-100-run-4.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-1-mutation-0.01-population-250-problem-40-generations-100-run-5.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-1-mutation-0.01-population-250-problem-40-generations-100-run-6.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-1-mutation-0.01-population-250-problem-40-generations-100-run-7.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-1-mutation-0.01-population-250-problem-40-generations-100-run-8.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-1-mutation-0.01-population-250-problem-40-generations-100-run-9.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-1-mutation-0.01-population-250-problem-40-generations-100-run-10.txt};
-%\end{axis}
-%\end{tikzpicture}
-%& ~ &
-%\begin{tikzpicture}
-%\begin{axis}[xlabel={Generation},ylabel={Mean fitness}, cycle list name=color list, mark=none]
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-2-mutation-0.01-population-250-problem-40-generations-100-run-1.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-2-mutation-0.01-population-250-problem-40-generations-100-run-2.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-2-mutation-0.01-population-250-problem-40-generations-100-run-3.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-2-mutation-0.01-population-250-problem-40-generations-100-run-4.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-2-mutation-0.01-population-250-problem-40-generations-100-run-5.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-2-mutation-0.01-population-250-problem-40-generations-100-run-6.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-2-mutation-0.01-population-250-problem-40-generations-100-run-7.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-2-mutation-0.01-population-250-problem-40-generations-100-run-8.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-2-mutation-0.01-population-250-problem-40-generations-100-run-9.txt};
-%\addplot table[x index=0,y index=2,col sep=space] {../data/onemax-adult-proportionate-crossover-2-mutation-0.01-population-250-problem-40-generations-100-run-10.txt};
-%\end{axis}
-%\end{tikzpicture}
-%\\
-%\end{tabularx}
-%\caption{Network 1 -- $784~\textsc{Input} \times 512~\textsc{Sigmoid} \times 10~\textsc{Softmax}$}
-%\label{fig:N1}
-%\end{figure}
+As an example, the following shows how the \textsc{One-Max} fitness function is written as a lambda:
+
+\begin{center}
+{\footnotesize\texttt{
+[] (const auto\& genotype)\\
+\{ return static\_cast<double>(genotype.count()) / static\_cast<double>(genotype.size()); \}}}
+\end{center}
+
+\section*{\textsc{One-Max}}
+
+When analyzing the \textsc{One-Max} problem with full-generational replacement, there will always be a chance of regression where fit individuals are replaced by less fit individuals. To consistently find a solution to the 40-bit \textsc{One-Max} problem in less than 100 generations with full-generational replacement, proportional fitness parent selection, 1~crossover point, a crossover rate of 1.0, and a mutation rate of 0.001, a population of 300~individuals was found to be appropriate. Across 100~runs, a population size of 300~individuals was found to consistently yield a valid solution. The mentioned parameter values are used as defaults in all comparisons.
+
+The comparison of mutation rates (Figure~\ref{fig:onemax_mut}) shows that a mutation rate of 0.001 clearly outperforms 0.01 and 0.005 for this problem. It appears that a mutation rate between 0.0001 and 0.0005 results in the best performance for this problem.
+
+Comparisons of crossover rates (Figure~\ref{fig:onemax_cross}) did not show any clearly superior options, and that crossover rates between 0.8 and 1.0 seems to result in the best performance.
+
+Parent selection methods are compared in Figure~\ref{fig:onemax_parens}. Rank selection clearly outperforms proportionate fitness selection, and sigma selection clearly outperforms rank selection. It can further be observed that tournament selection is the best parent selection mechanism for the problem, and that smaller tournament groups perform better than larger tournament groups.
+
+\newcommand{\displayplots}[2]{
+    \addplot[#2, mark=none] table[x index=0,y index=2,col sep=space] {../data/#1-run-1.txt};
+    \addplot[#2, mark=none] table[x index=0,y index=2,col sep=space] {../data/#1-run-2.txt};
+    \addplot[#2, mark=none] table[x index=0,y index=2,col sep=space] {../data/#1-run-3.txt};
+    \addplot[#2, mark=none] table[x index=0,y index=2,col sep=space] {../data/#1-run-4.txt};
+    \addplot[#2, mark=none] table[x index=0,y index=2,col sep=space] {../data/#1-run-5.txt};
+    \addplot[#2, mark=none, densely dotted] table[x index=0,y index=1,col sep=space] {../data/#1-run-1.txt};
+    \addplot[#2, mark=none, densely dotted] table[x index=0,y index=1,col sep=space] {../data/#1-run-2.txt};
+    \addplot[#2, mark=none, densely dotted] table[x index=0,y index=1,col sep=space] {../data/#1-run-3.txt};
+    \addplot[#2, mark=none, densely dotted] table[x index=0,y index=1,col sep=space] {../data/#1-run-4.txt};
+    \addplot[#2, mark=none, densely dotted] table[x index=0,y index=1,col sep=space] {../data/#1-run-5.txt};
+}
+
+\begin{figure}
+\centering
+\begin{tabularx}{\textwidth}{XcXc}
+~ &
+\begin{tikzpicture}
+\begin{axis}[xlabel={Generation},ylabel={Mean population fitness}, legend pos=south east]
+\addlegendentry{M=0.01}
+\addlegendentry{M=0.005}
+\addlegendentry{M=0.001}
+\addlegendimage{no markers,red}
+\addlegendimage{no markers,green}
+\addlegendimage{no markers,blue}
+\displayplots{onemax-adult-proportionate-crossover-1.0-mutation-0.01-population-300-problem-40-generations-100}{red}
+\displayplots{onemax-adult-proportionate-crossover-1.0-mutation-0.005-population-300-problem-40-generations-100}{green}
+\displayplots{onemax-adult-proportionate-crossover-1.0-mutation-0.001-population-300-problem-40-generations-100}{blue}
+\end{axis}
+\end{tikzpicture}
+& ~ &
+\begin{tikzpicture}
+\begin{axis}[xlabel={Generation},ylabel={Mean population fitness}, legend pos=south east]
+\addlegendentry{M=0.001}
+\addlegendentry{M=0.0005}
+\addlegendentry{M=0.0001}
+\addlegendimage{no markers,blue}
+\addlegendimage{no markers,yellow}
+\addlegendimage{no markers,black}
+\displayplots{onemax-adult-proportionate-crossover-1.0-mutation-0.001-population-300-problem-40-generations-100}{blue}
+\displayplots{onemax-adult-proportionate-crossover-1.0-mutation-0.0005-population-300-problem-40-generations-100}{yellow}
+\displayplots{onemax-adult-proportionate-crossover-1.0-mutation-0.0001-population-300-problem-40-generations-100}{black}
+\end{axis}
+\end{tikzpicture}
+\\
+\end{tabularx}
+\caption{\textsc{One-Max} mutation rate comparison}
+\label{fig:onemax_mut}
+\end{figure}
+
+\begin{figure}
+\centering
+\begin{tabularx}{\textwidth}{XcXc}
+~ &
+\begin{tikzpicture}
+\begin{axis}[xlabel={Generation},ylabel={Mean population fitness}, legend pos=south east]
+\addlegendentry{C=1.0}
+\addlegendentry{C=0.8}
+\addlegendentry{C=0.6}
+\addlegendimage{no markers,red}
+\addlegendimage{no markers,green}
+\addlegendimage{no markers,blue}
+\displayplots{onemax-adult-proportionate-crossover-1.0-mutation-0.0001-population-150-problem-40-generations-100}{red}
+\displayplots{onemax-adult-proportionate-crossover-0.8-mutation-0.0001-population-150-problem-40-generations-100}{green}
+\displayplots{onemax-adult-proportionate-crossover-0.6-mutation-0.0001-population-150-problem-40-generations-100}{blue}
+\end{axis}
+\end{tikzpicture}
+& ~ &
+\begin{tikzpicture}
+\begin{axis}[xlabel={Generation},ylabel={Mean population fitness}, legend pos=south east]
+\addlegendentry{C=0.98}
+\addlegendentry{C=0.95}
+\addlegendentry{C=0.92}
+\addlegendimage{no markers,purple}
+\addlegendimage{no markers,yellow}
+\addlegendimage{no markers,black}
+\displayplots{onemax-adult-proportionate-crossover-0.98-mutation-0.0001-population-150-problem-40-generations-100}{blue}
+\displayplots{onemax-adult-proportionate-crossover-0.95-mutation-0.0001-population-150-problem-40-generations-100}{yellow}
+\displayplots{onemax-adult-proportionate-crossover-0.92-mutation-0.0001-population-150-problem-40-generations-100}{black}
+\end{axis}
+\end{tikzpicture}
+\\
+\end{tabularx}
+\caption{\textsc{One-Max} crossover rate comparison}
+\label{fig:onemax_cross}
+\end{figure}
+
+\begin{figure}
+\centering
+\begin{tabularx}{\textwidth}{XcXc}
+~ &
+\begin{tikzpicture}
+\begin{axis}[xlabel={Generation},ylabel={Mean population fitness}, legend pos=south east]
+\addlegendentry{Proportionate}
+\addlegendentry{Rank}
+\addlegendentry{Sigma}
+\addlegendimage{no markers,red}
+\addlegendimage{no markers,green}
+\addlegendimage{no markers,blue}
+\displayplots{onemax-adult-proportionate-crossover-1.0-mutation-0.0001-population-300-problem-40-generations-100}{red}
+\displayplots{onemax-adult-rank-crossover-1.0-mutation-0.0001-population-300-problem-40-generations-100}{green}
+\displayplots{onemax-adult-sigma-crossover-1.0-mutation-0.0001-population-300-problem-40-generations-100}{blue}
+\end{axis}
+\end{tikzpicture}
+& ~ &
+\begin{tikzpicture}
+\begin{axis}[xlabel={Generation},ylabel={Mean population fitness}, legend pos=south east]
+\addlegendentry{Tournament (10)}
+\addlegendentry{Tournament (25)}
+\addlegendentry{Tournament (50)}
+\addlegendimage{no markers,purple}
+\addlegendimage{no markers,yellow}
+\addlegendimage{no markers,black}
+\displayplots{onemax-adult-tournament-group-10-crossover-1.0-mutation-0.0001-population-300-problem-40-generations-100}{purple}
+\displayplots{onemax-adult-tournament-group-25-crossover-1.0-mutation-0.0001-population-300-problem-40-generations-100}{yellow}
+\displayplots{onemax-adult-tournament-group-50-crossover-1.0-mutation-0.0001-population-300-problem-40-generations-100}{black}
+\end{axis}
+\end{tikzpicture}
+\\
+\end{tabularx}
+\caption{\textsc{One-Max} parent selection comparison}
+\label{fig:onemax_parent}
+\end{figure}
+
+\section*{\acf{LOLZ}}
+
+\begin{figure}
+\centering
+\begin{tabularx}{\textwidth}{XcX}
+~ &
+\begin{tikzpicture}
+\begin{axis}[xlabel={Generation},ylabel={Best population fitness}, legend pos=south east, cycle list name=color list, mark=none]
+\addplot[black, mark=none] table[x index=0,y index=1,col sep=space] {../data/lolz-adult-tournament-10-crossover-1.0-mutation-0.0001-population-300-L-40-Z-21-generations-500-run-1.txt};
+\addplot[black, mark=none] table[x index=0,y index=1,col sep=space] {../data/lolz-adult-tournament-10-crossover-1.0-mutation-0.0001-population-300-L-40-Z-21-generations-500-run-2.txt};
+\addplot[black, mark=none] table[x index=0,y index=1,col sep=space] {../data/lolz-adult-tournament-10-crossover-1.0-mutation-0.0001-population-300-L-40-Z-21-generations-500-run-3.txt};
+\addplot[black, mark=none] table[x index=0,y index=1,col sep=space] {../data/lolz-adult-tournament-10-crossover-1.0-mutation-0.0001-population-300-L-40-Z-21-generations-500-run-4.txt};
+\addplot[black, mark=none] table[x index=0,y index=1,col sep=space] {../data/lolz-adult-tournament-10-crossover-1.0-mutation-0.0001-population-300-L-40-Z-21-generations-500-run-5.txt};
+\addplot[black, mark=none] table[x index=0,y index=1,col sep=space] {../data/lolz-adult-tournament-10-crossover-1.0-mutation-0.0001-population-300-L-40-Z-21-generations-500-run-6.txt};
+\addplot[black, mark=none] table[x index=0,y index=1,col sep=space] {../data/lolz-adult-tournament-10-crossover-1.0-mutation-0.0001-population-300-L-40-Z-21-generations-500-run-7.txt};
+\addplot[black, mark=none] table[x index=0,y index=1,col sep=space] {../data/lolz-adult-tournament-10-crossover-1.0-mutation-0.0001-population-300-L-40-Z-21-generations-500-run-8.txt};
+\end{axis}
+\end{tikzpicture}
+& ~ \\
+\end{tabularx}
+\caption{Comparison of 8 runs for the \textsc{LOLZ} problem with full generational replacement, tournament parent selection (10), one-point crossover and mutation rate 0.0001, population 300.}
+\label{fig:lolz_runs}
+\end{figure}
 
 \section*{Surprising Sequences}
 
-The fitness function for both local and global surprising sequences is based on the function \texttt{collisions}, which takes a string parameter, the symbol set size ($S$), and the pair distance to test for; $d$. The function counts collisions by iterating over each position, $i$, in the string. If the pair consisting of the symbol at position $i$ and the symbol at position $i+d+1$ has not been encountered, it is marked as seen in a lookup table. However, if the pair has already been seen as part of the \texttt{collisions} function invocation, it is recorded in the sum of collisions which the function ends up returning.
+Figure~\ref{fig:surprising_genotype} shows the integer vector genotype used to represent individuals for the surprising sequence problem. In addition to representing an individual as an integer vector, the symbol set size $S$ is also stored. This value is used when mutating the individual, such that mutating any position in the vector involves setting its value to a random member of the symbol set.
+
+As no obvious advantage was seen in using a separate phenotype representation, individuals use the same representation for its genotype and effective phenotype.
+
+\begin{figure}[H]
+\centering
+\includegraphics[scale=1.0]{images/surprising_genotype}
+\caption{Surprising sequences integer vector genotype}
+\label{fig:surprising_genotype}
+\end{figure}
+
+The fitness function for both local and global surprising sequences is based on the function \texttt{collisions}, which takes a sequence parameter, the symbol set size ($S$), and the pair distance to test for; $d$. The function counts collisions by iterating over each position, $i$, in the sequence. If the pair consisting of the symbol at position $i$ and the symbol at position $i+d+1$ has not been encountered, it is marked as seen in a lookup table. However, if the pair has already been seen as part of the \texttt{collisions} function invocation, it is recorded in the sum of collisions which the function ends up returning.
+
+The local fitness function (Equation~\ref{eq:ss_local}) is based on a single call to the \texttt{collisions} function for the case $d=0$, while the global fitness function (Equation~\ref{eq:ss_global}) invokes the \texttt{collisions} function once for each $d$ in the range $[0, L-3]$. Each fitness function will result in a fitness of 1 in the case of no collisions, and scoring any addition in the number of collisions with a worse fitness.
 
 \begin{equation}
-\textit{fitness}_\textit{global} = \frac{1}{1 + \sum_{d=0}^{L - 3} \texttt{collisions}(\textit{string}, S, d)}
+\label{eq:ss_local}
+\textit{fitness}_\textit{local} = \frac{1}{1 + \texttt{collisions}(\textit{sequence}, S, 0)}
 \end{equation}
 
 \begin{equation}
-\textit{fitness}_\textit{local} = \frac{1}{1 + \texttt{collisions}(\textit{string}, S, 0)}
+\label{eq:ss_global}
+\textit{fitness}_\textit{global} = \frac{1}{1 + \sum_{d=0}^{L - 3} \texttt{collisions}(\textit{sequence}, S, d)}
 \end{equation}
 
 \begin{table}
-{\footnotesize
+{\tiny
 \begin{tabularx}{\textwidth}{cccX}
 \toprule
 $S$ & $L$ & Gen. & Sequence \\
@@ -145,12 +253,12 @@ $S$ & $L$ & Gen. & Sequence \\
 \bottomrule
 \end{tabularx}
 }
-\caption{Local surprising sequences found with a population of 200.}
+\caption{Local surprising sequences (population: 200)}
 \label{table:local_surprising}
 \end{table}
 
 \begin{table}
-{\footnotesize
+{\tiny
 \begin{tabularx}{\textwidth}{cccX}
 \toprule
 $S$ & $L$ & Gen. & Sequence \\
@@ -163,9 +271,17 @@ $S$ & $L$ & Gen. & Sequence \\
 \bottomrule
 \end{tabularx}
 }
-\caption{Global surprising sequences found with a population of 200.}
+\caption{Global surprising sequences (population: 200)}
 \label{table:local_surprising}
 \end{table}
+
+\section*{Difficulty}
+
+The \textsc{One-Max} problem was clearly the easiest problem, as there are no local maxima and only one correct solution for a given length. It is easy to write a good fitness function which reflects individual fitness well.
+
+\textsc{LOLZ} is a harder problem than \textsc{One-Max} since it is designed to have a distinct local maxima, and because representations in the local maxima are exact opposites to the global maxima; it will be very hard to escape this local maxima for an \ac{EA}.
+
+Surprising sequences is the hardest problem of the three due to the complexity and cost of the fitness evaluation, and due to the complexity of valid sequences.
 
 \end{document}
 
