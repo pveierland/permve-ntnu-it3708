@@ -5,7 +5,7 @@ num_runs=100
 
 for i in $(seq 1 $num_runs)
 do
-    ../program/onemax --adult_selection full --parent_selection proportionate --crossover_points 5 --mutation_rate 0.001 --population_size 250 --problem_size 40 --generations 100
+    ../program/onemax --adult_selection full --parent_selection proportionate --crossover_points 1 --crossover_rate 1.0 --mutation_rate 0.001 --population_size 300 --problem_size 40 --generations 100
 
     if [ $? -eq 1 ]
     then
