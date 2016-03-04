@@ -1,3 +1,51 @@
+import random
+
+class fitness_proportionate(object):
+    def __call__(self, population):
+        random_fitness_sum  = random.uniform(0.0, self.fitness_sum)
+        selected_individual = None
+
+        for individual in population:
+            fitness = individual.fitness()
+
+            if fitness > 0.0:
+                selected_individual = individual
+                random_fitness_sum -= fitness
+
+                if random_fitness_sum < 0.0:
+                    break
+
+        return selected_individual
+
+    def register_population(self, population):
+        self.fitness_sum = sum(individual.fitness() for individual in population)
+
+def rank(object):
+    def __init__(self, max_expected_value):
+        self.max_expected_value = max_expected_value
+        self.min_expected_value = 2.0 - max_expected_value
+
+    def __call__(self, population):
+        selected_individual     = None
+        population_size         = len(population)
+        random_expected_fitness = random.uniform(0.0, population_size)
+
+        for rank_index, individual in enumerate(population, 1):
+            expected_reproduction = (self.min_expected_value
+                + (self.max_expected_value - self.min_expected_value)
+                  * (rank_index - 1) / (population_size - 1))
+
+            random_expected_fitness -= expected_reproduction
+
+            if random_expected_fitness < 0.0:
+                selected_individual = individual
+                break
+
+        return selected_individual
+
+    def register_population(self, population):
+        population.sort(key=operator.methodcaller('fitness'), reverse=True)
+
 class full_generational_replacement(object):
     def __init__(self, reproduction_function):
         self.reproduction_function = reproduction_function
