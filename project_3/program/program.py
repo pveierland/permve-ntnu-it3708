@@ -9,6 +9,7 @@ import enum
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
+from PyQt5.QtQuick import *
 
 class GameState(enum.Enum):
     initial    = 1
@@ -56,7 +57,7 @@ class GameWidget(QWidget):
         self.play_thread     = None
         self.animation_index = 0
         self.animation_indexes = {}
-        self.frequency = 4
+        self.frequency = 17
         self.game_state = GameState.initial
         self.agent_position = None
         self.game_time = 0
@@ -177,47 +178,63 @@ class GameWidget(QWidget):
         #painter.drawPixmap(QPoint(0, height - 5), self.sprite, self.sprites['corner_lower_left'])
         #painter.drawPixmap(QPoint(width - 5, height - 5), self.sprite, self.sprites['corner_lower_right'])
 
-        for y in range(2 * self.y_cells - 1):
-            for x in range(0, 2 * self.x_cells - 1):
-                if self.grid[y, x] is GameEntity.dot:
-                    painter.drawPixmap(QPoint(7 + 8 * x, 7 + 8 * y), self.sprite, self.sprites[GameEntity.dot])
+        #for y in range(2 * self.y_cells - 1):
+        #    for x in range(0, 2 * self.x_cells - 1):
+        #        if self.grid[y, x] is GameEntity.dot:
+        #            painter.drawPixmap(QPoint(7 + 8 * x, 7 + 8 * y), self.sprite, self.sprites[GameEntity.dot])
 
-        for y in range(self.y_cells):
-            for x in range(self.x_cells):
-                value = self.grid[y * 2, x * 2]
-                if value in game_food_entities:
-                    painter.drawPixmap(QPoint(16 * x,16 * y), self.sprite, self.sprites[value])
-                elif value in game_enemy_entities:
-                    painter.drawPixmap(QPoint(16 * x, 16 * y), self.sprite, self.ghost_sprites[value][
-                        (self.animation_indexes[(2 * y, 2 * x)] + self.animation_index) % 8])
+        #for y in range(self.y_cells):
+        #    for x in range(self.x_cells):
+        #        value = self.grid[y * 2, x * 2]
+        #        if value in game_food_entities:
+        #            painter.drawPixmap(QPoint(16 * x,16 * y), self.sprite, self.sprites[value])
+        #        elif value in game_enemy_entities:
+        #            painter.drawPixmap(QPoint(16 * x, 16 * y), self.sprite, self.ghost_sprites[value][
+        #                (self.animation_indexes[(2 * y, 2 * x)] + self.animation_index) % 8])
 
-        if self.game_state is GameState.initial:
-            painter.drawPixmap(QPoint(16 * self.agent_position[1] / 2, 16 * self.agent_position[0] / 2), self.sprite, self.agent_sprite)
-        elif self.game_state is GameState.move_left:
-            painter.drawPixmap(QPoint(16 * self.agent_position[1] / 2 - self.game_time,
-                                      16 * self.agent_position[0] / 2),
-                               self.sprite, self.agent_movement_sprites[2][self.game_time % 2])
+        #if self.game_state is GameState.initial:
+        #    painter.drawPixmap(QPoint(16 * self.agent_position[1] / 2, 16 * self.agent_position[0] / 2), self.sprite, self.agent_sprite)
+        #elif self.game_state is GameState.move_left:
+        #    painter.drawPixmap(QPoint(16 * self.agent_position[1] / 2 - self.game_time,
+        #                              16 * self.agent_position[0] / 2),
+        #                       self.sprite, self.agent_movement_sprites[2][self.game_time % 2])
+
+        sprite_index = self.game_time % 4
+        if sprite_index == 3:
+            sprite_index = 1
+
+        painter.drawPixmap(QPoint(16 * self.agent_position[1] / 2,
+                                  16 * self.agent_position[0] / 2),
+                           self.sprite, [self.agent_sprite, self.agent_movement_sprites[2][1], self.agent_movement_sprites[2][0]][sprite_index])
 
     def play(self):
+        start_time = time.monotonic()
+        sleep_time = 1 / self.frequency
+
         while self.is_alive:
-            if self.game_state is GameState.initial:
-                if self.game_time == 100:
-                    self.game_time = 0
-                    self.game_state = GameState.move_left
-                else:
-                    self.game_time += 1
-            elif self.game_state is GameState.move_left:
-                if self.game_time == 16:
-                    self.agent_position = (self.agent_position[0], self.agent_position[1] - 2)
-                    self.game_time = 0
-                    self.game_state = GameState.initial
-                else:
-                    self.game_time += 1
+            self.game_time += 1
+            #if self.game_state is GameState.initial:
+            #    if self.game_time == 20:
+            #        self.game_time = 0
+            #        self.game_state = GameState.move_left
+            #    else:
+            #        self.game_time += 1
+            #elif self.game_state is GameState.move_left:
+            #    if self.game_time == 16:
+            #        self.agent_position = (self.agent_position[0], self.agent_position[1] - 2)
+            #        self.game_time = 0
+            #        self.game_state = GameState.move_left
+            #    else:
+            #        self.game_time += 1
 
-            self.animation_index = (self.animation_index + 1) % 8
+            #self.animation_index = (self.animation_index + 1) % 8
 
-            time.sleep(1 / self.frequency)
-            self.update()
+            time_now    = time.monotonic()
+            start_time += sleep_time
+
+            if start_time > time_now:
+                time.sleep(start_time - time_now)
+                self.update()
 
     def sizeHint(self):
         return QSize(self.scaling * self.x_cells * 16,
@@ -238,7 +255,7 @@ class FlatlandApplication(QMainWindow):
     def __init__(self):
         super(FlatlandApplication, self).__init__()
 
-        self.game_widget = GameWidget(self)
+        #self.game_widget = GameWidget(self)
 
         #widget = QWidget()
         #sizePolicy = QSizePolicy(
@@ -248,11 +265,38 @@ class FlatlandApplication(QMainWindow):
 
         #self.setSizePolicy(sizePolicy)
 
+        view = QQuickView()
+        container = QWidget.createWindowContainer(view, self)
+        container.setFixedSize(640, 640)
+        view.setSource(QUrl('wtf.qml'))
+
+#        def wtf(s):
+#            print(s)
+
+#        view.rootObject().wtf.connect(wtf)
+
+        view.rootObject().loadComponents()
+
+        view.rootObject().setGrid(10, 10, [
+             0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,
+             0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,
+             0, 0, 8, 0, 9, 0, 0, 0, 0, 0 ,
+             0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,
+             0, 0, 10, 0, 11, 0, 0, 0, 0, 0 ,
+             0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,
+             0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,
+             0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,
+             0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,
+             0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ])
+
+#        view.rootContext().setContextProperty('balls', wtf)
+
         self.setWindowTitle('NTNU IT3708 2016 P3: Evolving Neural Networks for a Flatland agent -- permve@stud.ntnu.no')
-        self.setCentralWidget(self.game_widget)
+        #self.setCentralWidget(self.game_widget)
+        self.setCentralWidget(container)
         self.show()
 
-        self.game_widget.start()
+        #self.game_widget.start()
 
     def closeEvent(self, e):
         self.game_widget.stop()
