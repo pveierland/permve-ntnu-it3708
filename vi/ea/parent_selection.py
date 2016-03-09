@@ -83,7 +83,7 @@ class tournament(object):
     def __call__(self):
         group = random.sample(self.population, self.group_size)
 
-        if random.random() >= self.random_selection_probability:
+        if random.random() < self.random_selection_probability:
             selected_individual = random.choice(group)
         else:
             selected_individual = max(group, key=operator.methodcaller('fitness'))
