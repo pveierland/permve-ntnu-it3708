@@ -5,9 +5,9 @@ class sexual(object):
         self.crossover_function = crossover_function
         self.mutation_function  = mutation_function
 
-    def __call__(self, system):
-        parent_a = system.parent_selection_function()
-        parent_b = system.parent_selection_function()
+    def __call__(self, parent_selector):
+        parent_a = parent_selector()
+        parent_b = parent_selector()
 
         child_a_genotype = copy.copy(parent_a.genotype)
         child_b_genotype = copy.copy(parent_b.genotype)
