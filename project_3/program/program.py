@@ -268,7 +268,7 @@ class FlatlandApplication(QMainWindow):
         view = QQuickView()
         container = QWidget.createWindowContainer(view, self)
         container.setFixedSize(640, 640)
-        view.setSource(QUrl('wtf.qml'))
+        view.setSource(QUrl('Game.qml'))
 
 #        def wtf(s):
 #            print(s)

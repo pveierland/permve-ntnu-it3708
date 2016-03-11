@@ -6,16 +6,18 @@ AnimatedSprite {
 
     width: 16
     height: 16
-    source: "sprites/pacman-general-sprites.png"
+    source: 'data/enemies.png'
     frameCount: 8
     interpolate: false
 
-    frameX: 456
+    currentFrame: { Math.floor(Math.random() * 9) }
+
+    frameX: 0
     frameY: {
-        if (type == 8) return 64
-        else if (type == 9) return 80
-        else if (type == 10) return 96
-        else return 112
+        if (type == 8) return 0
+        else if (type == 9) return 16
+        else if (type == 10) return 32
+        else return 48
     }
 
     frameWidth: 16

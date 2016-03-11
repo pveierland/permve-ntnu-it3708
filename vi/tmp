@@ -1,0 +1,37 @@
+        next_generation.extend(children[:len(next_generation) - fill_size])
+
+def generate_children(system):
+    child_genotypes = system.reproduction_function(parent_selector)
+
+    for child_genotype in child_genotypes:
+        child_phenotype = system.development_function(child_genotype)
+
+        if child_phenotype:
+            child_fitness = system.fitness_function(child_phenotype)
+
+            if child_fitness:
+                yield Individual(child_genotype,
+                                 child_phenotype,
+                                 child_fitness)
+
+        for child_genotype in children_genotypes:
+            child_phenotype = development_function(child_genotype)
+            child_fitness   = fitness_function(child_phenotype)
+
+            if child_phenotype and child_genotype:
+                child_individual = Individual(
+                    child_genotype, child_phenotype, child_fitness)
+                next_generation.append(child_individual)
+
+                if len(next_generation) == fill_size:
+                    generate_children = False
+                    break
+
+
+        child_generator = partial(
+            generate_children,
+
+        parent_selector = functools.partial(
+            system.parent_selection_function.__call__,
+            population,
+            system.parent_selection_function.prepare(past_generation))

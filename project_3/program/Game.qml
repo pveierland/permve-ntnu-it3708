@@ -30,6 +30,10 @@ Item {
         return column + (row * root.gridWidth);
     }
 
+    function isEnemy(value) {
+        return value >= 8 && value <= 11
+    }
+
     function setGrid(width, height, values) {
         root.gridWidth  = width
         root.gridHeight = height
@@ -61,6 +65,12 @@ Item {
 
         MouseArea {
             onClicked: {
+                //agent.move([3, 1, 3, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3])
+
+                //agent.move([2, 3, 2, 2, 3, 3])
+                //agent.move([2, 3])
+                //agent.move([3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3])
+                //agent.move([0, 2, 1, 3])
                 var dx = Math.abs(agent.x - mouse.x)
                 var dy = Math.abs(agent.y - mouse.y)
 
