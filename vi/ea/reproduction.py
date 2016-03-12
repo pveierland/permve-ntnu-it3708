@@ -1,6 +1,6 @@
 import copy
 
-class sexual(object):
+class Sexual(object):
     def __init__(self, crossover_function, mutation_function):
         self.crossover_function = crossover_function
         self.mutation_function  = mutation_function
@@ -9,8 +9,8 @@ class sexual(object):
         parent_a = parent_selector()
         parent_b = parent_selector()
 
-        child_a_genotype = copy.copy(parent_a.genotype)
-        child_b_genotype = copy.copy(parent_b.genotype)
+        child_a_genotype = copy.deepcopy(parent_a.genotype)
+        child_b_genotype = copy.deepcopy(parent_b.genotype)
 
         child_a_genotype, child_b_genotype =
             self.crossover_function(child_a_genotype, child_b_genotype)
