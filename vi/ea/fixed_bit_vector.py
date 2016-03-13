@@ -4,7 +4,7 @@ import random
 from BitVector import BitVector
 
 class Creator(object):
-    def __init__(self, length, value_distribution):
+    def __init__(self, length, value_distribution=0.5):
         self.length             = length
         self.value_distribution = value_distribution
 
@@ -28,9 +28,9 @@ class Mutator(object):
         return fixed_bit_vector
 
 class Crossover(object):
-    def __init__(self, min_crossover_points, max_crossover_points):
+    def __init__(self, min_crossover_points, max_crossover_points=None):
         self.min_crossover_points = min_crossover_points
-        self.max_crossover_points = max_crossover_points
+        self.max_crossover_points = max_crossover_points or min_crossover_points
 
     def __call__(self, a, b):
         def pairwise(iterable):
@@ -45,8 +45,8 @@ class Crossover(object):
         num_points = random.randint(
             self.min_crossover_points, self.max_crossover_points)
 
-        segment_endpoints = [0] + random.sample(
-            list(range(1, length)), num_points) + [length]
+        segment_endpoints = [0] + sorted(random.sample(
+            list(range(1, length)), num_points)) + [length]
 
         for f, t in itertools.islice(pairwise(segment_endpoints), 0, None, 2):
             # Swap bit values in crossover segment

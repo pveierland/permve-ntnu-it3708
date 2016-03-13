@@ -1,4 +1,5 @@
 import collections
+import operator
 import random
 import statistics
 
@@ -26,7 +27,7 @@ class FitnessProportionate(object):
         return FitnessProportionate.Artifacts(fitness_sum)
 
 class Rank(object):
-    def __init__(self, max_expected_value):
+    def __init__(self, max_expected_value=1.5):
         self.max_expected_value = max_expected_value
         self.min_expected_value = 2.0 - max_expected_value
 
@@ -72,12 +73,12 @@ class Sigma(object):
         return selected_individual
 
     def prepare(self, population):
-        fitness_values  = [individual.fitness for individual in population]
-        fitness_mean    = statistics.mean(fitness_values)
-        fitness_pstddev = statistics.pstddev(fitness_values)
+        fitness_values = [individual.fitness for individual in population]
+        fitness_mean   = statistics.mean(fitness_values)
+        fitness_pstdev = statistics.pstdev(fitness_values)
 
         expected_values = [
-            1.0 + (fitness_value - fitness_mean) / (2.0 * fitness_pstddev)
+            1.0 + (((fitness_value - fitness_mean) / (2.0 * fitness_pstdev)) if fitness_pstdev else 0.0)
             for fitness_value in fitness_values]
 
         expected_values_sum = sum(expected_values)
