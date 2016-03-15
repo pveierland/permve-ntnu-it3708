@@ -1,0 +1,43 @@
+\input{permve-ntnu-latex-assignment.tex}
+
+\title{
+\normalfont \normalsize
+\textsc{Norwegian University of Science and Technology\\IT3708 -- Subsymbolic Methods in AI\vspace{-0.2cm}}
+}
+
+\author{Per Magnus Veierland\\permve@stud.ntnu.no}
+
+\date{\normalsize\today}
+
+\hyphenation{LeftParent}
+\hyphenation{RightParent}
+\hyphenation{LeftChild}
+\hyphenation{RightChild}
+
+\begin{document}
+
+\fancyfoot[C]{}
+\maketitle
+
+\vspace{-1.3cm}
+\section*{Intelligence Emerging: Chapter 12 Errata Suggestion}
+\vspace{-0.15cm}
+
+\begin{enumerate}
+\item {\color{WildStrawberry} The lower two neural network diagrams (after crossover) shown in Figure~12.4 on page~321 appear to be incorrect.}
+
+Before the crossover there are two individuals; \textit{LeftParent} and \textit{RightParent}. \textit{LeftParent} has the genotype \framebox{\texttt{1-11~-111}}, describing an excitatory connection from \textbf{X} to \textbf{A}, an inhibitory connection from \textbf{Y} to \textbf{A}, an excitatory connection from \textbf{A} to \textbf{C}, an inhibitory connection from \textbf{X} to \textbf{B}, an excitatory connection from \textbf{Y} to \textbf{B}, and an excitatory connection from \textbf{B} to \textbf{C}. {\color{ForestGreen} The genotypes for \textit{LeftParent} and \textit{RightParent} seems to correspond with both their networks diagrams and their equivalent logic descriptions.}
+
+During crossover, the \textit{LeftParent} genotype \framebox{\texttt{1-11~-111}} is crossed with the \textit{RightParent} genotype \framebox{\texttt{-111~1-11}} to produce \textit{LeftChild} with the genotype \framebox{\texttt{1-11~1-11}} and \textit{RightChild} with the genotype \framebox{\texttt{-111~-111}}. {\color{ForestGreen} The children genotypes seem to be the correct result from the crossover.}
+
+However, the children genotypes do not seem to correspond with their network diagrams. The genotype of \textit{LeftChild} describes an excitatory connection from \textbf{X} to \textbf{A}, which in the diagram is an inhibitory connection, and the genotype describes an inhibitory connection from \textbf{Y} to \textbf{B}, which in the diagram is an excitatory connection. Equally for the \textit{RightChild} where the genotype describes an inhibitory connection from \textbf{X} to \textbf{A}, which in the diagram is an excitatory connection, and the genotype describes an excitatory connection from \textbf{Y} to \textbf{B}, which in the diagram is an inhibitory connection.
+
+\underline{Conclusion}: {\color{ForestGreen} The child genotypes describes networks which correctly corresponds to their noted equivalent logic description $X \land \neg Y$ and $Y \land \neg X$.} {\color{WildStrawberry} The shown child network diagrams both has the equivalent logic description $X \lor Y$, which does not correspond to the genotype or noted equivalent logic description.}
+
+\item For readability a note could be added to Figure~12.5 on page~322 which explains that the node indexes used within genomes must be read as modulo the number of input/output nodes, depending on its type.
+
+\item In Figure~12.6 on page~325 the seems to be a typo where ``XOR(X),Y'' and ``OR(X),Y'' should read ``XOR(X,Y)'' and ``OR(X,Y)''. There also seems to be two different notations used within the same figure; ``OR(X,Y)'' and ``X or Y''. In the bottom right network there seems to be a missing asterisk for the right-most \textbf{B}-node.
+\end{enumerate}
+
+\end{document}
+
