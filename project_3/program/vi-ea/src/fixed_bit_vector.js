@@ -5,7 +5,7 @@ function get_random_int_inclusive(min, max)
 
 export class Creator
 {
-    constructor(length, value_distribution=0.5)
+    constructor(length, value_distribution = 0.5)
     {
         this.length             = length;
         this.value_distribution = value_distribution;
@@ -35,13 +35,14 @@ export class Mutator
                 a[i] = !a[i];
             }
         });
+
+        return value;
     }
 }
 
 export class Crossover
 {
-    constructor(min_crossover_points,
-                max_crossover_points=undefined)
+    constructor(min_crossover_points, max_crossover_points = undefined)
     {
         this.min_crossover_points = min_crossover_points;
         this.max_crossover_points = max_crossover_points || min_crossover_points;
@@ -49,10 +50,14 @@ export class Crossover
 
     apply(a, b)
     {
-        const num_points = get_random_int_inclusive(
-            this.min_crossover_points, this.max_crossover_points);
+        const length = a.length;
+        const point  = get_random_int_inclusive(1, length - 1);
 
+        for (let i = point; i != length; i += 1)
+        {
+            [a[i], b[i]] = [b[i], a[i]]
+        }
 
-
+        return [a, b];
     }
 }
