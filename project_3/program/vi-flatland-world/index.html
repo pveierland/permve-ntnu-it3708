@@ -3,15 +3,19 @@
 <head>
     <title>VI Flatland World</title>
     <meta charset="utf-8">
+
+    <script src="browser-polyfill.js"></script>
     <script src="vi-flatland-world.js"></script>
+
     <style type="text/css">
         canvas {
+            image-rendering: pixelated;                 /* Chrome 41+ and Opera 26+      */
             image-rendering: optimizeSpeed;             /* Older versions of FF          */
-            image-rendering: -moz-crisp-edges;          /* FF 6.0+                       */
-            image-rendering: -webkit-optimize-contrast; /* Safari                        */
-            image-rendering: -o-crisp-edges;            /* OS X & Windows Opera (12.02+) */
-            image-rendering: pixelated;                 /* Awesome future-browsers       */
-            -ms-interpolation-mode: nearest-neighbor;   /* IE                            */
+            image-rendering: -webkit-optimize-contrast; /* Safari 6, UC Browser 9.9      */
+            image-rendering: -webkit-crisp-edges;       /* Safari 7+                     */
+            image-rendering: -o-crisp-edges;            /* Opera 12                      */
+            image-rendering: -moz-crisp-edges;          /* Firefox 3.6+                  */
+
             width: 640px;
             height: 640px;
             display: block;
@@ -24,8 +28,8 @@
     <canvas id="flatland" width="160px" height="160px"></canvas>
 
     <script>
-        var flatland_world = new vi_flatland_world.vi_flatland_world(
-            { element_id: 'flatland', worldWidth: 10, worldHeight: 10 });
+        var flatland = new vi_flatland_world.Flatland(
+            { elementId: 'flatland', worldWidth: 10, worldHeight: 10 });
 
         document.onkeydown = function(e)
         {
@@ -34,10 +38,10 @@
 
             switch (e.which || e.keyCode)
             {
-                case 37: flatland_world.move(2); handled = true; break;
-                case 38: flatland_world.move(0); handled = true; break;
-                case 39: flatland_world.move(3); handled = true; break;
-                case 40: flatland_world.move(1); handled = true; break;
+                case 37: flatland.move(3); handled = true; break;
+                case 38: flatland.move(1); handled = true; break;
+                case 39: flatland.move(4); handled = true; break;
+                case 40: flatland.move(2); handled = true; break;
             }
 
             if (handled)

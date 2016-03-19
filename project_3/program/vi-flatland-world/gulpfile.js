@@ -1,8 +1,8 @@
-var gulp       = require('gulp');
-var browserify = require('browserify');
-var babelify   = require('babelify');
-var source     = require('vinyl-source-stream');
-var gutil      = require('gulp-util');
+var babelify    = require('babelify');
+var browserify  = require('browserify');
+var gulp        = require('gulp');
+var gulp_util   = require('gulp-util');
+var source      = require('vinyl-source-stream');
 
 gulp.task('es6', function() {
     browserify({
@@ -11,9 +11,9 @@ gulp.task('es6', function() {
         standalone: 'vi_flatland_world'
     })
     .transform(babelify, {presets: ['es2015']})
-    .on('error', gutil.log)
+    .on('error', gulp_util.log)
     .bundle()
-    .on('error', gutil.log)
+    .on('error', gulp_util.log)
     .pipe(source('vi-flatland-world.js'))
     .pipe(gulp.dest(''));
 });
