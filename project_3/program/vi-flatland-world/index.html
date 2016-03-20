@@ -38,7 +38,8 @@
             worldWidth: 10,
             worldHeight: 10,
             stepCallback: function(stats) {
-                document.getElementById("stats").textContent = "Food: " + stats.foodEaten + "   Poison: " + stats.poisonEaten + "   Timesteps: " + stats.timeSteps;
+                document.getElementById("stats").textContent =
+                    "Food: " + stats.foodEaten + "   Poison: " + stats.poisonEaten + "   Timesteps: " + stats.timeSteps;
             }
         });
 
@@ -49,10 +50,10 @@
 
             switch (e.which || e.keyCode)
             {
-                case 37: flatland.perform([3]); handled = true; break;
-                case 38: flatland.perform([1]); handled = true; break;
-                case 39: flatland.perform([4]); handled = true; break;
-                case 40: flatland.perform([2]); handled = true; break;
+                case 37: flatland.perform([vi_flatland_world.Action.moveLeft]); handled = true; break;
+                case 38: flatland.perform([vi_flatland_world.Action.moveUp]); handled = true; break;
+                case 39: flatland.perform([vi_flatland_world.Action.moveRight]); handled = true; break;
+                case 40: flatland.perform([vi_flatland_world.Action.moveDown]); handled = true; break;
             }
 
             if (handled)

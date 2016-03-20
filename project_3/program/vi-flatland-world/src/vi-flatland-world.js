@@ -1,129 +1,136 @@
-export const Action =
+export const Action = Object.freeze(
 {
-    moveUp:    1,
-    moveDown:  2,
-    moveLeft:  3,
-    moveRight: 4,
-    stayPut:   5
-};
+    stay:      1,
+    moveUp:    2,
+    moveDown:  3,
+    moveLeft:  4,
+    moveRight: 5,
+});
 
-const GameEntity =
+export const GameEntity = Object.freeze(
 {
     void:        0,
-    agent:       1,
-    dot:         2,
-    cherry:      3,
-    strawberry:  4,
-    orange:      5,
-    apple:       6,
-    melon:       7,
-    blinky:      8,
-    pinky:       9,
-    inky:       10,
-    clyde:      11
-};
+    dot:         1,
+    cherry:      2,
+    strawberry:  3,
+    orange:      4,
+    apple:       5,
+    melon:       6,
+    blinky:      7,
+    pinky:       8,
+    inky:        9,
+    clyde:      10
+});
 
-const WorldEntity =
+export const WorldEntity = Object.freeze(
 {
     void: 0, food: 1, poison: 2
-};
+});
 
-var Constants =
+const Constants = Object.freeze(function()
 {
-    animationDivider: 8,
-    gameLoopDelayMs: 1000 / 30
-};
+    let constants = {};
 
-Constants.food =
-[
-    GameEntity.cherry,
-    GameEntity.strawberry,
-    GameEntity.orange,
-    GameEntity.apple,
-    GameEntity.melon
-];
+    constants.animationDivider = 8;
+    constants.gameLoopDelayMs  = 1000 / 30;
 
-Constants.enemies =
-[
-    GameEntity.blinky,
-    GameEntity.pinky,
-    GameEntity.inky,
-    GameEntity.clyde
-];
+    constants.food =
+    [
+        GameEntity.cherry,
+        GameEntity.strawberry,
+        GameEntity.orange,
+        GameEntity.apple,
+        GameEntity.melon
+    ];
 
-Constants.spriteOffsets = {};
+    constants.enemies =
+    [
+        GameEntity.blinky,
+        GameEntity.pinky,
+        GameEntity.inky,
+        GameEntity.clyde
+    ];
 
-Constants.spriteOffsets[GameEntity.agent] = [ { x: 0, y: 16 },
-    [ { x: 0, y: 16 }, { x: 16, y: 16 }, { x: 32, y: 16 }, { x: 48, y: 16 } ],
-    [ { x: 0, y: 32 }, { x: 16, y: 32 }, { x: 32, y: 32 }, { x: 48, y: 32 } ],
-    [ { x: 0, y: 48 }, { x: 16, y: 48 }, { x: 32, y: 48 }, { x: 48, y: 48 } ],
-    [ { x: 0, y: 64 }, { x: 16, y: 64 }, { x: 32, y: 64 }, { x: 48, y: 64 } ] ];
+    constants.spriteInfo                        = {};
+    constants.spriteInfo[GameEntity.dot]        = { x: 176, y: 0, frames: 1 };
+    constants.spriteInfo[GameEntity.cherry]     = { x: 192, y: 0, frames: 1 };
+    constants.spriteInfo[GameEntity.strawberry] = { x: 192, y: 16, frames: 1 };
+    constants.spriteInfo[GameEntity.orange]     = { x: 192, y: 32, frames: 1 };
+    constants.spriteInfo[GameEntity.apple]      = { x: 192, y: 48, frames: 1 };
+    constants.spriteInfo[GameEntity.melon]      = { x: 192, y: 64, frames: 1 };
+    constants.spriteInfo[GameEntity.blinky]     = { x: 160, y: 16, frames: 2, divider: 8 };
+    constants.spriteInfo[GameEntity.pinky]      = { x: 160, y: 32, frames: 2, divider: 8 };
+    constants.spriteInfo[GameEntity.inky]       = { x: 160, y: 48, frames: 2, divider: 8 };
+    constants.spriteInfo[GameEntity.clyde]      = { x:  64, y: 64, frames: 8, divider: 8 };
 
-Constants.spriteOffsets[GameEntity.dot]        = { x: 176, y:  0 };
-Constants.spriteOffsets[GameEntity.cherry]     = { x: 192, y:  0 };
-Constants.spriteOffsets[GameEntity.strawberry] = { x: 192, y: 16 };
-Constants.spriteOffsets[GameEntity.orange]     = { x: 192, y: 32 };
-Constants.spriteOffsets[GameEntity.apple]      = { x: 192, y: 48 };
-Constants.spriteOffsets[GameEntity.melon]      = { x: 192, y: 64 };
+    constants.agentSpriteInfo                   = {};
+    constants.agentSpriteInfo[Action.stay]      = { x: 0, y: 16, frames: 1 };
+    constants.agentSpriteInfo[Action.moveUp]    = { x: 0, y: 16, frames: 4 };
+    constants.agentSpriteInfo[Action.moveDown]  = { x: 0, y: 32, frames: 4 };
+    constants.agentSpriteInfo[Action.moveLeft]  = { x: 0, y: 48, frames: 4 };
+    constants.agentSpriteInfo[Action.moveRight] = { x: 0, y: 64, frames: 4 };
 
-Constants.spriteOffsets[GameEntity.blinky]     = { x:  160, y: 16 };
-Constants.spriteOffsets[GameEntity.pinky]      = { x:  160, y: 32 };
-Constants.spriteOffsets[GameEntity.inky]       = { x:  160, y: 48 };
-Constants.spriteOffsets[GameEntity.clyde]      = { x:  160, y: 64 };
+    return constants;
+}());
 
-var Utility = {};
-
-Utility.getRandomIntInclusive = function(min, max)
+const Utility = Object.freeze(function()
 {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-};
+    let utility = {};
 
-Utility.isEnemy = function(entity)
-{
-    return entity >= GameEntity.blinky && entity <= GameEntity.clyde;
-};
-
-Utility.isFood = function(entity)
-{
-    return entity >= GameEntity.cherry && entity <= GameEntity.melon;
-};
-
-Utility.shuffle = function(array)
-{
-    var currentIndex = array.length, temporaryValue, randomIndex;
-
-    while (currentIndex !== 0)
+    utility.clearGridNeighbors = function(cells, x, y, width, height)
     {
-        randomIndex   = Math.floor(Math.random() * currentIndex);
-        currentIndex -= 1;
+        if (x > 0)
+        {
+            cells[y * width + x - 1] = 0;
+        }
+        if (x < width - 1)
+        {
+            cells[y * width + x + 1] = 0;
+        }
+        if (y > 0)
+        {
+            cells[(y - 1) * width + x] = 0;
+        }
+        if (y < height - 1)
+        {
+            cells[(y + 1) * width + x] = 0;
+        }
+    };
 
-        temporaryValue      = array[currentIndex];
-        array[currentIndex] = array[randomIndex];
-        array[randomIndex]  = temporaryValue;
-    }
+    utility.getRandomIntInclusive = function(min, max)
+    {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    };
 
-    return array;
-};
+    utility.isEnemy = function(entity)
+    {
+        return entity >= GameEntity.blinky && entity <= GameEntity.clyde;
+    };
 
-function clearGridNeighbors(cells, x, y, width, height)
-{
-    if (x > 0)
+    utility.isFood = function(entity)
     {
-        cells[y * width + x - 1] = 0;
-    }
-    if (x < width - 1)
+        return entity >= GameEntity.cherry && entity <= GameEntity.melon;
+    };
+
+    utility.shuffle = function(array)
     {
-        cells[y * width + x + 1] = 0;
-    }
-    if (y > 0)
-    {
-        cells[(y - 1) * width + x] = 0;
-    }
-    if (y < height - 1)
-    {
-        cells[(y + 1) * width + x] = 0;
-    }
-}
+        var currentIndex = array.length, temporaryValue, randomIndex;
+
+        while (currentIndex !== 0)
+        {
+            randomIndex   = Math.floor(Math.random() * currentIndex);
+            currentIndex -= 1;
+
+            temporaryValue      = array[currentIndex];
+            array[currentIndex] = array[randomIndex];
+            array[randomIndex]  = temporaryValue;
+        }
+
+        return array;
+    };
+
+    return utility;
+}());
 
 export function generateRandomWorld(
     worldWidth, worldHeight, foodProbability, poisonProbability)
@@ -204,13 +211,15 @@ export function buildGameModelFromWorldModel(world)
             if (gridValue !== GameEntity.void)
             {
                 gridCells[gridIndex] = gridValue;
-                clearGridNeighbors(gridCells, 2 * column, 2 * row, gridWidth, gridHeight);
+                Utility.clearGridNeighbors(
+                    gridCells, 2 * column, 2 * row, gridWidth, gridHeight);
             }
         }
     }
 
     gridCells[2 * world.agent.y * gridWidth + 2 * world.agent.x] = 0;
-    clearGridNeighbors(gridCells, 2 * world.agent.x, 2 * world.agent.y, gridWidth, gridHeight);
+    Utility.clearGridNeighbors(
+        gridCells, 2 * world.agent.x, 2 * world.agent.y, gridWidth, gridHeight);
 
     return {
         cells:  gridCells,
@@ -227,11 +236,7 @@ export class Flatland
 {
     constructor(options)
     {
-        this.canvas  = document.getElementById(options.elementId);
-        this.context = this.canvas.getContext('2d');
-        this.context.imageSmoothingEnabled = false;
-
-        this.stepCallback = options.stepCallback;
+        this.stepCallback = options.stepCallback || null;
 
         this.model = buildGameModelFromWorldModel(
             generateRandomWorld(options.worldWidth, options.worldHeight, 1/3, 1/3));
@@ -239,23 +244,16 @@ export class Flatland
         this.animationOffsets = this.model.cells.map(
             v => Utility.isEnemy(v) ? Utility.getRandomIntInclusive(0, 1) : null);
 
-        this.animationIndex = 0;
-        this.actionQueue = [];
-        this.movementIndex = 0;
+        this.resetGameState();
 
-        this.remainingTimeSteps = options.timeSteps || 10;
+        this.canvas  = document.getElementById(options.elementId);
+        this.context = this.canvas.getContext('2d');
+        this.context.imageSmoothingEnabled = false;
+        this.context.fillStyle             = 'black';
 
         this.sprites        = new Image();
         this.sprites.onload = window.requestAnimationFrame.bind(window, this.update.bind(this));
         this.sprites.src    = 'sprites.png';
-
-        this.animationSkipCounter = 0;
-
-        this.currentAction = null;
-
-        this.context.fillStyle = 'black';
-
-        this.stats = { foodEaten: 0, poisonEaten: 0, timeSteps: 0 };
     }
 
     computeAgentSpritePositions()
@@ -351,59 +349,67 @@ export class Flatland
 
     render()
     {
-        const currentAction = this.currentAction;
-        const movementIndex = this.movementIndex;
-        const animationIndex = this.animationIndex;
-
-        this.context.fillStyle = 'black';
         this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         for (let y = 0; y < this.model.height; y += 1)
         {
             for (let x = 0; x < this.model.height; x += 1)
             {
-                const index = y * this.model.width + x;
-                const value = this.model.cells[index];
+                const index  = y * this.model.width + x;
+                const entity = this.model.cells[index];
 
-                if (value !== GameEntity.void)
+                if (entity !== GameEntity.void)
                 {
-                    const spriteOffset    = Constants.spriteOffsets[value];
                     const animationOffset = this.animationOffsets[index];
-
-                    const spriteAnimationOffset =
-                        animationOffset ? 16 * ((animationIndex + animationOffset) % 2) : 0;
-
-                    this.context.drawImage(
-                        this.sprites,
-                        spriteOffset.x + spriteAnimationOffset, spriteOffset.y, 16, 16,
-                        8 * x, 8 * y, 16, 16);
+                    this.renderSprite(Constants.spriteInfo[entity], x, y, animationOffset);
                 }
             }
         }
 
-        if (this.animationSkipCounter == 0)
-        {
-            this.animationIndex = this.animationIndex == 1 ? 0 : this.animationIndex + 1;
-        }
-
-        this.animationSkipCounter = (
-            this.animationSkipCounter < Constants.animationDivider - 1
-            ? this.animationSkipCounter + 1 : 0);
-
         let agentSpritePosition, agentCloneSpritePosition;
         [agentSpritePosition, agentCloneSpritePosition] = this.computeAgentSpritePositions();
+        this.renderAgent(agentSpritePosition, agentCloneSpritePosition);
 
-        const agentSpriteOffset = ((!currentAction || currentAction === Action.stayPut)
-            ? Constants.spriteOffsets[GameEntity.agent][0]
-            : Constants.spriteOffsets[GameEntity.agent][currentAction][movementIndex % 4]);
+        this.animationIndex += 1;
+    }
+
+    renderAgent(position, clonePosition)
+    {
+        const sprite          = Constants.agentSpriteInfo[this.currentAction || Action.stay];
+        const frameOffset     = this.movementIndex % sprite.frames;
+        const spriteAdjustedX = sprite.x + 16 * frameOffset;
 
         this.context.drawImage(this.sprites,
-                               agentSpriteOffset.x, agentSpriteOffset.y, 16, 16,
-                               agentSpritePosition.x, agentSpritePosition.y, 16, 16);
+                               spriteAdjustedX, sprite.y, 16, 16,
+                               position.x, position.y, 16, 16);
 
         this.context.drawImage(this.sprites,
-                               agentSpriteOffset.x, agentSpriteOffset.y, 16, 16,
-                               agentCloneSpritePosition.x, agentCloneSpritePosition.y, 16, 16);
+                               spriteAdjustedX, sprite.y, 16, 16,
+                               clonePosition.x, clonePosition.y, 16, 16);
+    }
+
+    renderSprite(sprite, x, y, animationOffset)
+    {
+        let frameOffset = 0;
+
+        if (sprite.frames > 0)
+        {
+            const dividedAnimationIndex = sprite.divider ? Math.floor(this.animationIndex / sprite.divider) : this.animationIndex;
+            frameOffset = (dividedAnimationIndex + (animationOffset || 0)) % sprite.frames;
+        }
+
+        this.context.drawImage(this.sprites,
+                               sprite.x + 16 * frameOffset, sprite.y, 16, 16,
+                               x * 8, y * 8, 16, 16);
+    }
+
+    resetGameState()
+    {
+        this.currentAction = null;
+        this.stats         = { foodEaten: 0, poisonEaten: 0, timeSteps: 0 };
+        this.animationIndex = 0;
+        this.actionQueue = [];
+        this.movementIndex = 0;
     }
 
     setGridValue(position, value)
@@ -412,6 +418,12 @@ export class Flatland
         const previous = this.model.cells[index];
         this.model.cells[index] = value;
         return previous;
+    }
+
+    setModel(model)
+    {
+        this.model = model;
+        resetGameState();
     }
 
     update(currentTime)
