@@ -232,7 +232,7 @@ export function buildGameModelFromWorldModel(world)
     };
 }
 
-export class Flatland
+export class FlatlandWorld
 {
     constructor(options)
     {
@@ -255,7 +255,7 @@ export class Flatland
 
         this.sprites        = new Image();
         this.sprites.onload = window.requestAnimationFrame.bind(window, this.update.bind(this));
-        this.sprites.src    = 'sprites.png';
+        this.sprites.src    = 'vi-flatland-world-sprites.png';
     }
 
     computeAgentSpritePositions()
