@@ -52,8 +52,8 @@ const Constants = Object.freeze(function()
     ];
 
     constants.spriteInfo                        = {};
-    constants.spriteInfo[GameEntity.dot]        = { x: 176, y: 0, frames: 1 };
-    constants.spriteInfo[GameEntity.cherry]     = { x: 192, y: 0, frames: 1 };
+    constants.spriteInfo[GameEntity.dot]        = { x: 176, y:  0, frames: 1 };
+    constants.spriteInfo[GameEntity.cherry]     = { x: 192, y:  0, frames: 1 };
     constants.spriteInfo[GameEntity.strawberry] = { x: 192, y: 16, frames: 1 };
     constants.spriteInfo[GameEntity.orange]     = { x: 192, y: 32, frames: 1 };
     constants.spriteInfo[GameEntity.apple]      = { x: 192, y: 48, frames: 1 };
@@ -242,7 +242,9 @@ export class Flatland
             generateRandomWorld(options.worldWidth, options.worldHeight, 1/3, 1/3));
 
         this.animationOffsets = this.model.cells.map(
-            v => Utility.isEnemy(v) ? Utility.getRandomIntInclusive(0, 1) : null);
+            v => v in Constants.spriteInfo
+                 ? Utility.getRandomIntInclusive(0, Constants.spriteInfo[v].frames - 1)
+                 : 0);
 
         this.resetGameState();
 
