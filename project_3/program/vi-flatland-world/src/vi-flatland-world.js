@@ -1,6 +1,10 @@
-const Action =
+export const Action =
 {
-    none: 0, up: 1, down: 2, left: 3, right: 4
+    moveUp:    1,
+    moveDown:  2,
+    moveLeft:  3,
+    moveRight: 4,
+    stayPut:   5
 };
 
 const GameEntity =
@@ -49,8 +53,7 @@ Constants.enemies =
 
 Constants.spriteOffsets = {};
 
-Constants.spriteOffsets[GameEntity.agent] = [
-    [ { x: 0, y: 16 } ],
+Constants.spriteOffsets[GameEntity.agent] = [ { x: 0, y: 16 },
     [ { x: 0, y: 16 }, { x: 16, y: 16 }, { x: 32, y: 16 }, { x: 48, y: 16 } ],
     [ { x: 0, y: 32 }, { x: 16, y: 32 }, { x: 32, y: 32 }, { x: 48, y: 32 } ],
     [ { x: 0, y: 48 }, { x: 16, y: 48 }, { x: 32, y: 48 }, { x: 48, y: 48 } ],
@@ -228,6 +231,8 @@ export class Flatland
         this.context = this.canvas.getContext('2d');
         this.context.imageSmoothingEnabled = false;
 
+        this.stepCallback = options.stepCallback;
+
         this.model = buildGameModelFromWorldModel(
             generateRandomWorld(options.worldWidth, options.worldHeight, 1/3, 1/3));
 
@@ -261,34 +266,36 @@ export class Flatland
 
         const currentAction = this.currentAction;
 
-        if (currentAction && currentAction !== Action.none)
+        if (currentAction && currentAction !== Action.stayPut)
         {
             const movementOffset = 2 * this.movementIndex;
 
             switch (currentAction)
             {
-                case Action.up:
+                case Action.moveUp:
                 {
                     y -= movementOffset;
                     cloneY = y < 0 ? y + 8 * (this.model.height + 1) : y;
                     break;
                 }
-                case Action.down:
+                case Action.moveDown:
                 {
                     y += movementOffset;
-                    cloneY  = y >= 8 * (this.model.height - 1) ? y - 8 * (this.model.height + 1) : y;
+                    cloneY = (y >= 8 * (this.model.height - 1)
+                        ? y - 8 * (this.model.height + 1) : y);
                     break;
                 }
-                case Action.left:
+                case Action.moveLeft:
                 {
                     x -= movementOffset;
                     cloneX = x < 0 ? x + 8 * (this.model.width + 1) : x;
                     break;
                 }
-                case Action.right:
+                case Action.moveRight:
                 {
-                    x  += movementOffset;
-                    cloneX  = x >= 8 * (this.model.width - 1) ? x - 8 * (this.model.width + 1) : x;
+                    x += movementOffset;
+                    cloneX = (x >= 8 * (this.model.width - 1)
+                        ? x - 8 * (this.model.width + 1) : x);
                     break;
                 }
             }
@@ -301,29 +308,33 @@ export class Flatland
     {
         switch (action)
         {
-            case Action.none:
+            case Action.stayPut:
             {
                 return position;
             }
-            case Action.up:
+            case Action.moveUp:
             {
                 const y = position.y - steps;
-                return { x: position.x, y: y < 0 ? y + this.model.height + 1 : y };
+                return { x: position.x,
+                         y: y < 0 ? y + this.model.height + 1 : y };
             }
-            case Action.down:
+            case Action.moveDown:
             {
                 const y = position.y + steps;
-                return { x: position.x, y: y >= this.model.height ? y - this.model.height - 1 : y };
+                return { x: position.x,
+                         y: y >= this.model.height ? y - this.model.height - 1 : y };
             }
-            case Action.left:
+            case Action.moveLeft:
             {
                 const x = position.x - steps;
-                return { x: x < 0 ? x + this.model.width + 1 : x, y: position.y };
+                return { x: x < 0 ? x + this.model.width + 1 : x,
+                         y: position.y };
             }
-            case Action.right:
+            case Action.moveRight:
             {
                 const x = position.x + steps;
-                return { x: x >= this.model.width ? x - this.model.width - 1: x, y: position.y };
+                return { x: x >= this.model.width ? x - this.model.width - 1: x,
+                         y: position.y };
             }
         }
     }
@@ -333,9 +344,9 @@ export class Flatland
         return position.y * this.model.width + position.x;
     }
 
-    move(direction)
+    perform(actions)
     {
-        this.actionQueue.push(direction)
+        this.actionQueue.push.apply(this.actionQueue, actions);
     }
 
     render()
@@ -382,7 +393,9 @@ export class Flatland
         let agentSpritePosition, agentCloneSpritePosition;
         [agentSpritePosition, agentCloneSpritePosition] = this.computeAgentSpritePositions();
 
-        const agentSpriteOffset = Constants.spriteOffsets[GameEntity.agent][currentAction || 0][movementIndex % 4];
+        const agentSpriteOffset = ((!currentAction || currentAction === Action.stayPut)
+            ? Constants.spriteOffsets[GameEntity.agent][0]
+            : Constants.spriteOffsets[GameEntity.agent][currentAction][movementIndex % 4]);
 
         this.context.drawImage(this.sprites,
                                agentSpriteOffset.x, agentSpriteOffset.y, 16, 16,
@@ -395,7 +408,10 @@ export class Flatland
 
     setGridValue(position, value)
     {
-        this.model.cells[this.getCellIndex(position)] = value;
+        const index    = this.getCellIndex(position);
+        const previous = this.model.cells[index];
+        this.model.cells[index] = value;
+        return previous;
     }
 
     update(currentTime)
@@ -418,26 +434,43 @@ export class Flatland
             {
                 const movementIndex = ++this.movementIndex;
 
-                switch (movementIndex)
+                if (currentAction !== Action.stayPut)
                 {
-                    case 5:
+                    if (movementIndex === 5)
                     {
                         const dotCell = this.computeTargetCell(
                             this.model.agent, currentAction, 1);
-                        this.setGridValue(dotCell, 0);
-                        break;
+                        this.setGridValue(dotCell, GameEntity.void);
                     }
-                    case 8:
+                    else if (movementIndex === 8)
                     {
                         const updatedAgentPosition = this.computeTargetCell(
                             this.model.agent, currentAction, 2);
 
-                        this.setGridValue(updatedAgentPosition, 0);
-                        this.model.agent   = updatedAgentPosition;
-                        this.currentAction = null;
-                        this.movementIndex = 0;
+                        this.model.agent = updatedAgentPosition;
 
-                        break;
+                        let eatenCellValue = this.setGridValue(updatedAgentPosition, GameEntity.void);
+
+                        if (Utility.isFood(eatenCellValue))
+                        {
+                            this.stats.foodEaten += 1;
+                        }
+                        else if (Utility.isEnemy(eatenCellValue))
+                        {
+                            this.stats.poisonEaten += 1;
+                        }
+                    }
+                }
+
+                if (movementIndex === 8)
+                {
+                    this.currentAction   = null;
+                    this.movementIndex   = 0;
+                    this.stats.timeSteps += 1;
+
+                    if (this.stepCallback)
+                    {
+                        this.stepCallback(this.stats);
                     }
                 }
             }

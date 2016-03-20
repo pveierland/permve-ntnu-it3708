@@ -18,18 +18,29 @@
 
             width: 640px;
             height: 640px;
-            display: block;
-            margin: 0 auto;
+        }
+
+        #hoved {
+            margin: auto;
         }
     </style>
 </head>
 
 <body>
-    <canvas id="flatland" width="160px" height="160px"></canvas>
+    <div id="hoved">
+        <canvas id="flatland" width="160px" height="160px"></canvas>
+        <div id="stats">Hello World!</div>
+    </div>
 
     <script>
-        var flatland = new vi_flatland_world.Flatland(
-            { elementId: 'flatland', worldWidth: 10, worldHeight: 10 });
+        var flatland = new vi_flatland_world.Flatland({
+            elementId: 'flatland',
+            worldWidth: 10,
+            worldHeight: 10,
+            stepCallback: function(stats) {
+                document.getElementById("stats").textContent = "Food: " + stats.foodEaten + "   Poison: " + stats.poisonEaten + "   Timesteps: " + stats.timeSteps;
+            }
+        });
 
         document.onkeydown = function(e)
         {
@@ -38,10 +49,10 @@
 
             switch (e.which || e.keyCode)
             {
-                case 37: flatland.move(3); handled = true; break;
-                case 38: flatland.move(1); handled = true; break;
-                case 39: flatland.move(4); handled = true; break;
-                case 40: flatland.move(2); handled = true; break;
+                case 37: flatland.perform([3]); handled = true; break;
+                case 38: flatland.perform([1]); handled = true; break;
+                case 39: flatland.perform([4]); handled = true; break;
+                case 40: flatland.perform([2]); handled = true; break;
             }
 
             if (handled)
