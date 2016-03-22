@@ -1,12 +1,10 @@
 {
   "name": "vi-ea",
   "version": "0.0.1",
-  "description": "VI Evolutionary Algorithms",
-  "main": "build/vi-ea.js",
+  "description": "vi evolutionary algorithms",
+  "main": "vi-ea.js",
   "scripts": {
-    "build": "babel src -d lib",
-    "onemax": "babel-node test/onemax.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "onemax": "babel-node test/onemax.js"
   },
   "author": "Per Magnus Veierland",
   "license": "MIT",
