@@ -22,12 +22,7 @@ export const GameEntity = Object.freeze(
     clyde:      10
 });
 
-export const WorldEntity = Object.freeze(
-{
-    void: 0, food: 1, poison: 2
-});
-
-const Constants = Object.freeze(function()
+export const Constants = Object.freeze(function()
 {
     let constants = {};
 
@@ -73,29 +68,9 @@ const Constants = Object.freeze(function()
     return constants;
 }());
 
-const Utility = Object.freeze(function()
+export const Utility = Object.freeze(function()
 {
     let utility = {};
-
-    utility.clearGridNeighbors = function(cells, x, y, width, height)
-    {
-        if (x > 0)
-        {
-            cells[y * width + x - 1] = 0;
-        }
-        if (x < width - 1)
-        {
-            cells[y * width + x + 1] = 0;
-        }
-        if (y > 0)
-        {
-            cells[(y - 1) * width + x] = 0;
-        }
-        if (y < height - 1)
-        {
-            cells[(y + 1) * width + x] = 0;
-        }
-    };
 
     utility.getRandomIntInclusive = function(min, max)
     {
@@ -112,139 +87,15 @@ const Utility = Object.freeze(function()
         return entity >= GameEntity.cherry && entity <= GameEntity.melon;
     };
 
-    utility.shuffle = function(array)
-    {
-        var currentIndex = array.length, temporaryValue, randomIndex;
-
-        while (currentIndex !== 0)
-        {
-            randomIndex   = Math.floor(Math.random() * currentIndex);
-            currentIndex -= 1;
-
-            temporaryValue      = array[currentIndex];
-            array[currentIndex] = array[randomIndex];
-            array[randomIndex]  = temporaryValue;
-        }
-
-        return array;
-    };
-
     return utility;
 }());
-
-export function generateRandomWorld(
-    worldWidth, worldHeight, foodProbability, poisonProbability)
-{
-    const numWorldCells  = worldWidth * worldHeight;
-    const numFoodCells   = Math.round(foodProbability * numWorldCells);
-    const numPoisonCells = Math.round(
-        poisonProbability * (numWorldCells - numFoodCells));
-
-    let worldCells = new Array(numWorldCells).fill(WorldEntity.void);
-
-    let availableCells = Utility.shuffle(worldCells.map((cv, i) => i));
-    const foodCells    = availableCells.splice(0, numFoodCells);
-    const poisonCells  = availableCells.splice(0, numPoisonCells);
-    const agentCell    = availableCells.splice(0, 1)[0];
-
-    for (let foodCell of foodCells)
-    {
-        worldCells[foodCell] = WorldEntity.food;
-    }
-
-    for (let poisonCell of poisonCells)
-    {
-        worldCells[poisonCell] = WorldEntity.poison;
-    }
-
-    return {
-        cells:             worldCells,
-        width:             worldWidth,
-        height:            worldHeight,
-        foodProbability:   foodProbability,
-        poisonProbability: poisonProbability,
-        agent:             { x: agentCell % worldWidth, y: Math.floor(agentCell / worldWidth) }
-    }
-}
-
-export function buildGameModelFromWorldModel(world)
-{
-    const gridWidth    = 2 * world.width - 1;
-    const gridHeight   = 2 * world.height - 1;
-    const numGridCells = gridWidth * gridHeight;
-
-    let gridCells = new Array(numGridCells).fill(GameEntity.void);
-
-    // Place dots
-    for (let y = 0; y < gridHeight; y += 1)
-    {
-        for (let x = 0; x < gridWidth; x += 1)
-        {
-            if (y % 2 == 0 || x % 2 == 0)
-            {
-                const index = y * gridWidth + x;
-                gridCells[index] = GameEntity.dot;
-            }
-        }
-    }
-
-    // Place fruits and enemies
-    for (let row = 0; row < world.height; row += 1)
-    {
-        for (let column = 0; column < world.width; column += 1)
-        {
-            const worldIndex = row * world.width + column;
-            const worldValue = world.cells[worldIndex];
-            const gridIndex  = 2 * row * gridWidth + 2 * column;
-
-            let gridValue = GameEntity.void;
-
-            if (worldValue === WorldEntity.food)
-            {
-                gridValue = Utility.shuffle(Constants.food.slice())[0];
-            }
-            else if (worldValue === WorldEntity.poison)
-            {
-                gridValue = Utility.shuffle(Constants.enemies.slice())[0];
-            }
-
-            if (gridValue !== GameEntity.void)
-            {
-                gridCells[gridIndex] = gridValue;
-                Utility.clearGridNeighbors(
-                    gridCells, 2 * column, 2 * row, gridWidth, gridHeight);
-            }
-        }
-    }
-
-    gridCells[2 * world.agent.y * gridWidth + 2 * world.agent.x] = 0;
-    Utility.clearGridNeighbors(
-        gridCells, 2 * world.agent.x, 2 * world.agent.y, gridWidth, gridHeight);
-
-    return {
-        cells:  gridCells,
-        width:  gridWidth,
-        height: gridHeight,
-        agent: {
-            x: world.agent.x * 2,
-            y: world.agent.y * 2
-        }
-    };
-}
 
 export class FlatlandWorld
 {
     constructor(options)
     {
         this.stepCallback = options.stepCallback || null;
-
-        this.model = buildGameModelFromWorldModel(
-            generateRandomWorld(options.worldWidth, options.worldHeight, 1/3, 1/3));
-
-        this.animationOffsets = this.model.cells.map(
-            v => v in Constants.spriteInfo
-                 ? Utility.getRandomIntInclusive(0, Constants.spriteInfo[v].frames - 1)
-                 : 0);
+        this.model        = options.model || null;
 
         this.resetGameState();
 
@@ -407,11 +258,19 @@ export class FlatlandWorld
 
     resetGameState()
     {
-        this.currentAction = null;
-        this.stats         = { foodEaten: 0, poisonEaten: 0, timeSteps: 0 };
+        this.actionQueue    = [];
         this.animationIndex = 0;
-        this.actionQueue = [];
-        this.movementIndex = 0;
+        this.currentAction  = null;
+        this.movementIndex  = 0;
+        this.stats          = { foodEaten: 0, poisonEaten: 0, timeSteps: 0 };
+
+        if (this.model)
+        {
+            this.animationOffsets = this.model.cells.map(
+                v => v in Constants.spriteInfo
+                     ? Utility.getRandomIntInclusive(0, Constants.spriteInfo[v].frames - 1)
+                     : 0);
+        }
     }
 
     setGridValue(position, value)
@@ -425,72 +284,76 @@ export class FlatlandWorld
     setModel(model)
     {
         this.model = model;
-        resetGameState();
+        this.resetGameState();
     }
 
     update(currentTime)
     {
-        let ticks = (currentTime && this.lastUpdateTime
-                  ? (currentTime - this.lastUpdateTime) / Constants.gameLoopDelayMs : 0);
-
-        this.lastUpdateTime = currentTime;
-
-        for (; ticks > 0; ticks -= 1)
+        if (this.model)
         {
-            let currentAction = this.currentAction;
+            let ticks = (currentTime && this.lastUpdateTime
+                      ? (currentTime - this.lastUpdateTime) / Constants.gameLoopDelayMs : 0);
 
-            if (!currentAction)
+            this.lastUpdateTime = currentTime;
+
+            for (; ticks > 0; ticks -= 1)
             {
-                currentAction = this.currentAction = this.actionQueue.shift();
-            }
+                let currentAction = this.currentAction;
 
-            if (currentAction)
-            {
-                const movementIndex = ++this.movementIndex;
-
-                if (currentAction !== Action.stayPut)
+                if (!currentAction)
                 {
-                    if (movementIndex === 5)
+                    currentAction = this.currentAction = this.actionQueue.shift();
+                }
+
+                if (currentAction)
+                {
+                    const movementIndex = ++this.movementIndex;
+
+                    if (currentAction !== Action.stayPut)
                     {
-                        const dotCell = this.computeTargetCell(
-                            this.model.agent, currentAction, 1);
-                        this.setGridValue(dotCell, GameEntity.void);
-                    }
-                    else if (movementIndex === 8)
-                    {
-                        const updatedAgentPosition = this.computeTargetCell(
-                            this.model.agent, currentAction, 2);
-
-                        this.model.agent = updatedAgentPosition;
-
-                        let eatenCellValue = this.setGridValue(updatedAgentPosition, GameEntity.void);
-
-                        if (Utility.isFood(eatenCellValue))
+                        if (movementIndex === 5)
                         {
-                            this.stats.foodEaten += 1;
+                            const dotCell = this.computeTargetCell(
+                                this.model.agent, currentAction, 1);
+                            this.setGridValue(dotCell, GameEntity.void);
                         }
-                        else if (Utility.isEnemy(eatenCellValue))
+                        else if (movementIndex === 8)
                         {
-                            this.stats.poisonEaten += 1;
+                            const updatedAgentPosition = this.computeTargetCell(
+                                this.model.agent, currentAction, 2);
+
+                            this.model.agent = updatedAgentPosition;
+
+                            let eatenCellValue = this.setGridValue(updatedAgentPosition, GameEntity.void);
+
+                            if (Utility.isFood(eatenCellValue))
+                            {
+                                this.stats.foodEaten += 1;
+                            }
+                            else if (Utility.isEnemy(eatenCellValue))
+                            {
+                                this.stats.poisonEaten += 1;
+                            }
+                        }
+                    }
+
+                    if (movementIndex === 8)
+                    {
+                        this.currentAction   = null;
+                        this.movementIndex   = 0;
+                        this.stats.timeSteps += 1;
+
+                        if (this.stepCallback)
+                        {
+                            this.stepCallback(this.stats);
                         }
                     }
                 }
-
-                if (movementIndex === 8)
-                {
-                    this.currentAction   = null;
-                    this.movementIndex   = 0;
-                    this.stats.timeSteps += 1;
-
-                    if (this.stepCallback)
-                    {
-                        this.stepCallback(this.stats);
-                    }
-                }
             }
+
+            this.render();
         }
 
-        this.render();
         window.requestAnimationFrame(this.update.bind(this));
     }
 }

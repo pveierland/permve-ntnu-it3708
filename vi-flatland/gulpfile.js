@@ -6,15 +6,15 @@ var source      = require('vinyl-source-stream');
 
 gulp.task('es6', function() {
     browserify({
-        entries: 'src/vi-flatland-world.js',
+        entries: 'src/vi-flatland.js',
         debug: true,
-        standalone: 'vi_flatland_world'
+        standalone: 'ViFlatland'
     })
     .transform(babelify, {presets: ['es2015']})
     .on('error', gulp_util.log)
     .bundle()
     .on('error', gulp_util.log)
-    .pipe(source('vi-flatland-world.js'))
+    .pipe(source('vi-flatland.js'))
     .pipe(gulp.dest(''));
 });
 

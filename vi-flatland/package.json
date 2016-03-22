@@ -1,12 +1,8 @@
 {
-  "name": "vi-flatland-world",
+  "name": "vi-flatland",
   "version": "0.0.1",
-  "description": "VI Flatland World",
-  "main": "index.js",
-  "scripts": {
-    "build": "babel src -d lib",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "description": "vi flatland",
+  "main": "vi-flatland.js",
   "author": "Per Magnus Veierland",
   "license": "MIT",
   "devDependencies": {
