@@ -1,35 +1,73 @@
-function get_random_arbitrary(min, max) {
-    return Math.random() * (max - min) + min;
-}
+import * as utility from '../../vi-utility/vi-utility';
 
 export class FitnessProportionate
 {
     prepare(population)
     {
-        const fitness_sum = population.reduce(
+        const fitnessSum = population.reduce(
             (sum, individual) => sum + individual.fitness, 0);
-        return { 'fitness_sum': fitness_sum };
+        return { fitnessSum: fitnessSum };
     }
 
     select(population, artifacts)
     {
-        let random_fitness_sum = get_random_arbitrary(0, artifacts.fitness_sum);
-        let selected_individual  = null;
+        let selectedIndividual = null;
+        let randomFitnessSum   = utility.random.uniform(0, artifacts.fitnessSum);
 
         for (let individual of population)
         {
             if (individual.fitness > 0)
             {
-                selected_individual = individual;
-                random_fitness_sum -= individual.fitness;
+                selectedIndividual  = individual;
+                randomFitnessSum   -= individual.fitness;
 
-                if (random_fitness_sum < 0)
+                if (randomFitnessSum < 0)
                 {
                     break;
                 }
             }
         }
 
-        return selected_individual;
+        return selectedIndividual;
+    }
+}
+
+export class Rank
+{
+    constructor(maxExpectedValue=1.5)
+    {
+        this.maxExpectedValue = maxExpectedValue;
+        this.minExpectedValue = 2 - maxExpectedValue;
+    }
+
+    prepare(population)
+    {
+        population.sort((a, b) => a.fitness - b.fitness);
+    }
+
+    select(population, artifacts)
+    {
+        const populationSize = population.length;
+
+        let selectedIndividual     = population[populationSize - 1];
+        let randomExpectedValueSum = utility.random.uniform(0, populationSize);
+
+        for (let rankIndex = populationSize; rankIndex >= 1; rankIndex -= 1)
+        {
+            const expectedValue = this.minExpectedValue +
+                + (this.maxExpectedValue - this.minExpectedValue)
+                    * (rankIndex - 1) / (populationSize - 1);
+
+            randomExpectedValueSum -= expectedValue;
+
+            if (randomExpectedValueSum < 0)
+            {
+                selectedIndividual = population[rankIndex - 1];
+                break;
+            }
+
+        }
+
+        return selectedIndividual;
     }
 }
