@@ -1,4 +1,4 @@
-import * as utility from '../../vi-utility/vi-utility';
+import * as math from 'mathjs';
 
 export class FitnessProportionate
 {
@@ -12,7 +12,7 @@ export class FitnessProportionate
     select(population, artifacts)
     {
         let selectedIndividual = null;
-        let randomFitnessSum   = utility.random.uniform(0, artifacts.fitnessSum);
+        let randomFitnessSum   = math.random(artifacts.fitnessSum);
 
         for (let individual of population)
         {
@@ -50,7 +50,7 @@ export class Rank
         const populationSize = population.length;
 
         let selectedIndividual     = population[populationSize - 1];
-        let randomExpectedValueSum = utility.random.uniform(0, populationSize);
+        let randomExpectedValueSum = math.random(populationSize);
 
         for (let rankIndex = populationSize; rankIndex >= 1; rankIndex -= 1)
         {
@@ -66,6 +66,48 @@ export class Rank
                 break;
             }
 
+        }
+
+        return selectedIndividual;
+    }
+}
+
+export class Sigma
+{
+    prepare(population)
+    {
+        const fitnessValues  = population.map(v => v.fitness);
+        const fitnessMean    = math.mean(fitnessValues);
+        const fitnessPStdDev = math.std(fitnessValues, 'uncorrected');
+
+        const expectedValues = fitnessValues.map(fitnessValue =>
+            1 + (fitnessPStdDev > 0
+                ? ((fitnessValue - fitnessMean) / (2 * fitnessPStdDev))
+                : 0));
+
+        const expectedValuesSum = expectedValues.reduce((sum, expectedValue) => sum + expectedValue, 0);
+
+        return { expectedValues: expectedValues, expectedValuesSum: expectedValuesSum };
+    }
+
+    select(population, artifacts)
+    {
+        let selectedIndividual     = null;
+        let randomExpectedValueSum = math.random(artifacts.expectedValuesSum);
+        const populationSize       = population.length;
+
+        for (let i = 0; i < populationSize; i += 1)
+        {
+            const individual    = population[i];
+            const expectedValue = artifacts.expectedValues[i];
+
+            selectedIndividual      = individual;
+            randomExpectedValueSum -= expectedValue;
+
+            if (randomExpectedValueSum < 0)
+            {
+                break;
+            }
         }
 
         return selectedIndividual;
