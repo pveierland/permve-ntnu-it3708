@@ -43,11 +43,21 @@ export class System
 
     evolve()
     {
-        let artifacts      = this.parentSelectionStrategy.prepare(this.population);
-        let parentSelector = generator.parent(this.population, artifacts, this.parentSelectionStrategy);
-        let childGenerator = generator.child(
+        let elitists = null;
+
+        if (this.elitismCount)
+        {
+            this.population.sort((a, b) => b.fitness - a.fitness);
+            elitists = this.population.splice(0, this.elitismCount);
+        }
+
+        const artifacts      = this.parentSelectionStrategy.prepare(this.population);
+        const parentSelector = generator.parent(this.population, artifacts, this.parentSelectionStrategy);
+        const childGenerator = generator.child(
             parentSelector, this.reproductionStrategy, this.developmentStrategy, this.fitnessEvaluationStrategy);
-        this.population    = this.adultSelectionStrategy.select(this.population, childGenerator);
+
+        const nextGeneration = this.adultSelectionStrategy.select(this.population, childGenerator);
+        this.population      = elitists ? elitists.concat(nextGeneration) : nextGeneration;
     }
 
     stats()
