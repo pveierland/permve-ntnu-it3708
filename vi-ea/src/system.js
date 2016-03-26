@@ -1,3 +1,5 @@
+import * as math from 'mathjs';
+
 export class Individual
 {
     constructor(genotype, phenotype, fitness)
@@ -8,107 +10,120 @@ export class Individual
     }
 }
 
-let individual_generator = function*(
-    creator_function, fitness_function, development_function = null)
-{
-    while (true)
-    {
-        let genotype  = creator_function.create();
-        let phenotype = (development_function
-            ? development_function.develop(genotype) : genotype);
-
-        if (phenotype)
-        {
-            let fitness = fitness_function.evaluate(phenotype);
-
-            if (fitness)
-            {
-                yield new Individual(genotype, phenotype, fitness);
-            }
-        }
-    }
-};
-
 export class System
 {
-    constructor(creator_function,
-                parent_selection_function,
-                adult_selection_function,
-                reproduction_function,
-                fitness_function,
-                population_size,
-                development_function = null)
+    constructor(options)
     {
-        this.creator_function          = creator_function;
-        this.parent_selection_function = parent_selection_function;
-        this.adult_selection_function  = adult_selection_function;
-        this.reproduction_function     = reproduction_function;
-        this.fitness_function          = fitness_function;
-        this.population_size           = population_size;
-        this.development_function      = development_function;
+        this.populationSize            = options.populationSize;
+        this.elitismCount              = options.elitismCount;
+        this.genotypeCreationStrategy  = options.genotypeCreationStrategy;
+        this.parentSelectionStrategy   = options.parentSelectionStrategy;
+        this.adultSelectionStrategy    = options.adultSelectionStrategy;
+        this.reproductionStrategy      = options.reproductionStrategy;
+        this.fitnessEvaluationStrategy = options.fitnessEvaluationStrategy;
+        this.developmentStrategy       = options.developmentStrategy || null;
 
-        this.create_initial_population();
+        this.population = this.createInitialPopulation();
     }
 
-    best_individual()
+    createInitialPopulation()
     {
-        return this.population.reduce((pv, cv) => pv && pv.fitness > cv.fitness ? pv : cv, null);
-    }
+        let population = new Array(this.populationSize);
 
-    create_initial_population()
-    {
-        let generator = individual_generator(
-            this.creator_function, this.fitness_function, this.development_function);
+        let individualGenerator = generator.individual(
+            this.genotypeCreationStrategy, this.fitnessEvaluationStrategy, this.developmentStrategy);
 
-        let population = [];
-
-        for (let i = 0; i != this.population_size; i += 1)
+        for (let i = 0; i != this.populationSize; i++)
         {
-            population.push(generator.next().value);
+            population[i] = individualGenerator.next().value;
         }
 
-        this.population = population;
+        return population;
     }
 
     evolve()
     {
-        let artifacts = this.parent_selection_function.prepare(
-            this.population);
+        let artifacts      = this.parentSelectionStrategy.prepare(this.population);
+        let parentSelector = generator.parent(this.population, artifacts, this.parentSelectionStrategy);
+        let childGenerator = generator.child(
+            parentSelector, this.reproductionStrategy, this.developmentStrategy, this.fitnessEvaluationStrategy);
+        this.population    = this.adultSelectionStrategy.select(this.population, childGenerator);
+    }
 
-        let parent_selector = function*(population, parent_selection_function)
+    stats()
+    {
+        const fitnessValues  = this.population.map(v => v.fitness);
+        const fitnessMean    = math.mean(fitnessValues);
+        const fitnessPStdDev = math.std(fitnessValues, 'uncorrected');
+
+        const bestIndividual = this.population.reduce(
+            (pv, cv) => pv && pv.fitness > cv.fitness ? pv : cv, null);
+
+        return {
+            fitnessMean:    fitnessMean,
+            fitnessPStdDev: fitnessPStdDev,
+            bestIndividual: bestIndividual };
+    }
+}
+
+const generator = Object.freeze(function()
+{
+    let g = {};
+
+    g.child = function*(
+        parentSelector, reproductionStrategy, developmentStrategy, fitnessEvaluationStrategy)
+    {
+        while (true)
         {
-            while (true)
-            {
-                yield parent_selection_function.select(population, artifacts);
-            }
-        }(this.population, this.parent_selection_function);
+            const childrenGenotypes = reproductionStrategy.reproduce(parentSelector);
 
-        let child_generator = function*(reproduction_function, development_function, fitness_function)
-        {
-            while (true)
+            for (const childGenotype of childrenGenotypes)
             {
-                let children_genotypes = reproduction_function.reproduce(parent_selector);
+                const childPhenotype = (developmentStrategy
+                    ? developmentStrategy(childGenotype)
+                    : childGenotype);
 
-                for (let child_genotype of children_genotypes)
+                if (childPhenotype)
                 {
-                    let child_phenotype = (development_function
-                        ? development_function(child_genotype)
-                        : child_genotype);
+                    let childFitness = fitnessEvaluationStrategy.evaluate(childPhenotype);
 
-                    if (child_phenotype)
+                    if (childFitness)
                     {
-                        let child_fitness = fitness_function.evaluate(child_phenotype);
-
-                        if (child_fitness)
-                        {
-                            yield new Individual(child_genotype, child_phenotype, child_fitness);
-                        }
+                        yield new Individual(childGenotype, childPhenotype, childFitness);
                     }
                 }
             }
-        }(this.reproduction_function, this.development_function, this.fitness_function);
+        }
+    };
 
-        this.population = this.adult_selection_function.select(
-            this.population, child_generator);
-    }
-}
+    g.individual = function*(
+        genotypeCreationStrategy, fitnessEvaluationStrategy, developmentStrategy = null)
+    {
+        while (true)
+        {
+            let genotype  = genotypeCreationStrategy.create();
+            let phenotype = (developmentStrategy
+                ? developmentStrategy.develop(genotype) : genotype);
+
+            if (phenotype)
+            {
+                let fitness = fitnessEvaluationStrategy.evaluate(phenotype);
+
+                if (fitness)
+                {
+                    yield new Individual(genotype, phenotype, fitness);
+                }
+            }
+        }
+    };
+
+    g.parent = function*(population, artifacts, parentSelectionStrategy)
+    {
+        while (true)
+        {
+            yield parentSelectionStrategy.select(population, artifacts);
+        }
+    };
+
+    return g;
+}());

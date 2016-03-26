@@ -1,14 +1,15 @@
 export class FullGenerationalReplacement
 {
-    select(population, child_generator)
+    select(population, childGenerator)
     {
-        let next_generation = [];
+        const populationSize = population.length;
+        let nextGeneration   = new Array(populationSize);
 
-        for (let i = 0; i != population.length; i += 1)
+        for (let i = 0; i != population.length; i++)
         {
-            next_generation.push(child_generator.next().value);
+            nextGeneration[i] = childGenerator.next().value;
         }
 
-        return next_generation;
+        return nextGeneration;
     }
 }

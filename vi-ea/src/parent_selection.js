@@ -1,4 +1,5 @@
 import * as math from 'mathjs';
+import * as utility from '../../vi-utility/vi-utility';
 
 export class FitnessProportionate
 {
@@ -52,7 +53,7 @@ export class Rank
         let selectedIndividual     = population[populationSize - 1];
         let randomExpectedValueSum = math.random(populationSize);
 
-        for (let rankIndex = populationSize; rankIndex >= 1; rankIndex -= 1)
+        for (let rankIndex = populationSize; rankIndex >= 1; rankIndex--)
         {
             const expectedValue = this.minExpectedValue +
                 + (this.maxExpectedValue - this.minExpectedValue)
@@ -65,7 +66,6 @@ export class Rank
                 selectedIndividual = population[rankIndex - 1];
                 break;
             }
-
         }
 
         return selectedIndividual;
@@ -80,8 +80,9 @@ export class Sigma
         const fitnessMean    = math.mean(fitnessValues);
         const fitnessPStdDev = math.std(fitnessValues, 'uncorrected');
 
-        const expectedValues = fitnessValues.map(fitnessValue =>
-            1 + (fitnessPStdDev > 0
+        const expectedValues = fitnessValues.map(
+            fitnessValue => 1 +
+                (fitnessPStdDev > 0
                 ? ((fitnessValue - fitnessMean) / (2 * fitnessPStdDev))
                 : 0));
 
@@ -96,7 +97,7 @@ export class Sigma
         let randomExpectedValueSum = math.random(artifacts.expectedValuesSum);
         const populationSize       = population.length;
 
-        for (let i = 0; i < populationSize; i += 1)
+        for (let i = 0; i < populationSize; i++)
         {
             const individual    = population[i];
             const expectedValue = artifacts.expectedValues[i];
@@ -113,3 +114,33 @@ export class Sigma
         return selectedIndividual;
     }
 }
+
+export class Tournament
+{
+    constructor(groupSize, randomSelectionProbability)
+    {
+        this.groupSize                  = groupSize;
+        this.randomSelectionProbability = randomSelectionProbability;
+    }
+
+    prepare(population)
+    {
+    }
+
+    select(population, artifacts)
+    {
+        let group = utility.sample(population, this.groupSize);
+
+        // Either select the most fit individual by sorting the group,
+        // otherwise select a random individual from the group by
+        // not sorting.
+
+        if (Math.random() >= this.randomSelectionProbability)
+        {
+            group.sort((a, b) => b.fitness - a.fitness);
+        }
+
+        return group[0];
+    }
+}
+

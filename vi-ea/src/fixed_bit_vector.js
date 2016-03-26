@@ -1,36 +1,33 @@
-function get_random_int_inclusive(min, max)
-{
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
+import * as math from 'mathjs';
 
 export class Creator
 {
-    constructor(length, value_distribution = 0.5)
+    constructor(length, valueDistribution = 0.5)
     {
-        this.length             = length;
-        this.value_distribution = value_distribution;
+        this.length            = length;
+        this.valueDistribution = valueDistribution;
     }
 
     create()
     {
         return Array.from(
             {length: this.length},
-            () => Math.random() < this.value_distribution);
+            () => Math.random() < this.valueDistribution);
     }
 }
 
 export class Mutator
 {
-    constructor(bit_mutation_rate)
+    constructor(bitMutationRate)
     {
-        this.bit_mutation_rate = bit_mutation_rate;
+        this.bitMutationRate = bitMutationRate;
     }
 
     apply(value)
     {
         value.forEach((v, i, a) =>
         {
-            if (Math.random() < this.bit_mutation_rate)
+            if (Math.random() < this.bitMutationRate)
             {
                 a[i] = !a[i];
             }
@@ -42,16 +39,16 @@ export class Mutator
 
 export class Crossover
 {
-    constructor(min_crossover_points, max_crossover_points = undefined)
+    constructor(minCrossoverPoints, maxCrossoverPoints = undefined)
     {
-        this.min_crossover_points = min_crossover_points;
-        this.max_crossover_points = max_crossover_points || min_crossover_points;
+        this.minCrossoverPoints = minCrossoverPoints;
+        this.maxCrossoverPoints = maxCrossoverPoints || minCrossoverPoints;
     }
 
     apply(a, b)
     {
         const length = a.length;
-        const point  = get_random_int_inclusive(1, length - 1);
+        const point  = math.randomInt(1, length);
 
         for (let i = point; i != length; i += 1)
         {
