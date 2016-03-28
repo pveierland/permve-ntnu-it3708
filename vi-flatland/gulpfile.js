@@ -8,7 +8,7 @@ gulp.task('es6', function() {
     browserify({
         entries: 'src/vi-flatland.js',
         debug: true,
-        standalone: 'ViFlatland'
+        standalone: 'flatland'
     })
     .transform(babelify, {presets: ['es2015']})
     .on('error', gulp_util.log)

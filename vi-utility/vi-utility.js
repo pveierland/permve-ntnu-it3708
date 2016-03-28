@@ -1,9 +1,31 @@
-let random = {};
+import * as math from 'mathjs';
 
-random.uniform = function(low, high)
+export function sample(values, k)
 {
-    return low + (high - low) * Math.random();
+    let samples   = new Array(k);
+    let lastIndex = values.length - 1;
+
+    for (let i = 0; i < k; i++, lastIndex--)
+    {
+        const selected    = math.randomInt(lastIndex + 1);
+        const value       = values[selected];
+        values[selected]  = values[lastIndex];
+        values[lastIndex] = value;
+        samples[i]        = value;
+    }
+
+    return samples;
 };
 
-export { random };
+export function shuffle(values)
+{
+    for (let lastIndex = values.length - 1; lastIndex > 0; lastIndex--)
+    {
+        const randomIndex   = math.randomInt(lastIndex + 1);
+        const value         = values[lastIndex];
+        values[lastIndex]   = values[randomIndex];
+        values[randomIndex] = value;
+    }
 
+    return values;
+};

@@ -26,8 +26,7 @@ export const Constants = Object.freeze(function()
 {
     let constants = {};
 
-    constants.animationDivider = 8;
-    constants.gameLoopDelayMs  = 1000 / 30;
+    constants.gameLoopDelayMs = 1000 / 30;
 
     constants.food =
     [
@@ -101,12 +100,14 @@ export class FlatlandWorld
 
         this.canvas  = document.getElementById(options.elementId);
         this.context = this.canvas.getContext('2d');
-        this.context.imageSmoothingEnabled = false;
-        this.context.fillStyle             = 'black';
+        this.context.imageSmoothingEnabled       = false;
+        this.context.webkitImageSmoothingEnabled = false;
+        this.context.mozImageSmoothingEnabled    = false;
+        this.context.fillStyle                   = 'black';
 
         this.sprites        = new Image();
         this.sprites.onload = window.requestAnimationFrame.bind(window, this.update.bind(this));
-        this.sprites.src    = 'vi-flatland-world-sprites.png';
+        this.sprites.src    = options.spriteSource || 'vi-flatland-world-sprites.png';
     }
 
     computeAgentSpritePositions()
@@ -117,7 +118,7 @@ export class FlatlandWorld
 
         const currentAction = this.currentAction;
 
-        if (currentAction && currentAction !== Action.stayPut)
+        if (currentAction && currentAction !== Action.stay)
         {
             const movementOffset = 2 * this.movementIndex;
 
@@ -159,7 +160,7 @@ export class FlatlandWorld
     {
         switch (action)
         {
-            case Action.stayPut:
+            case Action.stay:
             {
                 return position;
             }
@@ -283,7 +284,7 @@ export class FlatlandWorld
 
     setModel(model)
     {
-        this.model = model;
+        this.model = JSON.parse(JSON.stringify(model));
         this.resetGameState();
     }
 
@@ -309,7 +310,7 @@ export class FlatlandWorld
                 {
                     const movementIndex = ++this.movementIndex;
 
-                    if (currentAction !== Action.stayPut)
+                    if (currentAction !== Action.stay)
                     {
                         if (movementIndex === 5)
                         {
@@ -339,9 +340,11 @@ export class FlatlandWorld
 
                     if (movementIndex === 8)
                     {
-                        this.currentAction   = null;
-                        this.movementIndex   = 0;
-                        this.stats.timeSteps += 1;
+                        this.currentAction = null;
+                        this.movementIndex = 0;
+
+                        this.stats.timeSteps         += 1;
+                        this.stats.hasRemainingMoves  = this.actionQueue.length !== 0;
 
                         if (this.stepCallback)
                         {

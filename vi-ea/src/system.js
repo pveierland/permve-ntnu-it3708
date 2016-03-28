@@ -24,6 +24,7 @@ export class System
         this.developmentStrategy       = options.developmentStrategy || null;
 
         this.population = this.createInitialPopulation();
+        this.generation = 0;
     }
 
     createInitialPopulation()
@@ -58,6 +59,8 @@ export class System
 
         const nextGeneration = this.adultSelectionStrategy.select(this.population, childGenerator);
         this.population      = elitists ? elitists.concat(nextGeneration) : nextGeneration;
+
+        this.generation++;
     }
 
     stats()
@@ -72,7 +75,8 @@ export class System
         return {
             fitnessMean:    fitnessMean,
             fitnessPStdDev: fitnessPStdDev,
-            bestIndividual: bestIndividual };
+            bestIndividual: bestIndividual,
+            generation:     this.generation };
     }
 }
 
@@ -90,17 +94,13 @@ const generator = Object.freeze(function()
             for (const childGenotype of childrenGenotypes)
             {
                 const childPhenotype = (developmentStrategy
-                    ? developmentStrategy(childGenotype)
+                    ? developmentStrategy.develop(childGenotype)
                     : childGenotype);
 
                 if (childPhenotype)
                 {
                     let childFitness = fitnessEvaluationStrategy.evaluate(childPhenotype);
-
-                    if (childFitness)
-                    {
-                        yield new Individual(childGenotype, childPhenotype, childFitness);
-                    }
+                    yield new Individual(childGenotype, childPhenotype, childFitness);
                 }
             }
         }
@@ -118,11 +118,7 @@ const generator = Object.freeze(function()
             if (phenotype)
             {
                 let fitness = fitnessEvaluationStrategy.evaluate(phenotype);
-
-                if (fitness)
-                {
-                    yield new Individual(genotype, phenotype, fitness);
-                }
+                yield new Individual(genotype, phenotype, fitness);
             }
         }
     };
