@@ -1,3 +1,5 @@
+import * as math from 'mathjs';
+
 import * as flatlandWorld from '../vi-flatland-world/vi-flatland-world';
 import * as ann from '../vi-ann/vi-ann';
 import * as ea from '../vi-ea/vi-ea';
@@ -95,42 +97,42 @@ const utility = Object.freeze(function()
     return u;
 }());
 
-export function generateRandomWorld(
-    worldWidth, worldHeight, foodProbability, poisonProbability)
+export function generateRandomWorld(options)
 {
-    const worldCellCount  = worldWidth * worldHeight;
-    const foodCellCount   = Math.round(foodProbability * worldCellCount);
+    const totalCellCount  = options.width * options.height;
+    const foodCellCount   = Math.round(
+        options.foodProbability * totalCellCount);
     const poisonCellCount = Math.round(
-        poisonProbability * (worldCellCount - foodCellCount));
+        options.poisonProbability * (totalCellCount - foodCellCount));
 
-    let worldCells = new Array(worldCellCount).fill(WorldEntity.void);
+    let cells = new Array(totalCellCount).fill(WorldEntity.void);
 
-    let availableCells = utility.shuffle(worldCells.map((cv, i) => i));
+    let availableCells = utility.shuffle(cells.map((cv, i) => i));
     const foodCells    = availableCells.splice(0, foodCellCount);
     const poisonCells  = availableCells.splice(0, poisonCellCount);
     const agentCell    = availableCells.splice(0, 1)[0];
 
     for (let foodCell of foodCells)
     {
-        worldCells[foodCell] = WorldEntity.food;
+        cells[foodCell] = WorldEntity.food;
     }
 
     for (let poisonCell of poisonCells)
     {
-        worldCells[poisonCell] = WorldEntity.poison;
+        cells[poisonCell] = WorldEntity.poison;
     }
 
     return {
-        cells:             worldCells,
-        width:             worldWidth,
-        height:            worldHeight,
-        foodProbability:   foodProbability,
-        poisonProbability: poisonProbability,
+        cells:             cells,
+        width:             options.width,
+        height:            options.height,
+        foodProbability:   options.foodProbability,
+        poisonProbability: options.poisonProbability,
         foodCellCount:     foodCellCount,
         poisonCellCount:   poisonCellCount,
         agent: {
-            x:       agentCell % worldWidth,
-            y:       Math.floor(agentCell / worldWidth),
+            x:       agentCell % options.width,
+            y:       Math.floor(agentCell / options.width),
             heading: utility.getRandomIntInclusive(Heading.up, Heading.right)
         }
     }
@@ -162,7 +164,7 @@ export function buildGameModelFromWorldModel(world)
     // Food and enemy index is used such that the type of fruit
     // and type of enemy is chosen deterministically. Otherwise,
     // several runs with the same model will look confusing.
-    let foodIndex = 0;
+    let foodIndex  = 0;
     let enemyIndex = 0;
 
     for (let row = 0; row < world.height; row += 1)
@@ -182,7 +184,7 @@ export function buildGameModelFromWorldModel(world)
             }
             else if (worldValue === WorldEntity.poison)
             {
-                gridValue = flatlandWorld.Constants.enemies[enemyIndex];
+                gridValue  = flatlandWorld.Constants.enemies[enemyIndex];
                 enemyIndex = (enemyIndex + 1) % flatlandWorld.Constants.enemies.length;
             }
 
@@ -349,13 +351,37 @@ export function genotypeDevelopmentStrategy(genotype)
         new ann.feedforward.Layer(outputLayerBias, outputLayerWeights, stepFunction(1))]);
 }
 
-export function createFitnessFunction(world)
+export function createFitnessFunction(fitnessExpression, worlds, timeSteps)
 {
+    let totalFoodCount = 0, totalPoisonCount = 0;
+
+    for (const world of worlds)
+    {
+        totalFoodCount   += world.foodCellCount;
+        totalPoisonCount += world.poisonCellCount;
+    }
+
     return function(phenotype)
     {
-        let agent    = new Agent(phenotype);
-        const result = evaluateRun(world, agent, 60);
-        return (result.foodEaten - 5 * result.poisonEaten) / world.foodCellCount;
+        const agent       = new Agent(phenotype);
+        const evaluations = worlds.map(
+            world => evaluateRun(world, agent, timeSteps));
+
+        let totalFoodEaten = 0, totalPoisonEaten = 0;
+
+        for (const evaluation of evaluations)
+        {
+            totalFoodEeaten  += evaluation.foodEaten;
+            totalPoisonEaten += evaluation.poisonEaten;
+        }
+
+        return fitnessExpression.eval(
+        {
+            foodEaten:   totalFoodEaten,
+            poisonEaten: totalPoisonEaten,
+            totalFood:   totalFoodCount,
+            totalPoison: totalPoisonCount
+        });
     };
 }
 
