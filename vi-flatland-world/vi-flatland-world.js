@@ -263,10 +263,18 @@ export class FlatlandWorld
         this.animationIndex = 0;
         this.currentAction  = null;
         this.movementIndex  = 0;
-        this.stats          = { foodEaten: 0, poisonEaten: 0, timeSteps: 0 };
+
+        this.stats =
+        {
+            foodEaten:    0,
+            enemiesEaten: 0,
+            timeSteps:    0
+        };
 
         if (this.model)
         {
+            this.stats.foodCount  = this.model.foodCount;
+            this.stats.enemyCount = this.model.enemyCount;
             this.animationOffsets = this.model.cells.map(
                 v => v in Constants.spriteInfo
                      ? Utility.getRandomIntInclusive(0, Constants.spriteInfo[v].frames - 1)
@@ -333,7 +341,7 @@ export class FlatlandWorld
                             }
                             else if (Utility.isEnemy(eatenCellValue))
                             {
-                                this.stats.poisonEaten += 1;
+                                this.stats.enemiesEaten += 1;
                             }
                         }
                     }

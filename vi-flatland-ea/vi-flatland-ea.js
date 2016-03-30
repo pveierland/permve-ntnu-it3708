@@ -1,8 +1,9 @@
 import * as math from 'mathjs';
 
-import * as flatlandWorld from '../vi-flatland-world/vi-flatland-world';
 import * as ann from '../vi-ann/vi-ann';
 import * as ea from '../vi-ea/vi-ea';
+import * as flatlandWorld from '../vi-flatland-world/vi-flatland-world';
+import * as utility from '../vi-utility/vi-utility';
 
 export const Action =
 {
@@ -19,97 +20,68 @@ export const WorldEntity = Object.freeze(
     void: 0, food: 1, poison: 2
 });
 
-const utility = Object.freeze(function()
+function clearGridNeighbors(cells, x, y, width, height)
 {
-    let u = {};
-
-    u.clearGridNeighbors = function(cells, x, y, width, height)
+    if (x > 0)
     {
-        if (x > 0)
-        {
-            cells[y * width + x - 1] = 0;
-        }
-        if (x < width - 1)
-        {
-            cells[y * width + x + 1] = 0;
-        }
-        if (y > 0)
-        {
-            cells[(y - 1) * width + x] = 0;
-        }
-        if (y < height - 1)
-        {
-            cells[(y + 1) * width + x] = 0;
-        }
-    };
-
-    u.computeTargetCell = function(world, heading)
+        cells[y * width + x - 1] = 0;
+    }
+    if (x < width - 1)
     {
-        switch (heading)
+        cells[y * width + x + 1] = 0;
+    }
+    if (y > 0)
+    {
+        cells[(y - 1) * width + x] = 0;
+    }
+    if (y < height - 1)
+    {
+        cells[(y + 1) * width + x] = 0;
+    }
+};
+
+function computeTargetCell(world, heading)
+{
+    switch (heading)
+    {
+        case Heading.up:
         {
-            case Heading.up:
-            {
-                return { x: world.agent.x, y: (world.agent.y - 1 + world.height) % world.height };
-            }
-            case Heading.down:
-            {
-                return { x: world.agent.x, y: (world.agent.y + 1) % world.height };
-            }
-            case Heading.left:
-            {
-                return { x: (world.agent.x - 1 + world.width) % world.width, y: world.agent.y };
-            }
-            case Heading.right:
-            {
-                return { x: (world.agent.x + 1) % world.width, y: world.agent.y };
-            }
+            return { x: world.agent.x, y: (world.agent.y - 1 + world.height) % world.height };
         }
-    };
-
-    u.getNeighborFromHeading = function(world, heading)
-    {
-        const target = u.computeTargetCell(world, heading);
-        return world.cells[target.y * world.width + target.x];
-    };
-
-    u.getRandomIntInclusive = function(min, max)
-    {
-        return Math.floor(Math.random() * (max - min + 1)) + min;
-    };
-
-    u.shuffle = function(array)
-    {
-        var currentIndex = array.length, temporaryValue, randomIndex;
-
-        while (currentIndex !== 0)
+        case Heading.down:
         {
-            randomIndex   = Math.floor(Math.random() * currentIndex);
-            currentIndex -= 1;
-
-            temporaryValue      = array[currentIndex];
-            array[currentIndex] = array[randomIndex];
-            array[randomIndex]  = temporaryValue;
+            return { x: world.agent.x, y: (world.agent.y + 1) % world.height };
         }
+        case Heading.left:
+        {
+            return { x: (world.agent.x - 1 + world.width) % world.width, y: world.agent.y };
+        }
+        case Heading.right:
+        {
+            return { x: (world.agent.x + 1) % world.width, y: world.agent.y };
+        }
+    }
+};
 
-        return array;
-    };
-
-    return u;
-}());
+function getNeighborFromHeading(world, heading)
+{
+    const target = computeTargetCell(world, heading);
+    return world.cells[target.y * world.width + target.x];
+};
 
 export function generateRandomWorld(options)
 {
-    const totalCellCount  = options.width * options.height;
-    const foodCellCount   = Math.round(
-        options.foodProbability * totalCellCount);
-    const poisonCellCount = Math.round(
-        options.poisonProbability * (totalCellCount - foodCellCount));
+    const cellCount = options.width * options.height;
+    const foodCount = Math.round(
+        options.foodProbability * cellCount);
+    const poisonCount = Math.round(
+        options.poisonProbability * (cellCount - foodCount));
 
-    let cells = new Array(totalCellCount).fill(WorldEntity.void);
+    let cells = new Array(cellCount).fill(WorldEntity.void);
 
     let availableCells = utility.shuffle(cells.map((cv, i) => i));
-    const foodCells    = availableCells.splice(0, foodCellCount);
-    const poisonCells  = availableCells.splice(0, poisonCellCount);
+    const foodCells    = availableCells.splice(0, foodCount);
+    const poisonCells  = availableCells.splice(0, poisonCount);
     const agentCell    = availableCells.splice(0, 1)[0];
 
     for (let foodCell of foodCells)
@@ -128,12 +100,12 @@ export function generateRandomWorld(options)
         height:            options.height,
         foodProbability:   options.foodProbability,
         poisonProbability: options.poisonProbability,
-        foodCellCount:     foodCellCount,
-        poisonCellCount:   poisonCellCount,
+        foodCount:         foodCount,
+        poisonCount:       poisonCount,
         agent: {
             x:       agentCell % options.width,
             y:       Math.floor(agentCell / options.width),
-            heading: utility.getRandomIntInclusive(Heading.up, Heading.right)
+            heading: math.randomInt(Heading.up, Heading.right + 1)
         }
     }
 }
@@ -191,21 +163,24 @@ export function buildGameModelFromWorldModel(world)
             if (gridValue !== flatlandWorld.GameEntity.void)
             {
                 gridCells[gridIndex] = gridValue;
-                utility.clearGridNeighbors(
+                clearGridNeighbors(
                     gridCells, 2 * column, 2 * row, gridWidth, gridHeight);
             }
         }
     }
 
     gridCells[2 * world.agent.y * gridWidth + 2 * world.agent.x] = 0;
-    utility.clearGridNeighbors(
+    clearGridNeighbors(
         gridCells, 2 * world.agent.x, 2 * world.agent.y, gridWidth, gridHeight);
 
     return {
-        cells:  gridCells,
-        width:  gridWidth,
-        height: gridHeight,
-        agent: {
+        cells:      gridCells,
+        width:      gridWidth,
+        height:     gridHeight,
+        foodCount:  world.foodCount,
+        enemyCount: world.poisonCount,
+        agent:
+        {
             x: world.agent.x * 2,
             y: world.agent.y * 2
         }
@@ -357,8 +332,8 @@ export function createFitnessFunction(fitnessExpression, worlds, timeSteps)
 
     for (const world of worlds)
     {
-        totalFoodCount   += world.foodCellCount;
-        totalPoisonCount += world.poisonCellCount;
+        totalFoodCount   += world.foodCount;
+        totalPoisonCount += world.poisonCount;
     }
 
     return function(phenotype)
@@ -371,7 +346,7 @@ export function createFitnessFunction(fitnessExpression, worlds, timeSteps)
 
         for (const evaluation of evaluations)
         {
-            totalFoodEeaten  += evaluation.foodEaten;
+            totalFoodEaten   += evaluation.foodEaten;
             totalPoisonEaten += evaluation.poisonEaten;
         }
 
@@ -379,8 +354,8 @@ export function createFitnessFunction(fitnessExpression, worlds, timeSteps)
         {
             foodEaten:   totalFoodEaten,
             poisonEaten: totalPoisonEaten,
-            totalFood:   totalFoodCount,
-            totalPoison: totalPoisonCount
+            foodCount:   totalFoodCount,
+            poisonCount: totalPoisonCount
         });
     };
 }
@@ -397,9 +372,9 @@ export class Agent
         const leftHeading  = (world.agent.heading - 1 + 4) % 4;
         const rightHeading = (world.agent.heading + 1) % 4;
 
-        const leftValue    = utility.getNeighborFromHeading(world, leftHeading);
-        const forwardValue = utility.getNeighborFromHeading(world, world.agent.heading);
-        const rightValue   = utility.getNeighborFromHeading(world, rightHeading);
+        const leftValue    = getNeighborFromHeading(world, leftHeading);
+        const forwardValue = getNeighborFromHeading(world, world.agent.heading);
+        const rightValue   = getNeighborFromHeading(world, rightHeading);
 
         const inputs = [
             forwardValue === WorldEntity.food   ? 1 : 0,
@@ -431,46 +406,3 @@ export class Agent
     }
 }
 
-
-//let system = new ea.System(
-//{
-//    populationSize:            50,
-//    elitismCount:              5,
-//    genotypeCreationStrategy:  new ea.fixedBitVector.Creator(144),
-//    parentSelectionStrategy:   new ea.parentSelection.Sigma(),
-//    adultSelectionStrategy:    new ea.adultSelection.FullGenerationalReplacement(),
-//    reproductionStrategy:      new ea.reproduction.Sexual(
-//        new ea.fixedBitVector.Crossover(1),
-//        new ea.fixedBitVector.Mutator(0.005)),
-//    fitnessEvaluationStrategy: { evaluate: fitnessFunction },
-//    developmentStrategy: { develop: genotypeDevelopmentStrategy }
-//});
-//
-//for (let generation = 0; generation <= 10000; generation += 1)
-//{
-//    const stats = system.stats();
-//    console.log(`generation = ${generation} mean = ${stats.fitnessMean} std = ${stats.fitnessPStdDev} best = ${stats.bestIndividual.fitness} -> ${stats.bestIndividual.genotype}`);
-//    system.evolve();
-//}
-
-//genotypeDevelopmentStrategy([false, false, true, true, false, false, true, true, true, false, false, true, false, false, true, true]);
-
-//function translateRelativeActions(initialHeading, actions)
-//{
-//    actions = actions.slice();
-//
-//    while (actions.length > 0)
-//    {
-//        if (action 
-//    }
-//
-//
-//}
-
-//const world  = generateRandomWorld(10, 10, 1/3, 1/3);
-//const result = evaluateRun(world, new Array(60).map(_ => utility.getRandomIntInclusive(Action.stay, Action.moveRight)));
-//
-//console.log(JSON.stringify(result));
-
-//       this.model = buildGameModelFromWorldModel(
-//            generateRandomWorld(options.worldWidth, options.worldHeight, 1/3, 1/3));
