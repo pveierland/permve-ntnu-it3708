@@ -12,7 +12,7 @@ export class FitnessProportionate
 
     select(population, artifacts)
     {
-        let selectedIndividual = null;
+        let selectedIndividual = population[0];
         let randomFitnessSum   = math.random(artifacts.fitnessSum);
 
         for (let individual of population)
