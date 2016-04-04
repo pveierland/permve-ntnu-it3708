@@ -22,9 +22,12 @@ export class System
         this.reproductionStrategy      = options.reproductionStrategy;
         this.fitnessEvaluationStrategy = options.fitnessEvaluationStrategy;
         this.developmentStrategy       = options.developmentStrategy || null;
+        this.diversityStrategy         = options.diversityStrategy || null;
 
         this.population = this.createInitialPopulation();
         this.generation = 0;
+
+        console.log(options);
     }
 
     createInitialPopulation()
@@ -65,18 +68,23 @@ export class System
 
     stats()
     {
-        const fitnessValues  = this.population.map(v => v.fitness);
-        const fitnessMean    = math.mean(fitnessValues);
-        const fitnessPStdDev = math.std(fitnessValues, 'uncorrected');
+        let stats = {};
 
-        const bestIndividual = this.population.reduce(
+        stats.generation = this.generation;
+
+        stats.fitnessValues  = this.population.map(v => v.fitness);
+        stats.fitnessMean    = math.mean(stats.fitnessValues);
+        stats.fitnessPStdDev = math.std(stats.fitnessValues, 'uncorrected');
+
+        stats.bestIndividual = this.population.reduce(
             (pv, cv) => pv && pv.fitness > cv.fitness ? pv : cv, null);
 
-        return {
-            fitnessMean:    fitnessMean,
-            fitnessPStdDev: fitnessPStdDev,
-            bestIndividual: bestIndividual,
-            generation:     this.generation };
+        if (this.diversityStrategy)
+        {
+            stats.diversity = this.diversityStrategy.evaluate(this.population);
+        }
+
+        return stats;
     }
 }
 
