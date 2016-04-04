@@ -16,27 +16,6 @@ export class Creator
     }
 }
 
-export class Mutator
-{
-    constructor(bitMutationRate)
-    {
-        this.bitMutationRate = bitMutationRate;
-    }
-
-    apply(value)
-    {
-        value.forEach((v, i, a) =>
-        {
-            if (Math.random() < this.bitMutationRate)
-            {
-                a[i] = !a[i];
-            }
-        });
-
-        return value;
-    }
-}
-
 export class Crossover
 {
     constructor(minCrossoverPoints, maxCrossoverPoints = undefined)
@@ -58,3 +37,58 @@ export class Crossover
         return [a, b];
     }
 }
+
+export class Mutator
+{
+    constructor(bitMutationRate)
+    {
+        this.bitMutationRate = bitMutationRate;
+    }
+
+    apply(value)
+    {
+        value.forEach((v, i, a) =>
+        {
+            if (Math.random() < this.bitMutationRate)
+            {
+                a[i] = !a[i];
+            }
+        });
+
+        return value;
+    }
+}
+
+export function diversity(population)
+{
+    const populationSize = population.length;
+    const genotypeLength = population[0].genotype.length;
+
+    let valueDistribution = Array(genotypeLength).fill(0);
+
+    for (let individual of population)
+    {
+        for (let k = 0; k < genotypeLength; k++)
+        {
+            if (individual.genotype[k])
+            {
+                valueDistribution[k] += 1;
+            }
+        }
+    }
+
+    let diversity = 0;
+
+    for (let k = 0; k < genotypeLength; k++)
+    {
+        const frequency = valueDistribution[k] / populationSize;
+
+        if (frequency !== 0 && frequency !== 1)
+        {
+            diversity -= frequency * Math.log2(frequency) + (1 - frequency) * Math.log2(1 - frequency);
+        }
+    }
+
+    return diversity;
+}
+
