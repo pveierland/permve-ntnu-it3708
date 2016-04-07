@@ -12,15 +12,54 @@
 
 \date{\normalsize\today}
 
+\newacro{ANN}{Artificial Neural Network}
+\newacro{EA}{Evolutionary Algorithm}
+
 \begin{document}
 
 \fancyfoot[C]{}
 \maketitle
 
+\section{Hyperparameters}
+
+A table summarizing the main EA parameters used for the successful runs of your system,
+along with a brief description of the exploratory process that you used to nd them..
+
+\section{Fitness Function}
+
+A complete description of your fitness function in terms of both a mathematical expression and explanatory text.
+
+\section{\ac{ANN} genotype design}
+
+A detailed description of the complete ANN design (excluding the actual connection weight values) that proved most successful in your experiments. This includes the layers of neurons, their activation functions, any thresholds or biases, and the range of acceptable weights that your EA had to work with. You do not need to describe all of the individual weights.
+
+Briefly describe the process that you went through to nd your design. Describe why your design should be able to solve the problem.
+
+\section{Performance of the \ac{EA}}
+
+4 cases with plots of EA runs.
+
+Do a static run where each agent is only tested on a single scenario each generation. Include a plot of the result. Describe the behavior of the best evolved agent on this scenario. Also test the evolved agent on a new, randomly-generated scenario and explain the behavior of it there.
+
+Do the same for a new static run, but this time have 5 different scenarios to test each agent with each generation.
+
+Do a dynamic run where each agent is only tested on a single scenario. Include a plot in the result. Describe the behavior of the best evolved agent on a new, randomly-generated scenario.
+
+Do the same for a new dynamic run, this time with 5 different scenarios to test each agent.
+
+Do you see any difference between the behavior of the agents in the four cases above? Discuss why (not). Also discuss any differences between the plots.
+
+\section{Misc}
 
 Mention worst case number of hidden nodes = 64
 Mention that all functions could be represented using 1 bit per hidden node weight + 3 bits for bias
 Possible agent strategies = 3^(2^6)
+
+Output is decided by argmax when there is one motor output which is higher than the two others. If there is a tie then no action is performed.
+
+Elitism > 1 matters during dynamic scenarios since the best individual in one generation may not be the best when evaluated in the next.
+
+Cannot give a very high penalty to poison as this will deter exploration and will yield poor results.
 
 \end{document}
 
