@@ -1,9 +1,11 @@
 import * as math from 'mathjs';
 
-import * as ann from '../vi-ann/vi-ann';
-import * as ea from '../vi-ea/vi-ea';
-import * as flatlandWorld from '../vi-flatland-world/vi-flatland-world';
-import * as utility from '../vi-utility/vi-utility';
+import * as ann from '../../vi-ann/vi-ann';
+import * as ea from '../../vi-ea/vi-ea';
+import * as flatlandWorld from '../../vi-flatland-world/vi-flatland-world';
+import * as utility from '../../vi-utility/vi-utility';
+
+export { ann, ea, flatlandWorld };
 
 export const Action =
 {
@@ -269,61 +271,153 @@ export function evaluateRun(world, agent, timeSteps)
     return { foodEaten: foodEaten, poisonEaten: poisonEaten, moves: moves };
 }
 
-const biasBits = 4;
+//const biasBits = 4;
+//
+//function setBias(bias, genotype, inputNodes, layerNodes, genotypeLayerOffset)
+//{
+//    for (let node = 0; node < layerNodes; node++)
+//    {
+//        const offset     = genotypeLayerOffset + node * (2 * inputNodes + biasBits) + 2 * inputNodes;
+//        const isNegative = genotype[offset + 3];
+//        const value      = (genotype[offset + 0] | 0) + (genotype[offset + 1] | 0) * 2 + (genotype[offset + 2] | 0) * 4;
+//
+//        bias[node] = isNegative ? value - 8 : value;
+//    }
+//}
+//
+//function setWeights(weights, genotype, inputNodes, layerNodes, genotypeOffset)
+//{
+//    for (let node = 0; node < layerNodes; node++)
+//    {
+//        for (let inputNode = 0; inputNode < inputNodes; inputNode++)
+//        {
+//            const offset = genotypeOffset + node * (2 * inputNodes + biasBits) + 2 * inputNode;
+//            weights[node * inputNodes + inputNode] = (genotype[offset] | 0) * (genotype[offset + 1] ? 1 : -1);
+//        }
+//    }
+//}
 
-function setBias(bias, genotype, inputNodes, layerNodes, genotypeLayerOffset)
+//let stepFunction = function(stepValue)
+//{
+//    return function(input)
+//    {
+//        return input >= stepValue ? 1 : 0;
+//    }
+//}
+//
+//export function genotypeDevelopmentStrategy(genotype)
+//{
+//    const inputNodes  = 6;
+//    const hiddenNodes = 6;
+//    const outputNodes = 3;
+//
+//    let hiddenLayerBias    = new Array(hiddenNodes);
+//    let hiddenLayerWeights = new Array(inputNodes * hiddenNodes);
+//
+//    setWeights(hiddenLayerWeights, genotype, inputNodes, hiddenNodes, 0);
+//    setBias(hiddenLayerBias, genotype, inputNodes, hiddenNodes, 0);
+//
+//    let outputLayerBias = new Array(outputNodes);
+//    let outputLayerWeights = new Array(hiddenNodes * outputNodes);
+//
+//    setWeights(outputLayerWeights, genotype, hiddenNodes, outputNodes, 2 * inputNodes * hiddenNodes + biasBits * hiddenNodes);
+//    setBias(outputLayerBias, genotype, hiddenNodes, outputNodes, 2 * inputNodes * hiddenNodes + biasBits * hiddenNodes);
+//
+//    return new ann.feedforward.Network([
+//        new ann.feedforward.Layer(hiddenLayerBias, hiddenLayerWeights, stepFunction(1)),
+//        new ann.feedforward.Layer(outputLayerBias, outputLayerWeights, stepFunction(1))]);
+//}
+
+function evaluateWeight(genotype, offset, config, weightConfig)
 {
-    for (let node = 0; node < layerNodes; node++)
+    if (config.weightSwitchBits && !genotype[offset])
     {
-        const offset     = genotypeLayerOffset + node * (2 * inputNodes + biasBits) + 2 * inputNodes;
-        const isNegative = genotype[offset + 3];
-        const value      = (genotype[offset + 0] | 0) + (genotype[offset + 1] | 0) * 2 + (genotype[offset + 2] | 0) * 4;
-
-        bias[node] = isNegative ? value - 8 : value;
+        return 0;
     }
+
+    let value = 0;
+
+    for (let i = 0; i < weightConfig.bits; i++)
+    {
+        value |= genotype[offset + config.weightSwitchBits + i] ? 2 << i : 0;
+    }
+
+    if (config.grayCoding)
+    {
+        let decoded = value;
+
+        while (value >>= 1)
+        {
+            decoded ^= value;
+        }
+
+        value = decoded;
+    }
+
+    value = (weightConfig.inclusiveRangeStart
+          + (value / ((2 << weightConfig.bits) - 1))
+          * (weightConfig.inclusiveRangeEnd - weightConfig.inclusiveRangeStart));
+
+    return value;
 }
 
-function setWeights(weights, genotype, inputNodes, layerNodes, genotypeOffset)
+function evaluateLayer(genotype, offset, config, inputLayerConfig, layerConfig)
 {
-    for (let node = 0; node < layerNodes; node++)
+    let bias    = new Array(layerConfig.size);
+    let weights = new Array(layerConfig.size * inputLayerConfig.size);
+
+    for (let layerNode = 0; layerNode < layerConfig.size; layerNode++)
     {
-        for (let inputNode = 0; inputNode < inputNodes; inputNode++)
+        bias[layerNode] = evaluateWeight(
+            genotype,
+            offset,
+            config,
+            layerConfig.bias);
+
+        offset += layerConfig.bias.bits;
+
+        for (let inputNode = 0; inputNode < inputLayerConfig.size; inputNode++)
         {
-            const offset = genotypeOffset + node * (2 * inputNodes + biasBits) + 2 * inputNode;
-            weights[node * inputNodes + inputNode] = (genotype[offset] | 0) * (genotype[offset + 1] ? 1 : -1);
+            weights[layerNode * inputLayerConfig.size + inputNode] = evaluateWeight(
+                genotype, offset, config, layerConfig.weights);
+
+            offset += layerConfig.weights.bits;
         }
     }
+
+    return {
+        layer:  new ann.feedforward.Layer(
+            bias, weights, ann.activation[layerConfig.activation]),
+        offset: offset
+    };
 }
 
-let stepFunction = function(stepValue)
+export function createGenotypeCreator(options)
 {
-    return function(input)
+    const hiddenLayerBits = (options.hiddenLayer.size
+        * (options.hiddenLayer.bias.bits + options.inputLayer.size
+            * (options.hiddenLayer.weights.bits + options.weightSwitchBits)));
+    const outputLayerBits = (options.outputLayer.size
+        * (options.outputLayer.bias.bits + options.hiddenLayer.size
+            * (options.outputLayer.weights.bits + options.weightSwitchBits)));
+
+    console.log('GENOTYPE SIZE = ' + (hiddenLayerBits + outputLayerBits));
+
+    return new ea.fixedBitVector.Creator(hiddenLayerBits + outputLayerBits);
+}
+
+export function createDevelopmentFunction(options)
+{
+    return function(genotype)
     {
-        return input >= stepValue ? 1 : 0;
-    }
-}
+        const hidden = evaluateLayer(
+            genotype, 0, options, options.inputLayer, options.hiddenLayer);
 
-export function genotypeDevelopmentStrategy(genotype)
-{
-    const inputNodes  = 6;
-    const hiddenNodes = 6;
-    const outputNodes = 3;
+        const output = evaluateLayer(
+            genotype, hidden.offset, options, options.hiddenLayer, options.outputLayer);
 
-    let hiddenLayerBias    = new Array(hiddenNodes);
-    let hiddenLayerWeights = new Array(inputNodes * hiddenNodes);
-
-    setWeights(hiddenLayerWeights, genotype, inputNodes, hiddenNodes, 0);
-    setBias(hiddenLayerBias, genotype, inputNodes, hiddenNodes, 0);
-
-    let outputLayerBias = new Array(outputNodes);
-    let outputLayerWeights = new Array(hiddenNodes * outputNodes);
-
-    setWeights(outputLayerWeights, genotype, hiddenNodes, outputNodes, 2 * inputNodes * hiddenNodes + biasBits * hiddenNodes);
-    setBias(outputLayerBias, genotype, hiddenNodes, outputNodes, 2 * inputNodes * hiddenNodes + biasBits * hiddenNodes);
-
-    return new ann.feedforward.Network([
-        new ann.feedforward.Layer(hiddenLayerBias, hiddenLayerWeights, stepFunction(1)),
-        new ann.feedforward.Layer(outputLayerBias, outputLayerWeights, stepFunction(1))]);
+        return new ann.feedforward.Network([hidden.layer, output.layer]);
+    };
 }
 
 export function createFitnessFunction(fitnessExpression, worlds, timeSteps)
@@ -400,8 +494,8 @@ export class Agent
         }
         else
         {
-            return Action.moveForward;
-            //return Action.stay;
+            //return Action.moveForward;
+            return Action.stay;
         }
     }
 }
