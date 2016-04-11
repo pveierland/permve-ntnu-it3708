@@ -13,5 +13,4 @@ export function relu(value)
     return value > 0 ? value : 0;
 }
 
-const tanh = Math.tanh;
-export { tanh };
+export const tanh = Math.tanh;
