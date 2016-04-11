@@ -10,9 +10,11 @@ gulp.task('es6', function() {
     browserify({
         entries:    'src/vi-beer-tracker-app.js',
         debug:      true,
-        standalone: 'beerTrackerApp'
+        standalone: 'beerTrackerApp',
+        noParse:    ['mathjs']
     })
     .transform(babelify, {presets: ['es2015']})
+    .transform({ global: true }, 'browserify-shim')
     .bundle()
     .pipe(source('vi-beer-tracker-app.js'))
     .pipe(gulp.dest(''));
@@ -22,9 +24,11 @@ gulp.task('deploy', function() {
     browserify({
         entries:    'src/vi-beer-tracker-app.js',
         debug:      false,
-        standalone: 'beerTrackerApp'
+        standalone: 'beerTrackerApp',
+        noParse:    ['mathjs']
     })
-    .transform(babelify, {presets: ['es2015']})
+    .transform(babelify, { presets: ['es2015'] })
+    .transform({ global: true }, 'browserify-shim')
     .bundle()
     .pipe(source('vi-beer-tracker-app.js'))
     .pipe(buffer())
