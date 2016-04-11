@@ -72,9 +72,10 @@ export class System
 
         stats.generation = this.generation;
 
-        stats.fitnessValues  = this.population.map(v => v.fitness);
-        stats.fitnessMean    = math.mean(stats.fitnessValues);
-        stats.fitnessPStdDev = math.std(stats.fitnessValues, 'uncorrected');
+        const fitnessValues = this.population.map(v => v.fitness);
+
+        stats.fitnessMean    = math.mean(fitnessValues);
+        stats.fitnessPStdDev = math.std(fitnessValues, 'uncorrected');
 
         stats.bestIndividual = this.population.reduce(
             (pv, cv) => pv && pv.fitness > cv.fitness ? pv : cv, null);
