@@ -294,6 +294,11 @@ export class FlatlandWorld
     {
         this.model = JSON.parse(JSON.stringify(model));
         this.resetGameState();
+
+        if (this.stepCallback)
+        {
+            this.stepCallback(this.stats);
+        }
     }
 
     update(currentTime)
