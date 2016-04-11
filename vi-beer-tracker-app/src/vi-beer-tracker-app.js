@@ -1,8 +1,57 @@
-import * as ann from '../vi-ea/vi-ann';
-import * as ea from '../vi-ea/vi-ea';
 import * as math from 'mathjs';
 
+import * as ann from '../../vi-ann/vi-ann';
+import * as ea from '../../vi-ea/vi-ea';
+import * as utility from '../../vi-utility/vi-utility';
+
+export { ann, ea };
+
 export * from '../../vi-beer-tracker-widget/vi-beer-tracker-widget';
+
+export function createAgent(network)
+{
+    return {
+        act: function(world)
+        {
+            let inputs = Array(world.wraps
+                ? world.trackerSize : world.trackerSize + 2).fill(0);
+
+            if (world.object)
+            {
+                const adjusted = (world.object.x - world.trackerPosition + world.width) % world.width;
+                const overlap  = (adjusted + world.object.size) - world.width;
+
+                inputs[0] = (adjusted <= 0 || overlap > 0) ? 1 : 0;
+                inputs[1] = (adjusted <= 1 || overlap > 1) ? 1 : 0;
+                inputs[2] = (adjusted <= 2 || overlap > 2) ? 1 : 0;
+                inputs[3] = (adjusted <= 3 || overlap > 3) ? 1 : 0;
+                inputs[4] = (adjusted <= 4 || overlap > 4) ? 1 : 0;
+            }
+
+            if (!world.wraps)
+            {
+                // Add edge detection sensors
+                inputs[5] = (world.trackerPosition === 0) ? 1 : 0;
+                inputs[6] = (world.trackerPosition === world.width - world.trackerSize) ? 1 : 0;
+            }
+
+            const outputs = network.evaluate(inputs);
+
+            let action =
+            {
+                move: (Math.round(4 * Math.min(1, Math.max(0, outputs[1])))
+                      - Math.round(4 * Math.min(1, Math.max(0, outputs[0]))))
+            };
+
+            if (outputs.length > 2)
+            {
+                action.pull = outputs[2] >= 0.5;
+            }
+
+            return action;
+        }
+    };
+}
 
 export function createDevelopmentStrategy(options)
 {
@@ -18,12 +67,15 @@ export function createDevelopmentStrategy(options)
 
             const hiddenLayer = [];
 
-            for (const i = 0; i < options.develop.hiddenLayerSize; i++)
+            for (let i = 0; i < options.development.hiddenLayerSize; i++)
             {
                 let hiddenLayerNode;
 
                 [hiddenLayerNode, offset] = evaluateGenotypeNode(
-                    genotype, offset, options.development, inputLayerSize);
+                    genotype,
+                    offset,
+                    options.development,
+                    inputLayerSize + options.development.hiddenLayerSize);
 
                 // Intra-node recurrent link
                 hiddenLayerNode.inputs.push(hiddenLayerNode);
@@ -38,9 +90,9 @@ export function createDevelopmentStrategy(options)
             }
 
             // Inter-node recurrent links
-            for (const i = 0; i < options.develop.hiddenLayerSize - 1; i++)
+            for (let i = 0; i < options.development.hiddenLayerSize - 1; i++)
             {
-                for (const j = i + 1; j < options.develop.hiddenLayerSize; j++)
+                for (let j = i + 1; j < options.development.hiddenLayerSize; j++)
                 {
                     hiddenLayer[i].inputs.push(hiddenLayer[j]);
                     hiddenLayer[j].inputs.push(hiddenLayer[i]);
@@ -50,12 +102,15 @@ export function createDevelopmentStrategy(options)
             const outputLayerSize = options.scenario.pullAction ? 3 : 2;
             const outputLayer     = [];
 
-            for (const i = 0; i < outputLayerSize; i++)
+            for (let i = 0; i < outputLayerSize; i++)
             {
                 let outputLayerNode;
 
                 [outputLayerNode, offset] = evaluateGenotypeNode(
-                    genotype, offset, options.development, hiddenLayerSize);
+                    genotype,
+                    offset,
+                    options.development,
+                    options.development.hiddenLayerSize + outputLayerSize);
 
                 // Intra-node recurrent link
                 outputLayerNode.inputs.push(outputLayerNode);
@@ -70,30 +125,29 @@ export function createDevelopmentStrategy(options)
             }
 
             // Inter-node recurrent links
-            for (const i = 0; i < outputLayerSize - 1; i++)
+            for (let i = 0; i < outputLayerSize - 1; i++)
             {
-                for (const j = i + 1; j < outputLayerSize; j++)
+                for (let j = i + 1; j < outputLayerSize; j++)
                 {
                     outputLayer[i].inputs.push(outputLayer[j]);
                     outputLayer[j].inputs.push(outputLayer[i]);
                 }
             }
 
-            console.log("development function offset = " + offset);
+            return new ann.ctrnn.Network(
+                inputLayer, hiddenLayer, outputLayer);
+        }
+    };
+}
 
-            const network = new ann.ctrnn.Network(hiddenLayer.concat(outputLayer);
-
-            return function(inputs)
-            {
-                for (const i = 0; i < inputLayerSize; i++)
-                {
-                    inputLayer[i].value = inputs[i];
-                }
-
-                network.evaluate();
-
-                return outputLayer.map(outputLayerNode => outputLayerNode.value);
-            };
+export function createFitnessEvaluationStrategy(fitnessExpression, world, timeSteps)
+{
+    return {
+        evaluate: function(phenotype)
+        {
+            const agent  = createAgent(phenotype);
+            const result = evaluateAgent(agent, world, timeSteps);
+            return fitnessExpression.eval(result);
         }
     };
 }
@@ -104,21 +158,21 @@ export function createGenotypeCreator(options)
         options.world.wraps ? options.world.trackerSize : options.world.trackerSize + 2;
 
     const hiddenLayerInputConnections =
-        inputLayerSize * options.develop.hiddenLayerSize;
+        inputLayerSize * options.development.hiddenLayerSize;
 
     const hiddenLayerInterNodeRecurrentConnections =
-        (options.develop.hiddenLayerSize - 1) * options.develop.hiddenLayerSize;
+        (options.development.hiddenLayerSize - 1) * options.development.hiddenLayerSize;
 
     const hiddenLayerIntraNodeRecurrentConnections =
-        options.develop.hiddenLayerSize;
+        options.development.hiddenLayerSize;
 
     const hiddenLayerBiasConnections =
-        options.develop.hiddenLayerSize;
+        options.development.hiddenLayerSize;
 
     const outputLayerSize = options.scenario.pullAction ? 3 : 2;
 
     const outputLayerInputConnections =
-        options.develop.hiddenLayerSize * outputLayerSize;
+        options.development.hiddenLayerSize * outputLayerSize;
 
     const outputLayerInterNodeRecurrentConnections =
         (outputLayerSize - 1) * outputLayerSize;
@@ -141,77 +195,88 @@ export function createGenotypeCreator(options)
         hiddenLayerBiasConnections +
         outputLayerBiasConnections;
 
-    const nodeCount = options.develop.hiddenLayerSize + outputLayerSize;
+    const nodeCount = options.development.hiddenLayerSize + outputLayerSize;
 
     const genotypeSize =
-        weightCount * (options.develop.weights.bits + options.develop.weightSwitchBits) +
-        biasCount   * options.develop.bias.bits +
-        nodeCount   * (options.develop.tau.bits + options.develop.gain.bits);
+        weightCount * (options.development.weights.bits + options.development.weightSwitchBits) +
+        biasCount   * options.development.bias.bits +
+        nodeCount   * (options.development.tau.bits + options.development.gain.bits);
 
-    console.log('genotype size = ' + genotypeSize);
-
-    return ea.fixedBitVector.Creator(genotypeSize);
+    return new ea.fixedBitVector.Creator(genotypeSize);
 }
 
-export function evaluateAgent(world, agent, timeSteps)
+export function evaluateAgent(agent, world, timeSteps)
 {
     const result =
     {
-        captures:   0,
-        collisions: 0,
-        moves:      0
+        captureSpawns:   0,
+        captures:        0,
+        collisionSpawns: 0,
+        collisions:      0,
+        moves:           0
     };
 
-    let trackerPosition = math.randomInt(
+    world = JSON.parse(JSON.stringify(world));
+
+    world.trackerPosition = math.randomInt(
         world.wraps ? world.width : world.width - world.trackerSize + 1);
 
-    let object = null;
+    const numObjects = Math.floor(timeSteps / (world.height - 1));
+    let objects = utility.shuffle(Array(numObjects).fill(0).map((v, i) => (i % world.trackerSize) + 1));
+
+    world.object = null;
 
     while (timeSteps --> 0)
     {
-        if (!object)
+        if (!world.object)
         {
-            const objectSize = math.randomInt(1, world.trackerSize + 2);
+            //const objectSize = math.randomInt(1, world.trackerSize + 2);
+            const objectSize = objects.shift();
 
-            object =
+            world.object =
             {
                 size: objectSize,
                 x:    math.randomInt(world.wraps ? world.width : world.width - objectSize + 1),
                 y:    0
             };
+
+            result.captureSpawns   += objectSize <  world.trackerSize;
+            result.collisionSpawns += objectSize >= world.trackerSize;
         }
 
         const action = agent.act(world);
 
-        trackerPosition += action.movement;
+        world.trackerPosition += action.move;
+        result.moves          += Math.abs(action.move);
 
         if (world.wraps)
         {
-            trackerPosition = (trackerPosition + world.width) % world.width;
+            world.trackerPosition = (world.trackerPosition + world.width) % world.width;
         }
         else
         {
-            trackerPosition = Math.min(world.width - 1, Math.max(0, trackerPosition));
+            world.trackerPosition = Math.min(world.width - 1, Math.max(0, world.trackerPosition));
         }
 
-        if (object)
+        if (world.object)
         {
-            object.y += 1;
+            world.object.y += 1;
 
-            if (action.pull || object.y === world.height - 1)
+            if (action.pull || world.object.y === world.height - 1)
             {
-                const adjusted = (object.x - trackerPosition + world.width) % this.grid.width;
+                const adjusted = (world.object.x - world.trackerPosition + world.width) % world.width;
+                const overlap  = (adjusted + world.object.size) - world.width;
 
-                if (object.size < this.world.trackerSize)
+                if (world.object.size < world.trackerSize)
                 {
-                    result.captures += adjusted + object.width < this.world.trackerSize;
+                    result.captures += adjusted + world.object.size <= world.trackerSize;
                 }
                 else
                 {
-                    result.collisions += adjusted < this.world.trackerSize;
+                    result.collisions += adjusted < world.trackerSize || overlap > 0;
                 }
 
-                object = null;
+                world.object = null;
             }
         }
     }
@@ -221,7 +286,7 @@ export function evaluateAgent(world, agent, timeSteps)
 
 function evaluateGenotypeNode(genotype, offset, config, inputCount)
 {
-    var gain, tau, bias;
+    let gain, tau, bias;
 
     [gain, offset] = evaluateGenotypeParameter(genotype, offset, config.gain, config.grayCoding);
     [tau,  offset] = evaluateGenotypeParameter(genotype, offset, config.tau,  config.grayCoding);
@@ -231,12 +296,12 @@ function evaluateGenotypeNode(genotype, offset, config, inputCount)
         { gain: gain, tau: tau, bias: bias },
         ann.activation[config.activation]);
 
-    for (const i = 0; i < inputCount; i++)
+    for (let i = 0; i < inputCount; i++)
     {
         const weightEnabled = !config.weightSwitchBits || genotype[offset++];
 
-        var weight;
-        [weight, offset] = evaluateGenotypeParameter(genotype, offset, config.weight, config.grayCoding);
+        let weight;
+        [weight, offset] = evaluateGenotypeParameter(genotype, offset, config.weights, config.grayCoding);
 
         node.weights.push(weightEnabled * weight);
     }
