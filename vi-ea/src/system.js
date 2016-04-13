@@ -15,19 +15,20 @@ export class System
     constructor(options)
     {
         this.populationSize            = options.populationSize;
-        this.elitismCount              = options.elitismCount;
         this.genotypeCreationStrategy  = options.genotypeCreationStrategy;
         this.parentSelectionStrategy   = options.parentSelectionStrategy;
         this.adultSelectionStrategy    = options.adultSelectionStrategy;
         this.reproductionStrategy      = options.reproductionStrategy;
         this.fitnessEvaluationStrategy = options.fitnessEvaluationStrategy;
+
+        this.elitismCount              = options.elitismCount || 0;
         this.developmentStrategy       = options.developmentStrategy || null;
         this.diversityStrategy         = options.diversityStrategy || null;
 
-        this.population = this.createInitialPopulation();
-        this.generation = 0;
+        this.generation      = 0;
+        this.generationCount = options.generationCount || 0;
 
-        console.log(options);
+        this.population = this.createInitialPopulation();
     }
 
     createInitialPopulation()
@@ -35,7 +36,10 @@ export class System
         let population = new Array(this.populationSize);
 
         let individualGenerator = generator.individual(
-            this.genotypeCreationStrategy, this.fitnessEvaluationStrategy, this.developmentStrategy);
+            this,
+            this.genotypeCreationStrategy,
+            this.fitnessEvaluationStrategy,
+            this.developmentStrategy);
 
         for (let i = 0; i != this.populationSize; i++)
         {
@@ -52,15 +56,19 @@ export class System
         if (this.elitismCount)
         {
             this.population.sort((a, b) => b.fitness - a.fitness);
-            elitists = this.population.splice(0, this.elitismCount);
+            elitists = this.population.slice(0, this.elitismCount);
         }
 
         const artifacts      = this.parentSelectionStrategy.prepare(this.population);
         const parentSelector = generator.parent(this.population, artifacts, this.parentSelectionStrategy);
         const childGenerator = generator.child(
-            parentSelector, this.reproductionStrategy, this.developmentStrategy, this.fitnessEvaluationStrategy);
+            this,
+            parentSelector,
+            this.reproductionStrategy,
+            this.developmentStrategy,
+            this.fitnessEvaluationStrategy);
 
-        const nextGeneration = this.adultSelectionStrategy.select(this.population, childGenerator);
+        const nextGeneration = this.adultSelectionStrategy.select(this.populationSize - this.elitismCount, childGenerator);
         this.population      = elitists ? elitists.concat(nextGeneration) : nextGeneration;
 
         this.generation++;
@@ -94,7 +102,11 @@ const generator = Object.freeze(function()
     let g = {};
 
     g.child = function*(
-        parentSelector, reproductionStrategy, developmentStrategy, fitnessEvaluationStrategy)
+        system,
+        parentSelector,
+        reproductionStrategy,
+        developmentStrategy,
+        fitnessEvaluationStrategy)
     {
         while (true)
         {
@@ -108,7 +120,8 @@ const generator = Object.freeze(function()
 
                 if (childPhenotype)
                 {
-                    let childFitness = fitnessEvaluationStrategy.evaluate(childPhenotype);
+                    let childFitness = fitnessEvaluationStrategy.evaluate(
+                        system, childGenotype, childPhenotype);
                     yield new Individual(childGenotype, childPhenotype, childFitness);
                 }
             }
@@ -116,7 +129,7 @@ const generator = Object.freeze(function()
     };
 
     g.individual = function*(
-        genotypeCreationStrategy, fitnessEvaluationStrategy, developmentStrategy = null)
+        system, genotypeCreationStrategy, fitnessEvaluationStrategy, developmentStrategy = null)
     {
         while (true)
         {
@@ -126,7 +139,7 @@ const generator = Object.freeze(function()
 
             if (phenotype)
             {
-                let fitness = fitnessEvaluationStrategy.evaluate(phenotype);
+                let fitness = fitnessEvaluationStrategy.evaluate(system, genotype, phenotype);
                 yield new Individual(genotype, phenotype, fitness);
             }
         }
