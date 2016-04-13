@@ -1,4 +1,89 @@
-\input{permve-ntnu-latex/assignment.tex}
+\documentclass[paper=a4, fontsize=11pt]{scrartcl}
+\usepackage[bottom=1.22in, left=1.22in, right=1.22in, top=1.22in]{geometry}
+\usepackage{layouts}
+
+\usepackage[usenames,dvipsnames,x11names]{xcolor}
+
+\usepackage[T1]{fontenc}
+\usepackage{fourier}
+\usepackage[english]{babel}
+\usepackage{amsmath,amsfonts,amsthm}
+
+\usepackage{sectsty}
+\allsectionsfont{\centering \normalfont\scshape}
+
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usetikzlibrary{plotmarks}
+
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{ragged2e}
+\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
+\usepackage{paralist}
+
+\usepackage{acronym}
+\usepackage[inline]{enumitem}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{lastpage}
+\usepackage{listings}
+\usepackage{multirow}
+
+\pagestyle{fancyplain}
+\fancyhead{}
+\fancyfoot[L]{}
+\fancyfoot[C]{}
+\fancyfoot[C]{\thepage~of~\pageref{LastPage}}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+\setlength{\headheight}{13.6pt}
+
+\newcommand{\horrule}[1]{\rule{\linewidth}{#1}}
+
+\usepackage{float}
+
+\usepackage{pgfplotstable}
+\usepgfplotslibrary{fillbetween}
+
+\pgfplotsset{compat=1.5}
+
+\pgfplotsset{
+every axis/.append style={
+scale only axis,
+width=0.40\textwidth,height=0.3\textwidth,
+},
+/tikz/every picture/.append style={
+trim axis left,
+trim axis right,
+baseline
+}
+}
+
+% http://tex.stackexchange.com/questions/67895/is-there-an-easy-way-of-using-line-thickness-as-error-indicator-in-a-plot
+
+% Takes six arguments: data table name, x column, y column, error column,
+% color and error bar opacity.
+% ---
+% Creates invisible plots for the upper and lower boundaries of the error,
+% and names them. Then uses fill between to fill between the named upper and
+% lower error boundaries. All these plots are forgotten so that they are not
+% included in the legend. Finally, plots the y column above the error band.
+\newcommand{\errorband}[6]{
+\pgfplotstableread{#1}\datatable
+  \addplot [name path=pluserror,draw=none,no markers,forget plot]
+    table [x={#2},y expr=\thisrow{#3}+\thisrow{#4}] {\datatable};
+
+  \addplot [name path=minuserror,draw=none,no markers,forget plot]
+    table [x={#2},y expr=\thisrow{#3}-\thisrow{#4}] {\datatable};
+
+  \addplot [forget plot,fill=#5,opacity=#6]
+    fill between[on layer={},of=pluserror and minuserror];
+
+  \addplot [#5,thick,no markers]
+    table [x={#2},y={#3}] {\datatable};
+}
 
 \title{
 \normalfont \normalsize
@@ -13,6 +98,7 @@
 \date{\normalsize\today}
 
 \newacro{ANN}{Artificial Neural Network}
+\newacro{EANN}{Evolutionary Artificial Neural Network}
 \newacro{EA}{Evolutionary Algorithm}
 
 \begin{document}
@@ -20,46 +106,148 @@
 \fancyfoot[C]{}
 \maketitle
 
-\section{Hyperparameters}
+\newpage
+\fancyfoot[C]{\thepage~of~\pageref{LastPage}} % Page numbering for right footer
+\setcounter{page}{1}
 
-A table summarizing the main EA parameters used for the successful runs of your system,
-along with a brief description of the exploratory process that you used to nd them..
+\section{\ac{EA} parameters}
+
+Table~\ref{table:ea_parameters} shows the main \ac{EA} parameters which were used for all evaluations described in this document. All parameters except the adult selection mechanism and crossover has been experimented with. By employing elitism with full generational replacement, it can be ensured that the best solutions are not lost while at the same time being able to tune some of the selection pressure in the system. Using an elitism count of 5~individuals~(5\% of the population size) was found to be helpful in helping guide exploitation, while allowing for exploration.
+
+Using fitness proportionate- or rank adult selection was found to limit the population diversity greatly, and although sigma selection worked, tournament selection was found to yield the best results, and allows for more selection pressure tuning. A tournament group size of 10 and a random selection probability of 0.1 was found to adequately balance exploitation and exploration.
+
+A single uniformly random crossover point was used for all experiments. The mutation rate was not tuned much, and values in the range of $0.005$ to $0.01 \frac{\text{mutations}}{\text{bit}}$ provided enough exploration for successful results.
+
+Increasing the population size notably did not prove beneficial, and a size of 100 was found to be sufficient in sustaining necessary diversity without too much cost. A good solution is usually found comfortably within an evolutionary run of 1000~generations, which takes about 30~seconds using a single Javascript webworker in a Firefox browser.
+
+\begin{table}
+{\scriptsize
+\centering
+\begin{tabular}{ll}
+\toprule
+Parameter                     & Value \\
+\midrule
+Population size               & 100 \\
+Generation count              & 1000 \\
+Adult selection               & Full replacement \\
+Elitism count                 & 5 \\
+Parent selection              & Tournament \\
+Tournament group size         & 10 \\
+Tournament random probability & 0.1 \\
+Mutation rate                 & $0.01 \frac{\text{mutations}}{\text{bit}}$ \\
+Crossover points              & 1 \\
+\bottomrule
+\end{tabular}
+\caption{Main \ac{EA} parameters}
+\label{table:ea_parameters}
+}
+\end{table}
 
 \section{Fitness Function}
 
-A complete description of your fitness function in terms of both a mathematical expression and explanatory text.
+The fitness function is input by the user as a text string and compiled to a function by the \texttt{math.js} library. When evaluating the function, the values for the number of
+\begin{enumerate*}[label={\alph*)}]
+\item food eaten
+\item total food
+\item poison eaten
+\item total poison
+\end{enumerate*},
+are exposed in its scope, such that various fitness strategies can easily be experimented with.
 
-\section{\ac{ANN} genotype design}
+It was found that a simple fitness function (Equation~\ref{eq:fitness_function}) which subtracts the amount of poison eaten from the amount of food eaten, summed over the scenarios the individual is exposed to, works well in this context and is able to produce objectively fit individuals. A constant $k_\mathit{pe}$ is used to tune the severity of eating poison. If eating poison is punished too harshly, exploration will be deterred, and no constructive evolution will take place. If it is too low, evolution will only value food eaten, no matter how much poison is also eaten. The consequences of eating poison is not described in the assignment but it is assumed that it should be avoided.
 
-A detailed description of the complete ANN design (excluding the actual connection weight values) that proved most successful in your experiments. This includes the layers of neurons, their activation functions, any thresholds or biases, and the range of acceptable weights that your EA had to work with. You do not need to describe all of the individual weights.
+\begin{equation}
+\label{eq:fitness_function}
+\textsc{Fitness}(i) = \sum_{s\:\in\:\mathit{scenarios}} \Big(\: \textsc{FoodEaten}(i, s) - k_{\mathit{pe}} \cdot \textsc{PoisonEaten}(i, s)\Big)
+\end{equation}
 
-Briefly describe the process that you went through to nd your design. Describe why your design should be able to solve the problem.
+A constant of $k_{\mathit{pe}} = 2$ was shown to work well in trials. To make comparisons between trials easier, all fitness values are normalized by the number of scenarios and the number of time steps. Given a $10 \times 10$ grid, $\frac{1}{3}$ food coverage, and 60 time steps, the normalized upper fitness boundary with this fitness function is $0.55$.
+
+\section{\ac{ANN} implementation}
+
+For analysis, each hidden node can be treated as an \textsc{AND}-gate which matches against a conjunction of the binary inputs. With 6~binary inputs, there is a total of $2^6 = 64$ possible input cases. With one \textsc{AND}-gate to recognize each case, a maximum of 64~hidden nodes would be needed to match every input case, and each output node could be viewed as an \textsc{OR}-gate which matches a disjunction of the activated hidden nodes. Attempting to match every distinct input case is described in \textit{Intelligence Emerging} as an \textit{extensional} strategy, and although it can represent all possible mappings, it requires a large representation and it would be hard to discover \textit{intensional} or \textit{general} behavioral mappings.
+
+Based on the analysis, a better intentional approach was designed. The genotype follows a \textit{fixed-length, direct} encoding. Each weight is represented using 1 bit describing a value of $-1$ or $1$, together with one bit per weight which turns the weight on or off. This switch bit allows both \textit{neutral complexification} and intensional mappings to be represented. As both agent inputs and outputs are binary, both the hidden- and output neurons uses the \textit{Heaviside} activation function, which will activate the neuron whenever the binary inputs are matched. Given that there are 6~binary inputs, the hidden layer bias has a range of $-6$ to $+6$, using a scaled gray code representation of $\lceil \log_2 (6 + 6 + 1) \rceil = 4$~bits. Through trials, it was found that 6~hidden nodes were able to represent successful agents, such that the output layer bias also has a range of $-6$ to $+6$ represented as a scaled gray code using 4~bits.
+
+Gray coding is used to improve the correlation between genotypes and phenotypes, and to give the effect of mutations a more gradual effect. Scaled integers are used such that values outside the effective ranges are not encountered.
+
+If a single output neuron is activated, the corresponding action is chosen, otherwise no action is made by the agent.
+
+The agent input describes the contents of the forward, left, and right locations relative to the agent. As each location can either be empty, contain food, or contain poison; there are 3 possible configurations for each location. Since there are three locations described by the input; there are a total of $3^3 = 27$ possible input combinations. For each of these 27 cases, an agent must decide one of three responses, (discounting the possibility of doing nothing), which yields a total of $3^{3^3} \approx 7.6 \cdot 10^{12}$ possible functionally distinct agents for the Flatland environment.
+
+With 6~inputs, 6~hidden nodes, and 3~output nodes, there are 54~weight values (108~bits) and 9~bias values (36~bits), for a total genome length of 144~bits which has $2.2 \cdot 10^{43}$ possible permutations. Even discounting bloat in input representation and the 0.5~bit overhead per weight, this shows that the genome can represent a significant fraction of the number of possible agents.
 
 \section{Performance of the \ac{EA}}
 
-4 cases with plots of EA runs.
+\begin{figure}[H]
+\centering
+\begin{tabularx}{\textwidth}{XcXc}
+~ &
+\begin{tikzpicture}
+\begin{axis}[xlabel={Generations},ylabel={Fitness / time step}]
+\errorband{../data/performance-scenario-1-static.txt}{0}{1}{2}{Cyan}{0.4}
+\addplot +[mark=none, color=Magenta,very thick] table[x index=0,y index=3,col sep=space] {../data/performance-scenario-1-static.txt};
+\end{axis}
+\end{tikzpicture}
+& ~ &
+\begin{tikzpicture}
+\begin{axis}[xlabel={Generations},ylabel={Fitness / time step}]
+\errorband{../data/performance-scenario-5-static.txt}{0}{1}{2}{Cyan}{0.4}
+\addplot +[mark=none, color=Magenta,very thick] table[x index=0,y index=3,col sep=space] {../data/performance-scenario-5-static.txt};
+\end{axis}
+\end{tikzpicture}
+\\
+\end{tabularx}
+\caption{\ac{EANN} performance when trained on 1~static~scenario~(left), and on 5~static~scenarios~(right). Mean population fitness is shown in blue with standard deviation shown in light blue, and the fitness of the best individual is shown in red.}
+\label{fig:performance_static}
+\end{figure}
 
-Do a static run where each agent is only tested on a single scenario each generation. Include a plot of the result. Describe the behavior of the best evolved agent on this scenario. Also test the evolved agent on a new, randomly-generated scenario and explain the behavior of it there.
+\begin{figure}[H]
+\centering
+\begin{tabularx}{\textwidth}{XcXc}
+~ &
+\begin{tikzpicture}
+\begin{axis}[xlabel={Generations},ylabel={Fitness / time step}]
+\errorband{../data/performance-scenario-1-dynamic.txt}{0}{1}{2}{Cyan}{0.4}
+\addplot +[mark=none, color=Magenta,very thick] table[x index=0,y index=3,col sep=space] {../data/performance-scenario-1-dynamic.txt};
+\end{axis}
+\end{tikzpicture}
+& ~ &
+\begin{tikzpicture}
+\begin{axis}[xlabel={Generations},ylabel={Fitness / time step}]
+\errorband{../data/performance-scenario-5-dynamic.txt}{0}{1}{2}{Cyan}{0.4}
+\addplot +[mark=none, color=Magenta,very thick] table[x index=0,y index=3,col sep=space] {../data/performance-scenario-5-dynamic.txt};
+\end{axis}
+\end{tikzpicture}
+\\
+\end{tabularx}
+\caption{\ac{EANN} performance when trained on 1~dynamic~scenario~(left), and on 5~dynamic~scenarios~(right). Mean population fitness is shown in blue with standard deviation shown in light blue, and the fitness of the best individual is shown in red.}
+\label{fig:performance_dynamic}
+\end{figure}
 
-Do the same for a new static run, but this time have 5 different scenarios to test each agent with each generation.
+\begin{enumerate}
+\item \textbf{Agent evolved using 1 static scenario:} The best agent evolved achieved a fitness score of $0.35$. When observing the scenario it was evolved with it performs quite well, consuming 25~(76~\%) of the food and 2~(9\%) of the poison over 60~time~steps. Observing the behavior, it is clear that the agent has developed very basic behavior, where it mostly moves forward until some poison is met, then turning right and continuing. Due to the static environment and little amount of testing, the agent makes bad decisions such as moving to the right when there is food on the left and poison in front and on the right, however since it performs acceptably overall in the scenario, such behavior is sustained in the population.
 
-Do a dynamic run where each agent is only tested on a single scenario. Include a plot in the result. Describe the behavior of the best evolved agent on a new, randomly-generated scenario.
+Testing the agent in a random scenario reveals significant deficiencies in the agent's strategy. It ended up getting stuck moving forwards after consuming 7~food and 1~poison, despite there being more food available on both sides of its path, resulting in a fitness score of $0.083$.
 
-Do the same for a new dynamic run, this time with 5 different scenarios to test each agent.
+\item \textbf{Agent evolved using 5 static scenarios:} The best agent evolved achieved a fitness of $\approx{}0.46$, consuming 29~food~(88\%) and 1~poison~(5\%), 29~food~(88\%) and 1~poison~(5\%), 32~food~(97\%) and 0~poison~(0\%), 27~food~(82\%) and 1~poison~(5\%), 27~food~(82\%) and 0~poison~(0\%), respectively in the 5~static scenarios.
 
-Do you see any difference between the behavior of the agents in the four cases above? Discuss why (not). Also discuss any differences between the plots.
+After observing the behavior of the agent in the five static scenarios, it can be seen that in all the instances where poison was consumed it was due to being surrounded by poison in all directions. There were no examples of bad behavior found, such as consuming poison when other options existed. The agent uses a strategy which involves a lot of agility, and instead of moving in a straight line for as long as possible, it chooses more rapid snake-like motions. This results in good coverage and the ability to consume most of the food available.
 
-\section{Misc}
+Testing the agent in a random scenario shows that it has been able to generalize effective behavior, and it was able to consume 28~food~(85\%) and 0~poison~(0\%) through exploring a large section of the grid.
 
-Mention worst case number of hidden nodes = 64
-Mention that all functions could be represented using 1 bit per hidden node weight + 3 bits for bias
-Possible agent strategies = 3^(2^6)
+\item \textbf{Agent evolved using 1 dynamic scenario:} The best agent evolved achieved a fitness of $0.53$, which is close to the theoretical maximum of $0.55$. Since the agent was only tested on a single scenario, this high fitness is likely to be based on some luck rather than just a good strategy. When tested with a random scenario it performs fairly well, consuming 28~food~(85\%) and 3~poison~(14\%). It follows a strategy which involves agile movement without moving only in straight lines, and covers a large area in the grid without repeating locations. It does however perform a directly bad move as it consumes a poison in a situation where it would be possible to move to an empty cell.
 
-Output is decided by argmax when there is one motor output which is higher than the two others. If there is a tie then no action is performed.
+\item \textbf{Agent evolved using 5 dynamic scenarios:} The best agent evolved achieved a fitness of $0.45$. When evaluating across multiple scenarios, the fitness value becomes less dependent on luck and is more meaningful since the agent performs well in several environment configurations.
 
-Elitism > 1 matters during dynamic scenarios since the best individual in one generation may not be the best when evaluated in the next.
+Testing the best agent on a random scenario shows exploring behavior where the agent is able to cover a large part of the grid while consuming 26~food~(79\%) and 1~poison(5\%). The single poison consumed occurred in a situation where the agent was surrounded by poison.
+\end{enumerate}
 
-Cannot give a very high penalty to poison as this will deter exploration and will yield poor results.
+When comparing the four performance cases, it is clear that using multiple scenarios is necessary to achieve generalized behavior which will work in new scenarios. Using dynamic scenarios instead of static scenarios offers much greater opportunity to expose and test the population through evolution on a variety of edge cases. The behavior of the agent evolved using one dynamic scenario clearly shows more general behavior compared to the agent evolved using one static scenario.
+
+The fitness plots, see Figure~\ref{fig:performance_static} and Figure~\ref{fig:performance_dynamic}, show that the fitness development is more gradual in the dynamic cases compared to the static cases, indicating that learning is more gradual and that new individuals in the population gradually performs better as the population adapts to different scenarios. The standard deviation for the mean population fitness is also visibly lower in the dynamic cases, with the best individual performing more than one standard deviation better than the mean, indicating that the population fitness is more stable than in the static cases.
+
+\textit{NB: Due to an error in testing, all results described in this document uses 3~bits to represent the hidden- and output layer bias values, instead of the 4~bits determined by the analysis. This shows that a value of 3~bits per bias value is sufficient to achieve good results.}
 
 \end{document}
 
