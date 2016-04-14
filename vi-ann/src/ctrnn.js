@@ -6,7 +6,7 @@ export class Network
         this.hidden  = hidden;
         this.outputs = outputs;
 
-        this.nodes   = hidden.concat(outputs);
+        this.nodes = hidden.concat(outputs);
     }
 
     evaluate(inputs)
@@ -19,12 +19,28 @@ export class Network
         for (const node of this.nodes)
         {
             node.step();
-        }
-
-        for (const node of this.nodes)
-        {
             node.update();
         }
+
+//        for (const node of this.hidden)
+//        {
+//            node.step();
+//        }
+//
+//        for (const node of this.hidden)
+//        {
+//            node.update();
+//        }
+//
+//        for (const node of this.outputs)
+//        {
+//            node.step();
+//        }
+//
+//        for (const node of this.outputs)
+//        {
+//            node.update();
+//        }
 
         return this.outputs.map(output => output.value);
     }

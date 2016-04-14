@@ -4,9 +4,9 @@ import * as ann from '../../vi-ann/vi-ann';
 import * as ea from '../../vi-ea/vi-ea';
 import * as utility from '../../vi-utility/vi-utility';
 
-export { ann, ea };
+import { stepWorld, Widget } from '../../vi-beer-tracker-widget/vi-beer-tracker-widget';
 
-export * from '../../vi-beer-tracker-widget/vi-beer-tracker-widget';
+export { ann, ea, Widget };
 
 export function createAgent(network)
 {
@@ -21,11 +21,11 @@ export function createAgent(network)
                 const adjusted = (world.object.x - world.trackerPosition + world.width) % world.width;
                 const overlap  = (adjusted + world.object.size) - world.width;
 
-                inputs[0] = (adjusted <= 0 || overlap > 0) ? 1 : 0;
-                inputs[1] = (adjusted <= 1 || overlap > 1) ? 1 : 0;
-                inputs[2] = (adjusted <= 2 || overlap > 2) ? 1 : 0;
-                inputs[3] = (adjusted <= 3 || overlap > 3) ? 1 : 0;
-                inputs[4] = (adjusted <= 4 || overlap > 4) ? 1 : 0;
+                inputs[0] = ((adjusted <= 0 && adjusted > 0 - world.object.size) || overlap > 0) ? 1 : 0;
+                inputs[1] = ((adjusted <= 1 && adjusted > 1 - world.object.size) || overlap > 1) ? 1 : 0;
+                inputs[2] = ((adjusted <= 2 && adjusted > 2 - world.object.size) || overlap > 2) ? 1 : 0;
+                inputs[3] = ((adjusted <= 3 && adjusted > 3 - world.object.size) || overlap > 3) ? 1 : 0;
+                inputs[4] = ((adjusted <= 4 && adjusted > 4 - world.object.size) || overlap > 4) ? 1 : 0;
             }
 
             if (!world.wraps)
@@ -37,16 +37,29 @@ export function createAgent(network)
 
             const outputs = network.evaluate(inputs);
 
-            let action =
-            {
-                move: (Math.round(4 * Math.min(1, Math.max(0, outputs[1])))
-                      - Math.round(4 * Math.min(1, Math.max(0, outputs[0]))))
-            };
+            let action = { pull: false };
 
-            if (outputs.length > 2)
+            if (outputs.length > 2 && outputs[2] > 0.5)
             {
-                action.pull = outputs[2] >= 0.5;
+                action.pull = true;
             }
+            else
+            {
+                const direction = outputs[0] < 0.5 ? -1 : 1;
+                const magnitude = Math.floor(4 * outputs[1]);
+                action.move = direction * magnitude;
+                //const direction = outputs[1] > outputs[0];
+                //action.move = (direction ? 1 : -1) * (4 * Math.round(Math.min(1, Math.max(outputs[direction ? 1 : 0]))));
+            }
+
+//            else if (outputs[0] > outputs[1])
+//            {
+//                action.move = 4 - Math.round(3 * Math.min(1, Math.max(0, outputs[0])))
+//            }
+//            else
+//            {
+//                action.move = -(4 - Math.round(3 * Math.min(1, Math.max(0, outputs[1]))));
+//            }
 
             return action;
         }
@@ -140,13 +153,17 @@ export function createDevelopmentStrategy(options)
     };
 }
 
-export function createFitnessEvaluationStrategy(fitnessExpression, world, timeSteps)
+export function createFitnessEvaluationStrategy(fitnessExpression, world, timeSteps, spawns)
 {
     return {
-        evaluate: function(phenotype)
+        evaluate: function(system, genotype, phenotype)
         {
             const agent  = createAgent(phenotype);
-            const result = evaluateAgent(agent, world, timeSteps);
+            const result = evaluateAgent(agent, world, timeSteps, spawns);
+
+            result.generation      = system.generation;
+            result.generationCount = system.generationCount;
+
             return fitnessExpression.eval(result);
         }
     };
@@ -185,9 +202,9 @@ export function createGenotypeCreator(options)
 
     const weightCount =
         hiddenLayerInputConnections +
+        outputLayerInputConnections +
         hiddenLayerInterNodeRecurrentConnections +
         hiddenLayerIntraNodeRecurrentConnections +
-        outputLayerInputConnections +
         outputLayerInterNodeRecurrentConnections +
         outputLayerIntraNodeRecurrentConnections;
 
@@ -205,81 +222,46 @@ export function createGenotypeCreator(options)
     return new ea.fixedBitVector.Creator(genotypeSize);
 }
 
-export function evaluateAgent(agent, world, timeSteps)
+export function evaluateAgent(agent, world, timeSteps, spawns)
 {
     const result =
     {
-        captureSpawns:   0,
-        captures:        0,
-        collisionSpawns: 0,
-        collisions:      0,
-        moves:           0
+        bigAvoids:     0,
+        bigCaptures:   0,
+        bigCrashes:    0,
+        idle:          0,
+        moves:         0,
+        smallAvoids:   0,
+        smallCaptures: 0,
+        smallCrashes:  0
     };
 
     world = JSON.parse(JSON.stringify(world));
 
+    if (spawns)
+    {
+        spawns = JSON.parse(JSON.stringify(spawns));
+    }
+
     world.trackerPosition = math.randomInt(
         world.wraps ? world.width : world.width - world.trackerSize + 1);
 
-    const numObjects = Math.floor(timeSteps / (world.height - 1));
-    let objects = utility.shuffle(Array(numObjects).fill(0).map((v, i) => (i % world.trackerSize) + 1));
-
-    world.object = null;
-
     while (timeSteps --> 0)
     {
-        if (!world.object)
-        {
-            //const objectSize = math.randomInt(1, world.trackerSize + 2);
-            const objectSize = objects.shift();
+        stepWorld(world, agent, spawns);
 
-            world.object =
-            {
-                size: objectSize,
-                x:    math.randomInt(world.wraps ? world.width : world.width - objectSize + 1),
-                y:    0
-            };
-
-            result.captureSpawns   += objectSize <  world.trackerSize;
-            result.collisionSpawns += objectSize >= world.trackerSize;
-        }
-
-        const action = agent.act(world);
-
-        world.trackerPosition += action.move;
-        result.moves          += Math.abs(action.move);
-
-        if (world.wraps)
-        {
-            world.trackerPosition = (world.trackerPosition + world.width) % world.width;
-        }
-        else
-        {
-            world.trackerPosition = Math.min(world.width - 1, Math.max(0, world.trackerPosition));
-        }
-
-        if (world.object)
-        {
-            world.object.y += 1;
-
-            if (action.pull || world.object.y === world.height - 1)
-            {
-                const adjusted = (world.object.x - world.trackerPosition + world.width) % world.width;
-                const overlap  = (adjusted + world.object.size) - world.width;
-
-                if (world.object.size < world.trackerSize)
-                {
-                    result.captures += adjusted + world.object.size <= world.trackerSize;
-                }
-                else
-                {
-                    result.collisions += adjusted < world.trackerSize || overlap > 0;
-                }
-
-                world.object = null;
-            }
-        }
+        result.idle          += world.idle;
+        result.moves         += world.moves;
+        result.bigAvoids     += world.bigAvoid;
+        result.bigCrashes    += world.bigCrash;
+        result.bigCaptures   += world.bigCapture;
+        result.smallAvoids   += world.smallAvoid;
+        result.smallCrashes  += world.smallCrash;
+        result.smallCaptures += world.smallCapture;
     }
+
+    result.smallTotal = result.smallAvoids + result.smallCrashes + result.smallCaptures;
+    result.bigTotal   = result.bigAvoids   + result.bigCrashes   + result.bigCaptures;
 
     return result;
 }

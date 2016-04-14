@@ -2,69 +2,124 @@ import * as chroma from 'chroma-js';
 
 export const constants = Object.freeze(function()
 {
-    let constants = {};
+    let constants                 = {};
     constants.gameLoopDelayMs     = 1000 / 30;//100;//200;//1000 / 15;//60;
     constants.gameAnimationTicks  = 5;
     constants.gamePlaybackHistory = 5;
     constants.playbackOffset      = 2;
+    constants.boxSize             = 0.8;
+    constants.spacing             = (1 - 0.8) / 2;
     return constants;
 }());
 
-function stepWorld(world, agent)
+export function stepWorld(world, agent, spawns = null)
 {
-    world = JSON.parse(JSON.stringify(world));
-
-    world.objects = world.objects.filter(object =>
-    {
-        return !object.capture && object.y < world.height;
-    });
-
     world.action = agent ? agent.act(world) : {};
 
-    world.trackerPosition += world.action.move || 0;
+    let idle  = true;
+    let moves = 0;
 
-    if (world.wraps)
+    // Cannot pull and move at the same time
+    if (!world.action.pull)
     {
-        world.trackerPosition = (world.trackerPosition + world.width) % world.width;
-    }
-    else
-    {
-        world.trackerPosition = Math.min(world.width - 1, Math.max(0, world.trackerPosition));
-    }
+        const lastTrackerPosition = world.trackerPosition;
 
-    for (const object of world.objects)
-    {
-        object.y = world.action.pull ? world.height - 1 : object.y + 1;
+        world.trackerPosition += world.action.move || 0;
 
-        if (object.y === world.height - 1)
+        if (world.wraps)
         {
-            const adjusted = (object.x - world.trackerPosition + world.width) % world.width;
-            const overlap  = (adjusted + object.size) - world.width;
+            world.trackerPosition = (world.trackerPosition + world.width) % world.width;
+            moves = Math.abs(world.action.move || 0);
+        }
+        else
+        {
+            world.trackerPosition = Math.min(world.width - 5, Math.max(0, world.trackerPosition));
+            moves = Math.abs(world.trackerPosition - lastTrackerPosition);
+        }
 
-            if (object.size < world.trackerSize)
+        world.idle = world.trackerPosition !== lastTrackerPosition;
+    }
+
+    let smallCapture = false;
+    let smallCrash   = false;
+    let smallAvoid   = false;
+
+    let bigCapture   = false;
+    let bigCrash     = false;
+    let bigAvoid     = false;
+
+    if (world.object)
+    {
+        world.object.y = (world.action.pull && world.object.y < world.height - 1
+            ? world.height - 1 : world.object.y + 1);
+
+        if (world.object.y === world.height - 1)
+        {
+            const adjusted = (world.object.x - world.trackerPosition + world.width) % world.width;
+            const overlap  = (adjusted + world.object.size) - world.width;
+
+            const capture = adjusted + world.object.size <= world.trackerSize;
+            const crash   = !capture && (adjusted < world.trackerSize || overlap > 0);
+            const avoid   = !capture && !crash;
+
+            if (world.object.size < world.trackerSize)
             {
-                const capture = adjusted + object.size <= world.trackerSize;
-                object.capture = capture;
+                smallCapture = capture;
+                smallCrash   = crash;
+                smallAvoid   = avoid;
             }
             else
             {
-                const collision = adjusted < world.trackerSize || overlap > 0;
-                object.collision = collision;
+                bigCapture = capture;
+                bigCrash   = crash;
+                bigAvoid   = avoid;
             }
+
+//            if (capture)
+//            {
+//                world.object = null;
+//            }
         }
+//        else if (world.object.y >= world.height)
+//        {
+//            world.object = null;
+//        }
     }
 
-    if (!world.objects.some(object => !object.capture && !object.collision && object.y < world.height))
-    {
-        const objectSize = math.randomInt(1, world.trackerSize + 2);
+    world.idle  = idle;
+    world.moves = moves;
 
-        // Not wrapping spawned objects since it looks bad.
-        world.objects.push(
+    world.smallCapture = smallCapture;
+    world.smallCrash   = smallCrash;
+    world.smallAvoid   = smallAvoid;
+
+    world.bigCapture   = bigCapture;
+    world.bigCrash     = bigCrash;
+    world.bigAvoid     = bigAvoid;
+
+    if (!world.object)
+    {
+        if (spawns && spawns.length > 0)
         {
-            size: objectSize,
-            x:    math.randomInt(world.width - objectSize + 1),
-            y:    0
-        });
+            world.object = spawns.shift();
+            world.object.y = 0;
+        }
+        else
+        {
+            const objectSize = math.randomInt(1, world.trackerSize + 2);
+
+            // Not wrapping spawned objects since it looks bad
+            world.object =
+            {
+                size: objectSize,
+                x:    math.randomInt(world.width - objectSize + 1),
+                y:    0
+            };
+        }
+    }
+    else if (world.object.y >= world.height || smallCapture || bigCapture)
+    {
+        world.object = null;
     }
 
     return world;
@@ -74,74 +129,65 @@ export class Widget
 {
     constructor(options)
     {
-        this.colors = options.colors;
-        this.grid    = options.grid;
-        this.objects = options.objects || [];
-        this.tracker = options.tracker;
         this.agent   = options.agent;
-
-        this.world = { width: 30, height: 15, trackerPosition: 0, trackerSize: 5, wraps: true, objects: [] };
+        this.colors  = options.colors;
+        this.playing = options.playing || false;
+        this.world   = options.world;
 
         this.canvas  = options.canvas;
         this.context = options.canvas.getContext('2d');
 
-        this.context.scale(this.canvas.width / this.grid.width, this.canvas.height / this.grid.height);
+        this.context.scale(this.canvas.width / this.world.width, this.canvas.height / this.world.height);
         this.context.lineWidth = 0.05;
-
-        let colorScales = {};
-
-        for (let kind of Object.keys(this.colors))
-        {
-            if (kind !== 'tracker')
-            {
-                colorScales[kind] = chroma.scale([this.colors.tracker, this.colors[kind]]).mode('lch').colors(5, 'css');
-            }
-        }
-
-        this.colorScales = colorScales;
 
         this.animationIndex = 0;
 
+        this.generateTransitions();
         this.playback = Array(constants.gamePlaybackHistory).fill(this.world);
+        this.shadows  = Array(this.world.width);
 
-        window.requestAnimationFrame(this.update.bind(this));
+        this.play();
     }
 
-    roundRect(ctx, x, y, width, height, radius, fill, stroke)
+    generateTransitions()
     {
-        if (typeof stroke == 'undefined') {
-            stroke = true;
+        function generateTransition(from, to)
+        {
+            return chroma.scale([from, to]).mode('lab').colors(constants.gameAnimationTicks, 'css');
         }
-        if (typeof radius === 'undefined') {
-            radius = 5;
-        }
-        if (typeof radius === 'number') {
-            radius = {tl: radius, tr: radius, br: radius, bl: radius};
-        } else {
-            var defaultRadius = {tl: 0, tr: 0, br: 0, bl: 0};
-            for (var side in defaultRadius) {
-                radius[side] = radius[side] || defaultRadius[side];
+
+        this.transitions =
+        {
+            big:
+            {
+                big:     generateTransition(this.colors.big, this.colors.big),
+                small:   generateTransition(this.colors.big, this.colors.small),
+                tracker: generateTransition(this.colors.big, this.colors.tracker)
+            },
+            small:
+            {
+                big:     generateTransition(this.colors.small, this.colors.big),
+                small:   generateTransition(this.colors.small, this.colors.small),
+                tracker: generateTransition(this.colors.small, this.colors.tracker)
+            },
+            tracker:
+            {
+                big:     generateTransition(this.colors.tracker, this.colors.big),
+                small:   generateTransition(this.colors.tracker, this.colors.small),
+                tracker: generateTransition(this.colors.tracker, this.colors.tracker)
             }
         }
+    }
 
-        ctx.beginPath();
-        ctx.moveTo(x + radius.tl, y);
-        ctx.lineTo(x + width - radius.tr, y);
-        ctx.quadraticCurveTo(x + width, y, x + width, y + radius.tr);
-        ctx.lineTo(x + width, y + height - radius.br);
-        ctx.quadraticCurveTo(x + width, y + height, x + width - radius.br, y + height);
-        ctx.lineTo(x + radius.bl, y + height);
-        ctx.quadraticCurveTo(x, y + height, x, y + height - radius.bl);
-        ctx.lineTo(x, y + radius.tl);
-        ctx.quadraticCurveTo(x, y, x + radius.tl, y);
-        ctx.closePath();
-
-        if (stroke) {
-            ctx.stroke();
+    getTrackerColor(world)
+    {
+        if (world.smallCapture)
+        {
+            return 'small';
         }
-
-        if (fill) {
-            ctx.fill();
+        else if (world.bigCrash || world.bigCapture)
+        {
+            return 'big';
         }
     }
 
@@ -149,159 +195,152 @@ export class Widget
     {
         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        const boxSize = 0.8;
-        const spacing = (1 - boxSize) / 2;
+        const previous = this.playback[constants.playbackOffset - 1];
+        const current  = this.playback[constants.playbackOffset];
+        const next     = this.playback[constants.playbackOffset + 1];
+        const future   = this.playback[constants.playbackOffset + 2];
 
-        for (const object of this.playback[constants.playbackOffset].objects)
+        const fallingObject = current.object;
+
+        if (fallingObject)
         {
-            if (!object.capture)
+            const y = (fallingObject.y +
+                (next.action.pull ? this.world.height - fallingObject.y - 1 : 1)
+                * this.animationIndex / constants.gameAnimationTicks);
+
+            this.context.fillStyle = fallingObject.size < this.world.trackerSize ? this.colors.small : this.colors.big;
+
+            this.roundRect(
+                fallingObject.x + constants.spacing, y + constants.spacing,
+                fallingObject.size - 2 * constants.spacing, constants.boxSize,
+                0.1, true, false);
+        }
+
+        const freshObject = next.object && next.object.y === 0 ? next.object : null;
+
+        if (freshObject)
+        {
+            const y = this.animationIndex / constants.gameAnimationTicks - 1;
+
+            this.context.fillStyle = freshObject.size < this.world.trackerSize ? this.colors.small : this.colors.big;
+
+            this.roundRect(
+                freshObject.x + constants.spacing, y + constants.spacing,
+                freshObject.size - 2 * constants.spacing, constants.boxSize,
+                0.1, true, false);
+        }
+
+        this.shadows.fill(false);
+
+        if (current.object)
+        {
+            for (let x = 0; x < current.object.size; x++)
             {
-                const pull   = this.playback[constants.playbackOffset + 1].action.pull;
-                const cloneX = object.x - this.playback[constants.playbackOffset].width;
-                const y      = object.y + (pull ? this.world.height - object.y - 1 : 1) * this.animationIndex / 5;
-
-                this.context.strokeStyle = this.colors[object.size];
-                this.context.fillStyle   = this.colors[object.size];
-
-                this.roundRect(this.context,
-                    object.x + spacing, y + spacing,
-                    object.size - 2 * spacing, boxSize,
-                    0.1, true, false);
-
-                this.roundRect(this.context,
-                    cloneX + spacing, y + spacing,
-                    object.size - 2 * spacing, boxSize,
-                    0.1, true, false);
+                const pos = (current.object.x + x) % this.world.width;
+                this.shadows[pos] = true;
             }
         }
 
-        for (const object of this.playback[constants.playbackOffset + 1].objects)
+        if (next.object)
         {
-            if (object.y === 0)
+            for (let x = 0; x < next.object.size; x++)
             {
-                const cloneX = object.x - this.playback[constants.playbackOffset].width;
-                const y      = this.animationIndex / 5 - 1;
-
-                this.context.strokeStyle = this.colors[object.size];
-                this.context.fillStyle   = this.colors[object.size];
-
-                this.roundRect(this.context,
-                    object.x + spacing, y + spacing,
-                    object.size - 2 * spacing, boxSize,
-                    0.1, true, false);
-
-                this.roundRect(this.context,
-                    cloneX + spacing, y + spacing,
-                    object.size - 2 * spacing, boxSize,
-                    0.1, true, false);
+                const pos = (next.object.x + x) % this.world.width;
+                this.shadows[pos] = true;
             }
         }
 
-        let shadows = Array(this.world.width).fill(false);
-
-        for (const object of this.playback[constants.playbackOffset].objects)
+        for (let i = 0; i < this.shadows.length; i++)
         {
-            if (object.y < this.world.height - 1)
+            if (this.shadows[i])
             {
-                for (let x = 0; x < object.size; x++)
-                {
-                    const pos = (object.x + x) % this.world.width;
-                    shadows[pos] = true;
-                }
-            }
-        }
-
-        for (const object of this.playback[constants.playbackOffset + 1].objects)
-        {
-            if (object.y < this.world.height - 1)
-            {
-                for (let x = 0; x < object.size; x++)
-                {
-                    const pos = (object.x + x) % this.world.width;
-                    shadows[pos] = true;
-                }
-            }
-        }
-
-        const currentTrackerPosition = this.playback[constants.playbackOffset].trackerPosition;
-
-        for (let i = 0; i < shadows.length; i++)
-        {
-            if (shadows[i])
-            {
-                const under = i >= currentTrackerPosition && i < currentTrackerPosition + 5;
+                const under = i >= current.trackerPosition && i < current.trackerPosition + this.world.trackerSize;
                 this.context.fillStyle = under ? 'rgb(0, 0, 0)' : 'rgb(200, 200, 200)';
-                this.context.fillRect(i + spacing, this.world.height - spacing / 2, boxSize, spacing / 4);
+                this.context.fillRect(i + constants.spacing, this.world.height - constants.spacing / 2, constants.boxSize, constants.spacing / 4);
             }
         }
 
-        let trackerColor = null;
+        const nextColor = this.getTrackerColor(next);
+        const fromColor = nextColor || this.getTrackerColor(current) || 'tracker';
+        const toColor   = nextColor || this.getTrackerColor(future) || 'tracker';
 
-        if (!trackerColor)
-        {
-            for (const object of this.playback[constants.playbackOffset + 1].objects)
-            {
-                if (object.capture || object.collision)
-                {
-                    trackerColor = this.colors[object.size];
-                    break;
-                }
-            }
-        }
+        this.context.fillStyle = this.transitions[fromColor][toColor][this.animationIndex];
 
-        if (!trackerColor)
-        {
-            for (const object of this.playback[constants.playbackOffset + 2].objects)
-            {
-                if (object.capture || object.collision)
-                {
-                    trackerColor = this.colorScales[object.size][this.animationIndex];
-                    break;
-                }
-            }
-        }
-
-        if (!trackerColor)
-        {
-            for (const object of this.playback[constants.playbackOffset + 0].objects)
-            {
-                if (object.capture || object.collision)
-                {
-                    trackerColor = this.colorScales[object.size][4 - this.animationIndex];
-                    break;
-                }
-            }
-        }
-
-        const trackerStroke = trackerColor ? false : true;
-
-        this.context.strokeStyle = trackerColor ? trackerColor : 'rgb(255, 255, 255)';
-        this.context.fillStyle   = trackerColor || this.colors.tracker;
-
-        let trackerPosition = this.playback[constants.playbackOffset].trackerPosition;
-
-        if (this.playback[constants.playbackOffset + 1].action)
-        {
-            trackerPosition += (this.playback[constants.playbackOffset + 1].action.move || 0) * this.animationIndex / 5;
-        }
+        const trackerStroke = false;
+        const trackerPosition = (current.trackerPosition +
+            (next.trackerPosition - current.trackerPosition) * this.animationIndex / constants.gameAnimationTicks);
 
         let trackerClonePosition = (trackerPosition < 0
-            ? trackerPosition + this.playback[constants.playbackOffset].width : trackerPosition - this.playback[constants.playbackOffset].width);
+            ? trackerPosition + this.world.width : trackerPosition - this.world.width);
 
-        this.roundRect(this.context,
-            trackerPosition + spacing, this.playback[constants.playbackOffset].height - 1 + spacing,
-            this.tracker.size - 2 * spacing, boxSize,
+        this.roundRect(
+            trackerPosition + constants.spacing, this.world.height - 1 + constants.spacing,
+            this.world.trackerSize - 2 * constants.spacing, constants.boxSize,
             0.1, true, trackerStroke);
 
-        this.roundRect(this.context,
-            trackerClonePosition + spacing, this.playback[constants.playbackOffset].height - 1 + spacing,
-            this.tracker.size - 2 * spacing, boxSize,
+        this.roundRect(
+            trackerClonePosition + constants.spacing, this.world.height - 1 + constants.spacing,
+            this.world.trackerSize - 2 * constants.spacing, constants.boxSize,
             0.1, true, trackerStroke);
+    }
+
+    roundRect(x, y, width, height, radius, fill, stroke)
+    {
+        const ctx = this.context;
+
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+
+        if (stroke)
+        {
+            ctx.stroke();
+        }
+
+        if (fill)
+        {
+            ctx.fill();
+        }
     }
 
     setAgent(agent)
     {
         this.agent = agent;
+        this.play();
+    }
+
+    play()
+    {
+        this.timeStep       = 0;
+        this.totalTimeSteps = 600;
+        this.playing        = true;
+
+        this.stats =
+        {
+            bigAvoids:     0,
+            bigCaptures:   0,
+            bigCrashes:    0,
+            idle:          0,
+            moves:         0,
+            smallAvoids:   0,
+            smallCaptures: 0,
+            smallCrashes:  0
+        };
+
+        window.requestAnimationFrame(this.update.bind(this));
+    }
+
+    pause()
+    {
+        this.playing = false;
     }
 
     update(currentTime)
@@ -318,9 +357,23 @@ export class Widget
 
             if (animationIndex === 0)
             {
-                this.world = stepWorld(this.world, this.agent);
-
+                this.world = stepWorld(JSON.parse(JSON.stringify(this.world)), this.agent);
                 this.playback.push(this.world);
+
+                this.stats.idle          += this.world.idle;
+                this.stats.bigAvoids     += this.world.bigAvoid;
+                this.stats.bigCrashes    += this.world.bigCrash;
+                this.stats.bigCaptures   += this.world.bigCapture;
+                this.stats.smallAvoids   += this.world.smallAvoid;
+                this.stats.smallCrashes  += this.world.smallCrash;
+                this.stats.smallCaptures += this.world.smallCapture;
+
+                this.timeStep += 1;
+
+                const smallTotal = this.stats.smallAvoids + this.stats.smallCrashes + this.stats.smallCaptures;
+                const bigTotal   = this.stats.bigAvoids + this.stats.bigCrashes + this.stats.bigCaptures;
+
+                console.log(`Time step: ${this.timeStep} Small captured: ${this.stats.smallCaptures}/${smallTotal} (${smallTotal > 0 ? Math.round(100 * this.stats.smallCaptures / smallTotal) : 0}%) Big avoided: ${this.stats.bigAvoids}/${bigTotal} (${bigTotal > 0 ? Math.round(100 * this.stats.bigAvoids / bigTotal) : 0}%).`);
 
                 if (this.playback.length > constants.gamePlaybackHistory)
                 {
@@ -331,7 +384,14 @@ export class Widget
             this.render();
         }
 
-        window.requestAnimationFrame(this.update.bind(this));
+        if (this.timeStep === this.totalTimeSteps)
+        {
+            this.playing = false;
+        }
+
+        if (this.playing)
+        {
+            window.requestAnimationFrame(this.update.bind(this));
+        }
     }
 }
-

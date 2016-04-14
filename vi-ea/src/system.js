@@ -51,6 +51,12 @@ export class System
 
     evolve()
     {
+        for (let individual of this.population)
+        {
+            individual.fitness = this.fitnessEvaluationStrategy.evaluate(
+                this, individual.genotype, individual.phenotype);
+        }
+
         let elitists = null;
 
         if (this.elitismCount)
