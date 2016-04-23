@@ -25,8 +25,10 @@ export class System
         this.developmentStrategy       = options.developmentStrategy || null;
         this.diversityStrategy         = options.diversityStrategy || null;
 
-        this.generation      = 0;
-        this.generationCount = options.generationCount || 0;
+        this.generation                = 0;
+        this.generationCount           = options.generationCount || 0;
+
+        this.dynamicFitnessEvaluation  = options.dynamicFitnessEvaluation || false;
 
         this.population = this.createInitialPopulation();
     }
@@ -51,10 +53,13 @@ export class System
 
     evolve()
     {
-        for (let individual of this.population)
+        if (this.dynamicFitnessEvaluation)
         {
-            individual.fitness = this.fitnessEvaluationStrategy.evaluate(
-                this, individual.genotype, individual.phenotype);
+            for (let individual of this.population)
+            {
+                individual.fitness = this.fitnessEvaluationStrategy.evaluate(
+                    this, individual.genotype, individual.phenotype);
+            }
         }
 
         let elitists = null;
