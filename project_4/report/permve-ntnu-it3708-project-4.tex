@@ -1,0 +1,121 @@
+\documentclass[paper=a4, fontsize=11pt]{scrartcl}
+\usepackage[bottom=1.22in, left=1.22in, right=1.22in, top=1.22in]{geometry}
+\usepackage{layouts}
+
+\usepackage[usenames,dvipsnames,x11names]{xcolor}
+
+\usepackage[T1]{fontenc}
+\usepackage{fourier}
+\usepackage[english]{babel}
+\usepackage{amsmath,amsfonts,amsthm}
+
+\usepackage{sectsty}
+\allsectionsfont{\centering \normalfont\scshape}
+
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usetikzlibrary{plotmarks}
+
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{ragged2e}
+\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
+\usepackage{paralist}
+
+\usepackage{acronym}
+\usepackage[inline]{enumitem}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{lastpage}
+\usepackage{listings}
+\usepackage{multirow}
+
+\pagestyle{fancyplain}
+\fancyhead{}
+\fancyfoot[L]{}
+\fancyfoot[C]{}
+\fancyfoot[C]{\thepage~of~\pageref{LastPage}}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+\setlength{\headheight}{13.6pt}
+
+\newcommand{\horrule}[1]{\rule{\linewidth}{#1}}
+
+\usepackage{float}
+
+\usepackage{pgfplotstable}
+\usepgfplotslibrary{fillbetween}
+
+\pgfplotsset{compat=1.5}
+
+\pgfplotsset{
+every axis/.append style={
+scale only axis,
+width=0.40\textwidth,height=0.3\textwidth,
+},
+/tikz/every picture/.append style={
+trim axis left,
+trim axis right,
+baseline
+}
+}
+
+% http://tex.stackexchange.com/questions/67895/is-there-an-easy-way-of-using-line-thickness-as-error-indicator-in-a-plot
+
+% Takes six arguments: data table name, x column, y column, error column,
+% color and error bar opacity.
+% ---
+% Creates invisible plots for the upper and lower boundaries of the error,
+% and names them. Then uses fill between to fill between the named upper and
+% lower error boundaries. All these plots are forgotten so that they are not
+% included in the legend. Finally, plots the y column above the error band.
+\newcommand{\errorband}[6]{
+\pgfplotstableread{#1}\datatable
+  \addplot [name path=pluserror,draw=none,no markers,forget plot]
+    table [x={#2},y expr=\thisrow{#3}+\thisrow{#4}] {\datatable};
+
+  \addplot [name path=minuserror,draw=none,no markers,forget plot]
+    table [x={#2},y expr=\thisrow{#3}-\thisrow{#4}] {\datatable};
+
+  \addplot [forget plot,fill=#5,opacity=#6]
+    fill between[on layer={},of=pluserror and minuserror];
+
+  \addplot [#5,thick,no markers]
+    table [x={#2},y={#3}] {\datatable};
+}
+
+\title{
+\normalfont \normalsize
+\textsc{Norwegian University of Science and Technology\\IT3708 -- Subsymbolic Methods in AI}
+\horrule{0.5pt} \\[0.4cm]
+\huge Project 4:\\ Evolving Neural Networks for a Minimally-Cognitive Agent\\
+\horrule{2pt} \\[0.5cm]
+}
+
+\author{Per Magnus Veierland\\permve@stud.ntnu.no}
+
+\date{\normalsize\today}
+
+\newacro{ANN}{Artificial Neural Network}
+\newacro{CTRNN}{Continuous Time Reccurent Neural Network}
+\newacro{EANN}{Evolutionary Artificial Neural Network}
+\newacro{EA}{Evolutionary Algorithm}
+
+\begin{document}
+
+\fancyfoot[C]{}
+\maketitle
+
+\newpage
+\fancyfoot[C]{\thepage~of~\pageref{LastPage}} % Page numbering for right footer
+\setcounter{page}{1}
+
+\section{Implementation}
+
+\section{\ac{EA} Perforamnce}
+
+\section{\acs{CTRNN} Analysis}
+
+\end{document}
+
