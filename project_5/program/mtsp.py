@@ -95,15 +95,22 @@ class Mtsp(object):
         self.fast_non_dominated_sort(self.fronts, self.population)
 
     def crossover_sequence_pmx(self, parent_sequence_a, parent_sequence_b):
-        crossover_point = random.randint(0, len(parent_sequence_a))
-
         child_sequence_a = parent_sequence_a[:]
         child_sequence_b = parent_sequence_b[:]
 
-        for i in range(crossover_point):
-            x, y = child_sequence_a.index(parent_sequence_b[i]), child_sequence_b.index(parent_sequence_a[i])
-            child_sequence_a[i], child_sequence_a[x] = child_sequence_a[x], child_sequence_a[i]
-            child_sequence_b[i], child_sequence_b[y] = child_sequence_b[y], child_sequence_b[i]
+        crossover_points = random.sample(
+            range(len(parent_sequence_a)), self.crossover_points)
+
+        from_index = 0
+
+        for to_crossover_index in range(0, self.crossover_points, 2):
+            for i in range(from_index, crossover_points[to_crossover_index]):
+                x, y = child_sequence_a.index(parent_sequence_b[i]), child_sequence_b.index(parent_sequence_a[i])
+                child_sequence_a[i], child_sequence_a[x] = child_sequence_a[x], child_sequence_a[i]
+                child_sequence_b[i], child_sequence_b[y] = child_sequence_b[y], child_sequence_b[i]
+
+            if to_crossover_index < self.crossover_points - 1:
+                from_index = crossover_points[to_crossover_index + 1]
 
         return child_sequence_a, child_sequence_b
 
@@ -184,7 +191,7 @@ class Mtsp(object):
             next_population.extend(self.fronts[i][:remaining])
 
         offspring = []
-        self.generate_individuals(next_population, offspring)
+        self.generate_individuals2(next_population, offspring)
         next_population.extend(offspring)
         self.population = next_population
 
@@ -246,6 +253,29 @@ class Mtsp(object):
             offspring.append(child_a)
             offspring.append(child_b)
 
+    def generate_individuals2(self, population, offspring):
+        while len(offspring) < len(population):
+            parent_a = self.tournament_crowding_distance_selector(population)
+            parent_b = self.tournament_crowding_distance_selector(population)
+
+            if self.crossover_rate == 1 or random.random() < self.crossover_rate:
+                child_a_sequence, child_b_sequence = self.crossover_sequence_pmx(
+                    parent_a.sequence, parent_b.sequence)
+            else:
+                child_a_sequence, child_b_sequence = parent_a.sequence, parent_b.sequence
+
+            child_a = self.create_individual(child_a_sequence)
+            child_b = self.create_individual(child_b_sequence)
+
+            if random.random() < self.mutation_rate:
+                self.mutate_sequence(child_a.sequence)
+
+            if random.random() < self.mutation_rate:
+                self.mutate_sequence(child_b.sequence)
+
+            offspring.append(child_a)
+            offspring.append(child_b)
+
     def generate_sequence(self, num_cities):
         sequence = list(range(num_cities))
         random.shuffle(sequence)
@@ -260,7 +290,7 @@ class Mtsp(object):
         group = random.sample(individuals, self.tournament_group_size)
 
         if random.random() >= self.tournament_randomness:
-            return max(group, key=functools.cmp_to_key(crowding_distance_operator))
+            return min(group, key=functools.cmp_to_key(crowding_distance_operator))
         else:
             return random.choice(group)
 
@@ -268,7 +298,7 @@ class Mtsp(object):
         group = random.sample(individuals, self.tournament_group_size)
 
         if random.random() >= self.tournament_randomness:
-            return max(group, key=functools.cmp_to_key(rank_operator))
+            return min(group, key=functools.cmp_to_key(rank_operator))
         else:
             return random.choice(group)
 
@@ -498,6 +528,7 @@ class MtspApplication(QMainWindow):
         self.mtsp.population_size       = int(self.population_size.text())
         self.mtsp.generation_count      = int(self.generation_count.text())
         self.mtsp.crossover_rate        = float(self.crossover_rate.text())
+        self.mtsp.crossover_points      = int(self.crossover_points.text())
         self.mtsp.mutation_rate         = float(self.mutation_rate.text())
         self.mtsp.tournament_group_size = int(self.tournament_group_size.text())
         self.mtsp.tournament_randomness = float(self.tournament_randomness.text())
@@ -517,10 +548,11 @@ class MtspApplication(QMainWindow):
             time.sleep(0.2)
 
     def initialize_group_box_control(self):
-        self.population_size       = QLineEdit('100')
+        self.population_size       = QLineEdit('500')
         self.generation_count      = QLineEdit('100')
-        self.tournament_group_size = QLineEdit('5')
+        self.tournament_group_size = QLineEdit('20')
         self.crossover_rate        = QLineEdit('1')
+        self.crossover_points      = QLineEdit('5')
         self.mutation_rate         = QLineEdit('0.01')
         self.tournament_randomness = QLineEdit('0.1')
 
@@ -530,6 +562,7 @@ class MtspApplication(QMainWindow):
         first_column.addRow('Tournament Group Size:', self.tournament_group_size)
 
         second_column = QFormLayout()
+        second_column.addRow('Crossover Points:', self.crossover_points)
         second_column.addRow('Crossover Rate:', self.crossover_rate)
         second_column.addRow('Mutation Rate:', self.mutation_rate)
         second_column.addRow('Tournament Randomness:', self.tournament_randomness)
