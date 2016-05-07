@@ -26,281 +26,103 @@ def pairwise(iterable):
     next(b, None)
     return zip(a, b)
 
-class Individual(object):
-    def __init__(self, sequence, cost, distance):
-        self.sequence          = sequence
-        self.cost              = cost
-        self.distance          = distance
-        self.S                 = []
-        self.n                 = 0
-        self.crowding_distance = 0
-        self.score             = 0
-
-def crowding_distance_operator(a, b):
-    if a.rank < b.rank or (a.rank == b.rank and a.crowding_distance > b.crowding_distance):
-        return -1
-    elif b.rank < a.rank or (b.rank == a.rank and b.crowding_distance > a.crowding_distance):
-        return 1
-    else:
-        return 0
-
-def rank_operator(a, b):
-    if a.rank < b.rank:
-        return -1
-    elif b.rank < a.rank:
-        return 1
-    else:
-        return 0
-
-class Mtsp(object):
-    @staticmethod
-    def __read_matrix_file(filename):
-        with open(filename) as matrix_file:
-            num_cities = len(matrix_file.readline().split(',')) - 1
-            values = numpy.zeros((num_cities, num_cities))
-
-            for i in range(num_cities):
-                row = list(float(value) for value in matrix_file.readline().split(',')[1:] if value.strip())
-                values[i,:len(row)] = row
-                values[:len(row),i] = row
-
-            return values
-
-    def __init__(self, distance_filename, cost_filename):
-        self.distances  = Mtsp.__read_matrix_file(distance_filename)
-        self.costs      = Mtsp.__read_matrix_file(cost_filename)
-        self.num_cities = self.distances.shape[0]
-        self.generation = 0
-
-    def best_individual(self):
-        self.best = min(self.fronts[0], key=operator.attrgetter('distance'))
-        return min(self.fronts[0], key=operator.attrgetter('distance'))
-
-    def create_individual(self, sequence):
-        cost     = self.evaluate_cost(sequence)
-        distance = self.evaluate_distance(sequence)
-        return Individual(sequence, cost, distance)
-
-    def create_initial_population(self):
-        self.fronts = [[] for _ in range(self.population_size)]
-        population  = [self.create_individual(self.generate_sequence(self.num_cities))
-                       for _ in range(self.population_size)]
-        self.fast_non_dominated_sort(self.fronts, population)
+def evaluate_cost(self, sequence):
+    cost = 0
 
-        offspring = []
-        self.generate_individuals(population, offspring)
-
-        population.extend(offspring)
-        self.population = population
-        self.fast_non_dominated_sort(self.fronts, self.population)
-
-    def crossover_sequence_pmx(self, parent_sequence_a, parent_sequence_b):
-        child_sequence_a = parent_sequence_a[:]
-        child_sequence_b = parent_sequence_b[:]
+    from_city_id = sequence[0]
+    for to_city_id in sequence[1:]:
+        cost += self.costs[from_city_id, to_city_id]
+        from_city_id = to_city_id
 
-        crossover_points = random.sample(
-            range(len(parent_sequence_a)), self.crossover_points)
+    cost += self.costs[from_city_id, sequence[0]]
 
-        from_index = 0
+    return cost
 
-        for to_crossover_index in range(0, self.crossover_points, 2):
-            for i in range(from_index, crossover_points[to_crossover_index]):
-                x, y = child_sequence_a.index(parent_sequence_b[i]), child_sequence_b.index(parent_sequence_a[i])
-                child_sequence_a[i], child_sequence_a[x] = child_sequence_a[x], child_sequence_a[i]
-                child_sequence_b[i], child_sequence_b[y] = child_sequence_b[y], child_sequence_b[i]
+def evaluate_distance(self, sequence):
+    distance = 0
 
-            if to_crossover_index < self.crossover_points - 1:
-                from_index = crossover_points[to_crossover_index + 1]
-
-        return child_sequence_a, child_sequence_b
+    from_city_id = sequence[0]
+    for to_city_id in sequence[1:]:
+        distance += self.distances[from_city_id, to_city_id]
+        from_city_id = to_city_id
 
-    def crowding_distance_assignment(self, individuals):
-        for i in individuals:
-            i.crowding_distance = 0
-            i.score             = 0
+    distance += self.distances[from_city_id, sequence[0]]
 
-        individuals[0].score  = float('inf')
-        individuals[-1].score = float('inf')
+    return distance
 
-        individuals.sort(key=operator.attrgetter('distance'))
-
-        individuals[0].crowding_distance  = float('inf')
-        individuals[-1].crowding_distance = float('inf')
+def mutate_sequence(self, sequence):
+    a = random.randrange(len(sequence))
+    b = random.randrange(len(sequence))
+    sequence[a], sequence[b] = sequence[b], sequence[a]
 
-        distance_delta   = individuals[-1].distance - individuals[0].distance
-        distance_scaling = 1 / distance_delta
+def generate_sequence(self, num_cities):
+    sequence = list(range(num_cities))
+    random.shuffle(sequence)
+    return sequence
 
-        for i in range(1, len(individuals) - 1):
-            individuals[i].crowding_distance += (
-                (individuals[i + 1].distance - individuals[i - 1].distance) * distance_scaling)
-            individuals[i].score += (individuals[i].distance - individuals[0].distance) / distance_delta
+def read_matrix_file(filename):
+    with open(filename) as matrix_file:
+        num_cities = len(matrix_file.readline().split(',')) - 1
+        values = numpy.zeros((num_cities, num_cities))
 
-        individuals.sort(key=operator.attrgetter('cost'))
+        for i in range(num_cities):
+            row = list(float(value) for value in matrix_file.readline().split(',')[1:] if value.strip())
+            values[i,:len(row)] = row
+            values[:len(row),i] = row
 
-        individuals[0].crowding_distance  = float('inf')
-        individuals[-1].crowding_distance = float('inf')
+        return values
 
-        cost_delta   = individuals[-1].cost - individuals[0].cost
-        cost_scaling = 1 / cost_delta
+def crossover_sequence_ox(self, parent_sequence_a, parent_sequence_b):
+    sequence_length  = len(parent_sequence_a)
+    child_sequence_a = [None] * sequence_length
+    child_sequence_b = [None] * sequence_length
 
-        for i in range(1, len(individuals) - 1):
-            individuals[i].crowding_distance += (
-                (individuals[i + 1].cost - individuals[i - 1].cost) * cost_scaling)
-#            individuals[i].score += (individuals[i].cost - individuals[0].cost) / cost_delta
+    left, right = sorted(random.sample(range(sequence_length + 1), 2))
 
-    def dominates(self, a, b):
-        return a.cost < b.cost and a.distance < b.distance
+    for m in range(left, right):
+        child_sequence_a[m] = parent_sequence_a[m]
+        child_sequence_b[m] = parent_sequence_b[m]
 
-    def evaluate_cost(self, sequence):
-        cost = 0
+    m   = right % sequence_length
+    n_a = m
+    n_b = m
 
-        from_city_id = sequence[0]
-        for to_city_id in sequence[1:]:
-            cost += self.costs[from_city_id, to_city_id]
-            from_city_id = to_city_id
+    while m != left:
+        while n_a != sequence_length:
+            if parent_sequence_a[n_a] not in child_sequence_b:
+                child_sequence_b[m] = parent_sequence_a[n_a]
+                break
+            n_a = (n_a + 1) % sequence_length
 
-        cost += self.costs[from_city_id, sequence[0]]
+        while True:
+            if parent_sequence_b[n_b] not in child_sequence_a:
+                child_sequence_a[m] = parent_sequence_b[n_b]
+                break
+            n_b = (n_b + 1) % sequence_length
 
-        return cost
+        m = (m + 1) % sequence_length
 
-    def evaluate_distance(self, sequence):
-        distance = 0
+    return child_sequence_a, child_sequence_b
 
-        from_city_id = sequence[0]
-        for to_city_id in sequence[1:]:
-            distance += self.distances[from_city_id, to_city_id]
-            from_city_id = to_city_id
+def crossover_sequence_pmx(self, parent_sequence_a, parent_sequence_b):
+    child_sequence_a = parent_sequence_a[:]
+    child_sequence_b = parent_sequence_b[:]
 
-        distance += self.distances[from_city_id, sequence[0]]
+    crossover_points = sorted(random.sample(
+        range(len(parent_sequence_a)), self.crossover_points))
 
-        return distance
+    from_index = 0
 
-    def evolve(self):
-        next_population = []
-        i = 0
+    for to_crossover_index in range(0, self.crossover_points, 2):
+        for i in range(from_index, crossover_points[to_crossover_index]):
+            x, y = child_sequence_a.index(parent_sequence_b[i]), child_sequence_b.index(parent_sequence_a[i])
+            child_sequence_a[i], child_sequence_a[x] = child_sequence_a[x], child_sequence_a[i]
+            child_sequence_b[i], child_sequence_b[y] = child_sequence_b[y], child_sequence_b[i]
 
-        while len(next_population) + len(self.fronts[i]) <= self.population_size:
-            self.crowding_distance_assignment(self.fronts[i])
-            next_population.extend(self.fronts[i])
-            i += 1
+        if to_crossover_index < self.crossover_points - 1:
+            from_index = crossover_points[to_crossover_index + 1]
 
-        remaining = self.population_size - len(next_population)
-
-        if remaining > 0:
-            self.fronts[i].sort(key=functools.cmp_to_key(crowding_distance_operator))
-            next_population.extend(self.fronts[i][:remaining])
-
-        offspring = []
-        self.generate_individuals2(next_population, offspring)
-        next_population.extend(offspring)
-        self.population = next_population
-
-        self.fast_non_dominated_sort(self.fronts, self.population)
-
-        self.generation += 1
-
-    def fast_non_dominated_sort(self, fronts, P):
-        for front in fronts:
-            front.clear()
-
-        for p in P:
-            p.S = []
-            p.n = 0
-
-            for q in P:
-                if self.dominates(p, q):
-                    p.S.append(q)
-                elif self.dominates(q, p):
-                    p.n += 1
-
-            if p.n == 0:
-                p.rank = 0
-                fronts[0].append(p)
-
-        front_index = 0
-
-        while fronts[front_index]:
-            for p in fronts[front_index]:
-                for q in p.S:
-                    q.n -= 1
-
-                    if q.n == 0:
-                        q.rank = front_index + 1
-                        fronts[front_index + 1].append(q)
-
-            front_index += 1
-
-    def generate_individuals(self, population, offspring):
-        while len(offspring) < len(population):
-            parent_a = self.tournament_rank_selector(population)
-            parent_b = self.tournament_rank_selector(population)
-
-            if self.crossover_rate == 1 or random.random() < self.crossover_rate:
-                child_a_sequence, child_b_sequence = self.crossover_sequence_pmx(
-                    parent_a.sequence, parent_b.sequence)
-            else:
-                child_a_sequence, child_b_sequence = parent_a.sequence, parent_b.sequence
-
-            child_a = self.create_individual(child_a_sequence)
-            child_b = self.create_individual(child_b_sequence)
-
-            if random.random() < self.mutation_rate:
-                self.mutate_sequence(child_a.sequence)
-
-            if random.random() < self.mutation_rate:
-                self.mutate_sequence(child_b.sequence)
-
-            offspring.append(child_a)
-            offspring.append(child_b)
-
-    def generate_individuals2(self, population, offspring):
-        while len(offspring) < len(population):
-            parent_a = self.tournament_crowding_distance_selector(population)
-            parent_b = self.tournament_crowding_distance_selector(population)
-
-            if self.crossover_rate == 1 or random.random() < self.crossover_rate:
-                child_a_sequence, child_b_sequence = self.crossover_sequence_pmx(
-                    parent_a.sequence, parent_b.sequence)
-            else:
-                child_a_sequence, child_b_sequence = parent_a.sequence, parent_b.sequence
-
-            child_a = self.create_individual(child_a_sequence)
-            child_b = self.create_individual(child_b_sequence)
-
-            if random.random() < self.mutation_rate:
-                self.mutate_sequence(child_a.sequence)
-
-            if random.random() < self.mutation_rate:
-                self.mutate_sequence(child_b.sequence)
-
-            offspring.append(child_a)
-            offspring.append(child_b)
-
-    def generate_sequence(self, num_cities):
-        sequence = list(range(num_cities))
-        random.shuffle(sequence)
-        return sequence
-
-    def mutate_sequence(self, sequence):
-        a = random.randrange(len(sequence))
-        b = random.randrange(len(sequence))
-        sequence[a], sequence[b] = sequence[b], sequence[a]
-
-    def tournament_crowding_distance_selector(self, individuals):
-        group = random.sample(individuals, self.tournament_group_size)
-
-        if random.random() >= self.tournament_randomness:
-            return min(group, key=functools.cmp_to_key(crowding_distance_operator))
-        else:
-            return random.choice(group)
-
-    def tournament_rank_selector(self, individuals):
-        group = random.sample(individuals, self.tournament_group_size)
-
-        if random.random() >= self.tournament_randomness:
-            return min(group, key=functools.cmp_to_key(rank_operator))
-        else:
-            return random.choice(group)
+    return child_sequence_a, child_sequence_b
 
 class MtspPlotWidget(FigureCanvas):
     def __init__(self, parent=None):
@@ -334,9 +156,9 @@ class MtspPlotWidget(FigureCanvas):
 
         self.draw()
 
-class MtspWidget(QWidget):
+class MtspGraphWidget(QWidget):
     def __init__(self, parent=None):
-        super(MtspWidget, self).__init__(parent)
+        super(MtspGraphWidget, self).__init__(parent)
 
         self.setStyleSheet('background-color:white;')
         self.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
@@ -450,73 +272,60 @@ class MtspWidget(QWidget):
         self.update()
 
     def sizeHint(self):
-        return QSize(750, 750)
+        return QSize(200, 200)
 
 class MtspApplication(QMainWindow):
     def __init__(self):
         super(MtspApplication, self).__init__()
 
-        self.initialize_group_box_control()
+        self.initialize_controls_group_box()
 
         self.play_thread = None
         self.is_playing  = False
 
         self.mtsp = Mtsp('../data/distance.csv', '../data/cost.csv')
 
-        self.mtsp_widget = MtspWidget(self)
-        self.mtsp_widget.setValues(self.mtsp.distances, self.mtsp.costs)
+        self.mtsp_graph_widget_cost = MtspGraphWidget(self)
+        self.mtsp_graph_widget_cost.setValues(self.mtsp.distances, self.mtsp.costs)
 
-        self.first_plot  = MtspPlotWidget()
-        self.second_plot = MtspPlotWidget()
+        self.mtsp_graph_widget_distance = MtspGraphWidget(self)
+        self.mtsp_graph_widget_distance.setValues(self.mtsp.distances, self.mtsp.costs)
 
-        mtsp_widget_wrapper_layout = QHBoxLayout()
-        mtsp_widget_wrapper_layout.addWidget(self.mtsp_widget)
-        mtsp_widget_wrapper_groupbox = QGroupBox()
-        mtsp_widget_wrapper_groupbox.setLayout(mtsp_widget_wrapper_layout)
+        self.mtsp_plot_widget_population    = MtspPlotWidget()
+        self.mtsp_plot_widget_non_dominated = MtspPlotWidget()
 
-        first_plot_wrapper_layout = QHBoxLayout()
-        first_plot_wrapper_layout.addWidget(self.first_plot)
-        first_plot_wrapper_groupbox = QGroupBox()
-        first_plot_wrapper_groupbox.setLayout(first_plot_wrapper_layout)
+        def add_border(widget):
+            layout = QHBoxLayout()
+            layout.addWidget(widget)
 
-        second_plot_wrapper_layout = QHBoxLayout()
-        second_plot_wrapper_layout.addWidget(self.second_plot)
-        second_plot_wrapper_groupbox = QGroupBox()
-        second_plot_wrapper_groupbox.setLayout(second_plot_wrapper_layout)
+            group_box = QGroupBox()
+            group_box.setLayout(layout)
+            group_box.setStyleSheet('''QGroupBox {
+                background-color: white;
+                border: 1px solid black;
+                padding: 0; margin: 0;
+                }''')
 
-        mtsp_widget_wrapper_groupbox.setStyleSheet('''QGroupBox {
-            background-color: white;
-            border: 1px solid black;
-            padding: 0; margin: 0;
-            }''')
+            return group_box
 
-        first_plot_wrapper_groupbox.setStyleSheet('''QGroupBox {
-            background-color: white;
-            border: 1px solid black;
-            padding: 0; margin: 0;
-            }''')
+        main_layout = QGridLayout()
+        main_layout.addWidget(add_border(self.mtsp_graph_widget_distance), 0, 0, 1, 1)
+        main_layout.addWidget(add_border(self.mtsp_graph_widget_cost), 1, 0, 1, 1)
+        main_layout.addWidget(add_border(self.mtsp_plot_widget_population), 0, 1, 1, 1)
+        main_layout.addWidget(add_border(self.mtsp_plot_widget_non_dominated), 1, 1, 1, 1)
+        main_layout.addWidget(self.controls_group_box, 0, 2, 2, 1)
 
-        second_plot_wrapper_groupbox.setStyleSheet('''QGroupBox {
-            background-color: white;
-            border: 1px solid black;
-            padding: 0; margin: 0;
-            }''')
+        main_layout.setColumnStretch(0, 1)
+        main_layout.setColumnStretch(1, 1)
 
-        top_layout = QHBoxLayout()
-        top_layout.addWidget(mtsp_widget_wrapper_groupbox)
-        top_layout.addWidget(first_plot_wrapper_groupbox)
-        top_layout.addWidget(second_plot_wrapper_groupbox)
-
-        layout = QVBoxLayout()
-        layout.addLayout(top_layout)
-        layout.addWidget(self.group_box_control)
-
-        widget = QWidget()
-        widget.setLayout(layout)
+        main_widget = QWidget()
+        main_widget.setLayout(main_layout)
 
         self.setWindowTitle('NTNU IT3708 2016 P5: Multi-Objective Traveling Salesman Problem -- permve@stud.ntnu.no')
-        self.setCentralWidget(widget)
+        self.setCentralWidget(main_widget)
         self.show()
+
+        self.special = None
 
     def closeEvent(self, event):
         self.is_playing = False
@@ -543,11 +352,15 @@ class MtspApplication(QMainWindow):
         while self.is_playing and self.mtsp.generation < self.mtsp.generation_count:
             self.mtsp.evolve()
             b = self.mtsp.best_individual()
+            if self.special:
+                if b.cost > self.special:
+                    print('last = {} new = {} -> regression!'.format(self.special, b.cost))
+            self.special = b.cost
             self.mtsp_widget.setData(self.mtsp.generation, b)
             self.first_plot.setFronts(self.mtsp.fronts)
             time.sleep(0.2)
 
-    def initialize_group_box_control(self):
+    def initialize_controls_group_box(self):
         self.population_size       = QLineEdit('500')
         self.generation_count      = QLineEdit('100')
         self.tournament_group_size = QLineEdit('20')
@@ -556,32 +369,24 @@ class MtspApplication(QMainWindow):
         self.mutation_rate         = QLineEdit('0.01')
         self.tournament_randomness = QLineEdit('0.1')
 
-        first_column = QFormLayout()
-        first_column.addRow('Population Size:',  self.population_size)
-        first_column.addRow('Generation Count:', self.generation_count)
-        first_column.addRow('Tournament Group Size:', self.tournament_group_size)
-
-        second_column = QFormLayout()
-        second_column.addRow('Crossover Points:', self.crossover_points)
-        second_column.addRow('Crossover Rate:', self.crossover_rate)
-        second_column.addRow('Mutation Rate:', self.mutation_rate)
-        second_column.addRow('Tournament Randomness:', self.tournament_randomness)
-
-        controls_row = QHBoxLayout()
-        controls_row.addLayout(first_column)
-        controls_row.addLayout(second_column)
+        form_layout = QFormLayout()
+        form_layout.addRow('Population Size:',  self.population_size)
+        form_layout.addRow('Generation Count:', self.generation_count)
+        form_layout.addRow('Tournament Group Size:', self.tournament_group_size)
+        form_layout.addRow('Tournament Randomness:', self.tournament_randomness)
+        form_layout.addRow('Crossover Points:', self.crossover_points)
+        form_layout.addRow('Crossover Rate:', self.crossover_rate)
+        form_layout.addRow('Mutation Rate:', self.mutation_rate)
 
         self.evolve_button = QPushButton('Evolve')
 
-        buttons_row = QHBoxLayout()
-        buttons_row.addWidget(self.evolve_button)
-
         layout = QVBoxLayout()
-        layout.addLayout(controls_row)
-        layout.addLayout(buttons_row)
+        layout.addLayout(form_layout)
+        layout.addWidget(self.evolve_button)
+        layout.addStretch(1)
 
-        self.group_box_control = QGroupBox("Control")
-        self.group_box_control.setLayout(layout)
+        self.controls_group_box = QGroupBox("Control")
+        self.controls_group_box.setLayout(layout)
 
         self.evolve_button.clicked.connect(self.evolve)
 
