@@ -1,30 +1,30 @@
+import functools
+import random
+
 class Nsga2(object):
+    @functools.total_ordering
     class Individual(object):
+        __slots__ = ['genotype', 'objective_values', 'crowding_distance', 'S', 'n', 'rank']
+
         def __init__(self, genotype, objective_values):
             self.genotype          = genotype
             self.objective_values  = objective_values
 
+            self.crowding_distance = 0
             self.S                 = []
             self.n                 = 0
-            self.crowding_distance = 0
+            self.rank              = 0
 
-    @staticmethod
-    def crowding_distance_operator(a, b):
-        if a.rank < b.rank or (a.rank == b.rank and a.crowding_distance > b.crowding_distance):
-            return -1
-        elif b.rank < a.rank or (b.rank == a.rank and b.crowding_distance > a.crowding_distance):
-            return 1
-        else:
-            return 0
+        def dominates(self, other):
+            return all((a < b) for a, b in zip(self.objective_values, other.objective_values))
 
-#    @staticmethod
-#    def rank_operator(a, b):
-#        if a.rank < b.rank:
-#            return -1
-#        elif b.rank < a.rank:
-#            return 1
-#        else:
-#            return 0
+        def __lt__(self, other):
+            return (self.rank < other.rank or
+                   (self.rank == other.rank and
+                    self.crowding_distance > other.crowding_distance))
+
+        def __str__(self):
+            return 'Individual({})'.format(','.join(str(v) for v in self.objective_values))
 
     def __init__(self,
                  options,
@@ -49,29 +49,26 @@ class Nsga2(object):
         self.generation = 0
 
     def create_initial_population(self):
-        fronts = [[] for _ in range(self.options['population_size'])]
+        self.fronts     = [[] for _ in range(self.options['population_size'])]
 
-        population = [
-            Nsga2.Individual(genotype, self.objective_evaluator(genotype))
-            for _ in range(self.options['population_size'])]
-
-        self.fast_non_dominated_sort(fronts, population)
-
-        offspring = []
-        self.generate_individuals(population, offspring)
-
-        self.population = population
-        self.offspring  = offspring
+        self.population = []
+        for _ in range(self.options['population_size']):
+            genotype         = self.genotype_creator()
+            objective_values = self.objective_evaluator(genotype)
+            self.population.append(Nsga2.Individual(genotype, objective_values))
 
     def crowding_distance_assignment(self, individuals, is_non_dominated_front):
         for individual in individuals:
             individual.crowding_distance = 0
 
-        for objective in range(self.objective_count):
-            individuals.sort(key=lambda x: x.objective_values[i])
+        for objective in range(self.options['objective_count']):
+            individuals.sort(key=lambda x: x.objective_values[objective])
 
             min_individual = individuals[0]
             max_individual = individuals[-1]
+
+            min_individual.crowding_distance = float('inf')
+            max_individual.crowding_distance = float('inf')
 
             self.range_min[objective] = min(
                 self.range_min[objective], min_individual.objective_values[objective])
@@ -83,93 +80,75 @@ class Nsga2(object):
                 self.extreme_max[objective] = max_individual
 
             range_delta   = self.range_max[objective] - self.range_min[objective]
-            range_scaling = 1 / range_delta
+            range_scaling = 1 / range_delta if range_delta != 0 else 1
 
             for i in range(1, len(individuals) - 1):
                 individuals[i].crowding_distance += (range_scaling *
                     (individuals[i + 1].objective_values[objective] -
                      individuals[i - 1].objective_values[objective]))
 
-#        individuals.sort(key=operator.attrgetter('cost'))
-#
-#        self.cost_min = min(self.cost_min, individuals[0].cost)
-#        self.cost_max = max(self.cost_max, individuals[-1].cost)
-#
-#        if is_non_dominated_front:
-#            self.extreme_individual_cost_min = individuals[0]
-#            self.extreme_individual_cost_max = individuals[-1]
-#
-#        individuals[0].crowding_distance = float('inf')
-#        individuals[-1].crowding_distance = float('inf')
-#
-#        cost_delta   = self.cost_max - self.cost_min
-#        cost_scaling = 1 / cost_delta
-#
-#        for i in range(1, len(individuals) - 1):
-#            individuals[i].crowding_distance += (
-#                (individuals[i + 1].cost - individuals[i - 1].cost) * cost_scaling)
-#
-#        individuals.sort(key=operator.attrgetter('distance'))
-#
-#        self.distance_min = min(self.distance_min, individuals[0].distance)
-#        self.distance_max = max(self.distance_max, individuals[-1].distance)
-#
-#        individuals[0].crowding_distance = float('inf')
-#        individuals[-1].crowding_distance = float('inf')
-#
-#        distance_delta   = self.distance_max - self.distance_min
-#        distance_scaling = 1 / distance_delta
-#
-#        for i in range(1, len(individuals) - 1):
-#            individuals[i].crowding_distance += (
-#                (individuals[i + 1].distance - individuals[i - 1].distance) * distance_scaling)
-
     def evolve(self):
         offspring = []
-        self.generate_individuals(self.population, offspring, Nsga2.crowding_distance_operator)
+        self.generate_individuals(self.population, offspring)
         self.population.extend(offspring)
         self.fast_non_dominated_sort(self.fronts, self.population)
 
-        next_population     = []
-        non_dominated_front = None
+        next_population = []
+        remaining       = self.options['population_size']
+        first           = True
 
-        for front in self.fronts:
-            self.crowding_distance_assignment(front)
+        for i, front in enumerate(self.fronts):
+            if remaining:
+                self.crowding_distance_assignment(front, first)
+                first      = False
+                front_size = len(front)
 
-            remaining = self.population_size - len(next_population)
-
-            if len(front) <= remaining:
-                next_population.extend(front)
-                non_dominated_front = non_dominated_front or front
+                if front_size <= remaining:
+                    next_population.extend(front)
+                    remaining -= front_size
+                else:
+                    # Shuffle to avoid order bias from crowding_distance_assignment
+                    random.shuffle(front)
+                    front.sort()
+                    next_population.extend(front[:remaining])
+                    del front[remaining:]
+                    remaining = 0
             else:
-                # Shuffle to avoid order bias from crowding_distance_assignment
-                random.shuffle(front)
-                front.sort(key=functools.cmp_to_key(crowding_distance_operator))
-                next_population.extend(front[:remaining])
-                non_dominated_front = non_dominated_front or front[:remaining]
+                if front:
+                    front.clear()
+                else:
+                    break
 
-            if len(next_population) == self.population_size:
-                break
-
-        self.non_dominated_front = non_dominated_front
-        self.population          = next_population
-
+        self.population  = next_population
         self.generation += 1
 
     def fast_non_dominated_sort(self, fronts, P):
         for front in fronts:
-            front.clear()
+            if front:
+                front.clear()
+            else:
+                break
+
+        element_count = len(P)
 
         for p in P:
             p.S = []
             p.n = 0
 
-            for q in P:
-                if p.objective_values < q.objective_values:
-                    # p dominates q
+        for i in range(element_count):
+            p = P[i]
+            for j in range(i, element_count):
+                q = P[j]
+
+                if (p.objective_values[0] < q.objective_values[0] and
+                    p.objective_values[1] < q.objective_values[1]):
+
                     p.S.append(q)
-                elif q.objective_values < p.objective_values:
-                    # q dominates p
+                    q.n += 1
+                elif (q.objective_values[0] < p.objective_values[0] and
+                      q.objective_values[1] < p.objective_values[1]):
+
+                    q.S.append(p)
                     p.n += 1
 
             if p.n == 0:
@@ -191,8 +170,8 @@ class Nsga2(object):
 
     def generate_individuals(self, population, offspring):
         while len(offspring) < len(population):
-            parent_a = self.tournament_rank_selector(population)
-            parent_b = self.tournament_rank_selector(population)
+            parent_a = self.tournament_selector(population)
+            parent_b = self.tournament_selector(population)
 
             if (self.options['crossover_rate'] == 1 or
                 random.random() < self.options['crossover_rate']):
@@ -202,41 +181,23 @@ class Nsga2(object):
             else:
                 child_a_genotype, child_b_genotype = parent_a.genotype, parent_b.genotype
 
-            child_a = self.create_individual(child_a_genotype)
-            child_b = self.create_individual(child_b_genotype)
+            if random.random() < self.options['mutation_rate']:
+                self.mutation_operator(child_a_genotype)
 
             if random.random() < self.options['mutation_rate']:
-                self.mutate_genotype(child_a.genotype)
+                self.mutation_operator(child_b_genotype)
 
-            if random.random() < self.options['mutation_rate']:
-                self.mutate_genotype(child_b.genotype)
+            child_a_objective_values = self.objective_evaluator(child_a_genotype)
+            child_b_objective_values = self.objective_evaluator(child_b_genotype)
 
-            offspring.append(child_a)
-            offspring.append(child_b)
+            offspring.append(Nsga2.Individual(child_a_genotype, child_a_objective_values))
+            offspring.append(Nsga2.Individual(child_b_genotype, child_b_objective_values))
 
     def tournament_selector(self, individuals):
         group = random.sample(individuals, self.options['tournament_group_size'])
 
         if (self.options['tournament_randomness'] == 0 or
             random.random() >= self.options['tournament_randomness']):
-            return min(group, key=Nsga2.crowding_distance_operator)
+            return min(group)#, key=Nsga2.crowding_distance_operator)
         else:
             return random.choice(group)
-
-
-#    def tournament_crowding_distance_selector(self, individuals):
-#        group = random.sample(individuals, self.tournament_group_size)
-#
-#        if random.random() >= self.tournament_randomness:
-#            return min(group, key=functools.cmp_to_key(crowding_distance_operator))
-#        else:
-#            return random.choice(group)
-#
-#    def tournament_rank_selector(self, individuals):
-#        group = random.sample(individuals, self.tournament_group_size)
-#
-#        if random.random() >= self.tournament_randomness:
-#            return min(group, key=functools.cmp_to_key(rank_operator))
-#        else:
-#            return random.choice(group)
-

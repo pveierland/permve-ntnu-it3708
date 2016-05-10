@@ -1,5 +1,14 @@
+#!/usr/bin/python3
 import numpy
+
+import argparse
+import collections
+import functools
+import math
+import operator
 import random
+import sys
+import time
 
 from nsga2 import Nsga2
 
@@ -57,33 +66,28 @@ class Mtsp(object):
 
             return values
 
-    @classmethod
-    def build(cls, distance_filename, cost_filename):
-        return cls(Mtsp.read_matrix_file(distance_filename),
-                   Mtsp.read_matrix_file(cost_filename))
-
-    def __init__(self, distances, costs):
-        self.distances  = distances
-        self.costs      = costs
+    def __init__(self, distance_filename, cost_filename):
+        self.distances  = Mtsp.read_matrix_file(distance_filename)
+        self.costs      = Mtsp.read_matrix_file(cost_filename)
         self.num_cities = self.distances.shape[0]
 
     def evaluate_objectives(self, sequence):
         distance = 0
         cost     = 0
 
-        from_city_id = sequence[0]
-        for to_city_id in sequence[1:]
+        from_city_id = 0
+        for to_city_id in sequence:
             distance     += self.distances[from_city_id, to_city_id]
             cost         += self.costs[from_city_id, to_city_id]
             from_city_id  = to_city_id
 
-        distance += self.distances[from_city_id, sequence[0]]
-        cost     += self.costs[from_city_id, sequence[0]]
+        distance += self.distances[from_city_id, 0]
+        cost     += self.costs[from_city_id, 0]
 
         return (distance, cost)
 
     def generate_sequence(self):
-        sequence = list(range(self.num_cities))
+        sequence = list(range(1, self.num_cities))
         random.shuffle(sequence)
         return sequence
 
@@ -94,3 +98,34 @@ class Mtsp(object):
             objective_evaluator=self.evaluate_objectives,
             crossover_operator=Mtsp.crossover_sequence_ox,
             mutation_operator=Mtsp.mutate_sequence)
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--generations', type=int)
+parser.add_argument('--crossover_rate', type=float)
+parser.add_argument('--mutation_rate', type=float)
+parser.add_argument('--population', type=int)
+parser.add_argument('--tournament_group_size', type=int)
+parser.add_argument('--tournament_randomness', type=float)
+parser.add_argument('--nogui', action='store_true')
+args = parser.parse_args()
+
+print(args)
+
+mtsp = Mtsp('../data/distance.csv', '../data/cost.csv')
+
+mtsp.initialize({
+    'objective_count':       2,
+    'population_size':       args.population,
+    'generation_count':      args.generations,
+    'crossover_rate':        args.crossover_rate,
+    'mutation_rate':         args.mutation_rate,
+    'tournament_group_size': args.tournament_group_size,
+    'tournament_randomness': args.tournament_randomness
+})
+
+for _ in range(args.generations):
+    mtsp.nsga2.evolve()
+    print('generation: {} distance: {} cost: {}'.format(
+        mtsp.nsga2.generation,
+        mtsp.nsga2.extreme_min[0].objective_values[0],
+        mtsp.nsga2.extreme_min[1].objective_values[1]))
