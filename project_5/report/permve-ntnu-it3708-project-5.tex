@@ -1,0 +1,243 @@
+\input{permve-ntnu-latex-assignment.tex}
+
+\usepackage{algorithm, algpseudocode}
+\usepackage{float}
+\usepackage{pgfplots, pgfplotstable}
+\usepgfplotslibrary{colorbrewer}
+
+\newacro{MTSP}{Multi-Objective Traveling Salesman Problem}
+\newacro{MOEA}{Multi-Objective Evolutionary Algorithm}
+\newacro{OX}{Order Crossover}
+\newacro{TSP}{Traveling Salesman Problem}
+
+\title{
+\normalfont \normalsize
+\textsc{Norwegian University of Science and Technology\\IT3708 -- Subsymbolic Methods in AI}
+\horrule{0.5pt} \\[0.4cm]
+\huge Project 5:\\ Solving \ac{MTSP} using \ac{MOEA}\\
+\horrule{2pt} \\[0.5cm]
+}
+
+\author{Per Magnus Veierland\\permve@stud.ntnu.no}
+
+\date{\normalsize\today}
+
+\begin{document}
+
+\fancyfoot[C]{}
+\maketitle
+
+\section*{Genotype}
+
+The genotype of a single individual is represented by a vector of integers describing one cyclic \ac{TSP} tour. The vector of integers holds a sequence of $N$ integers, $s_1, s_2, \dots, s_N$, where $N$ is the number of cities in the \ac{TSP}. The sequence is a permutation of the set $\{1, 2, \ldots, N\}$ and describes the order in which to visit each of the cities once. As an example with 5 cities: a sequence $4, 2, 5, 1, 3$ describes a tour starting at city 4, moving to city 2, moving to city 5, moving to city 1, moving to city 3, and finally moving back to starting city 4.
+
+\section*{Crossover}
+
+\setlength\parindent{17pt}
+
+\ac{OX} (Algorithm~\ref{alg:ox}) was introduced by Lawrence Davis in 1985 \cite{davis1985applying}. It is a two-parent ($p_1$ and $p_2$), two-children ($c_1$ and $c_2$) crossover operator intended to preserve the relative ordering of parent genes in offspring. Parents and offspring all share the same genome length, in this context denoted as $N$. Two crossover cut points are selected by first generating two uniformly random integers, \textit{first} and \textit{second} in the range $[0,l]$. The left cutting point is \textsc{min}$(\textit{first}, \textit{second})$, and the right cutting point is \textsc{max}$(\textit{first}, \textit{second})$. Between the cut points, $c_1$ is given the gene values of $p_1$, and $c_2$ is given the gene values of $p_2$.
+
+For the remaining genes, the first child is assigned gene values in order from the second parent, starting from the first gene after the cutting point. Only gene values which are new to the child is assigned; gene values which the child already has are skipped. The same procedure is used to assign gene values from the first parent to the second child. As only gene values which are not already in the child genotype are assigned, and all gene positions in the children are filled, it is clear that children only end up with unique gene values.
+
+An infeasible child sequence in the context of the \ac{TSP} genotype would be one in which a gene value (i.e. city index) is repeated. As \ac{OX} only produces children where all gene values are unique, provided that the parent gene values are all unique, it is clear that infeasible children cannot be produced.
+
+\begin{algorithm}
+\begin{algorithmic}[1]
+\Function{Order-Crossover}{$p_1, p_2, \textit{N}$}
+    \State let $c_1 \gets$ list of length $N$ with \textit{nil} values; let $c_2 \gets$ list of length $N$ with \textit{nil} values
+    \State let $\textit{first} \gets \textsc{RandomInteger}(1, N)$; let $\textit{second} \gets \textsc{RandomInteger}(1, N)$
+    \State let $\textit{left} \gets \textsc{min}(\textit{first}, \textit{second})$; let $\textit{right} \gets \textsc{max}(\textit{first}, \textit{second})$
+    \For{$m \gets \textit{left}, \textit{right}$}
+        \State $c_1[m] \gets p_1[m]$; $c_2[m] \gets p_2[m]$
+    \EndFor
+    \State $m \gets (\textit{right} + 1) \bmod N$
+    \State let $i_1 \gets m$; $i_2 \gets m$
+    \While{$m \neq \textit{left}$}
+        \While{$p_2[i_2] \in c_1$}
+            \State $i_2 \gets (i_2 + 1) \bmod N$
+        \EndWhile
+        \While{$p_1[i_1] \in c_2$}
+            \State $i_1 \gets (i_1 + 1) \bmod N$
+        \EndWhile
+        \State $c_1[m] \gets p_2[i_2]$; $c_2[m] \gets p_1[i_1]$
+    \EndWhile
+    \State \textbf{return} $c_1, c_2$
+\EndFunction
+\end{algorithmic}
+\caption{\textsc{Order-Crossover} genetic operator algorithm}
+\label{alg:ox}
+\end{algorithm}
+
+\section*{Mutation}
+
+The mutation operator is used to maintain genetic diversity in the population. For this problem, a swapping mutation operator was chosen (see Algorithm~\ref{alg:swap}). For a given genotype sequence, $s_1, s_2, \dots, s_N$, two random integer indexes $a$ and $b$ are randomly drawn from a uniform distribution $[1, N]$. The genotype sequence is mutated by swapping the values of genes $s_a$ and $s_b$.
+
+Mutation is controlled by a mutation rate, which is a probability between $[0, 1]$ determining whether to mutate an individual's genotype.
+
+An infeasible child sequence in the context of the \ac{TSP} genotype would be one in which a gene value (i.e. city index) is repeated. As the \textsc{Swap-Mutation} algorithm only swaps two values in a genotype sequence, it will never remove or introduce values. Therefore, if all values in a sequence is unique before mutating the sequence, it will remain unique after mutating the sequence.
+
+\begin{algorithm}
+\begin{algorithmic}[1]
+\Function{Swap-Mutation}{$s, N$}
+    \State let $a \gets \textsc{RandomInteger}(1, N)$
+    \State let $b \gets \textsc{RandomInteger}(1, N)$
+    \State let $\textit{t} \gets s[a]$
+    \State $s[a] \gets s[b]$
+    \State $s[b] \gets \textit{t}$
+\EndFunction
+\end{algorithmic}
+\caption{\textsc{Swap-Mutation} genetic operator algorithm}
+\label{alg:swap}
+\end{algorithm}
+
+\section*{Selection strategy}
+
+The \ac{MOEA} implementation uses a tournament selection strategy for parent selection. To select a single parent, a random sample of $k$ individuals are drawn from the population $P_t$. With a probability of $\epsilon$, a random individual is selected from the group of $k$ individuals, and with a probability of $1 - \epsilon$; the lowest ranked individual in the group of $k$ individuals is selected according to the \textit{crowded-comparison operator} $\prec_n$ as described in NSGA-II \cite{deb2002fast}. This procedure is performed twice to select two parents for each mating which results in two offspring.
+
+%Mention necessity of shuffling last front due to bias in ordering after crowding distance assignment
+%
+%Mention and reference 1-tree lower bound
+%
+%Describe algorithm for calculating position of cities
+%
+%Use of global min-max values for each objective
+%
+%47 instead of 48
+%
+%cluster plotting ftw
+
+\newcommand{\displayconvergenceplot}[1]{
+    \begin{tikzpicture}[scale=0.65]
+    \begin{axis}[view={0}{90},
+        xlabel=Crossover Rate,
+        ylabel=Mutation Rate,
+        ymode=log,
+        title=Convergence,
+        log ticks with fixed point,
+        y tick label style={/pgf/number format/1000 sep=\,},
+        colormap name={RdBu-11},
+        colorbar,
+        colorbar style={
+            title=Value
+%            yticklabel style={
+%                /pgf/number format/.cd,
+%                fixed,
+%                fixed zerofill
+%            }
+        }]
+    \addplot3[surf] table[x index=0,y index=1,z index=3] {#1};
+    \end{axis}
+    \end{tikzpicture}
+}
+
+\newcommand{\displaydiversityplot}[1]{
+    \begin{tikzpicture}[scale=0.65]
+    \begin{axis}[view={0}{90},
+        xlabel=Crossover Rate,
+        ylabel=Mutation Rate,
+        ymode=log,
+        title=Diversity,
+        log ticks with fixed point,
+        y tick label style={/pgf/number format/1000 sep=\,},
+        colormap name={PiYG-11},
+        colorbar,
+        colorbar style={
+            title=Value
+%            yticklabel style={
+%                /pgf/number format/.cd,
+%                fixed,
+%                fixed zerofill
+%            }
+        }]
+    \addplot3[surf] table[x index=0,y index=1,z index=2] {#1};
+    \end{axis}
+    \end{tikzpicture}
+}
+
+%\clearpage
+%
+%\section*{Appendix: Parameter search}
+%
+%\begin{figure}[ht!]
+%\displayconvergenceplot{plots/population-50-generations-100-group-0.05}
+%\displaydiversityplot{plots/population-50-generations-100-group-0.05}
+%\caption{Population: 50 -- Generations: 100 -- Tournament group size: 2}
+%\end{figure}
+%
+%\begin{figure}[ht!]
+%\displayconvergenceplot{plots/population-50-generations-100-group-0.1}
+%\displaydiversityplot{plots/population-50-generations-100-group-0.1}
+%\caption{Population: 50 -- Generations: 100 -- Tournament group size: 5}
+%\end{figure}
+%
+%\begin{figure}[ht!]
+%\displayconvergenceplot{plots/population-50-generations-100-group-0.2}
+%\displaydiversityplot{plots/population-50-generations-100-group-0.2}
+%\caption{Population: 50 -- Generations: 100 -- Tournament group size: 10}
+%\end{figure}
+%
+%\clearpage
+%
+%\begin{figure}[ht!]
+%\displayconvergenceplot{plots/population-100-generations-100-group-0.05}
+%\displaydiversityplot{plots/population-100-generations-100-group-0.05}
+%\caption{Population: 100 -- Generations: 100 -- Tournament group size: 5}
+%\end{figure}
+%
+%\begin{figure}[ht!]
+%\displayconvergenceplot{plots/population-100-generations-100-group-0.1}
+%\displaydiversityplot{plots/population-100-generations-100-group-0.1}
+%\caption{Population: 100 -- Generations: 100 -- Tournament group size: 10}
+%\end{figure}
+%
+%\begin{figure}[ht!]
+%\displayconvergenceplot{plots/population-100-generations-100-group-0.2}
+%\displaydiversityplot{plots/population-100-generations-100-group-0.2}
+%\caption{Population: 100 -- Generations: 100 -- Tournament group size: 20}
+%\end{figure}
+%
+%\clearpage
+%
+%\begin{figure}[ht!]
+%\displayconvergenceplot{plots/population-500-generations-100-group-0.05}
+%\displaydiversityplot{plots/population-500-generations-100-group-0.05}
+%\caption{Population: 500 -- Generations: 100 -- Tournament group size: 25}
+%\end{figure}
+%
+%\begin{figure}[ht!]
+%\displayconvergenceplot{plots/population-500-generations-100-group-0.1}
+%\displaydiversityplot{plots/population-500-generations-100-group-0.1}
+%\caption{Population: 500 -- Generations: 100 -- Tournament group size: 50}
+%\end{figure}
+%
+%\begin{figure}[ht!]
+%\displayconvergenceplot{plots/population-500-generations-100-group-0.2}
+%\displaydiversityplot{plots/population-500-generations-100-group-0.2}
+%\caption{Population: 500 -- Generations: 100 -- Tournament group size: 100}
+%\end{figure}
+%
+%\clearpage
+%
+%\begin{figure}[ht!]
+%\displayconvergenceplot{plots/population-1000-generations-100-group-0.05}
+%\displaydiversityplot{plots/population-1000-generations-100-group-0.05}
+%\caption{Population: 1000 -- Generations: 100 -- Tournament group size: 50}
+%\end{figure}
+%
+%\begin{figure}[ht!]
+%\displayconvergenceplot{plots/population-1000-generations-100-group-0.1}
+%\displaydiversityplot{plots/population-1000-generations-100-group-0.1}
+%\caption{Population: 1000 -- Generations: 100 -- Tournament group size: 100}
+%\end{figure}
+%
+%\begin{figure}[ht!]
+%\displayconvergenceplot{plots/population-1000-generations-100-group-0.2}
+%\displaydiversityplot{plots/population-1000-generations-100-group-0.2}
+%\caption{Population: 1000 -- Generations: 100 -- Tournament group size: 200}
+%\end{figure}
+
+\bibliographystyle{unsrt}
+\bibliography{references}
+
+\end{document}
+
