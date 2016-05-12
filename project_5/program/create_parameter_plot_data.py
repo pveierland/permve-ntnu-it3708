@@ -47,8 +47,6 @@ for f in os.listdir('generated/'):
 
 global_non_dominated_front = []
 
-#parameter_runs = parameter_runs[:100]
-
 population_size = len(list(
     True
     for parameter_run in parameter_runs
@@ -57,54 +55,54 @@ population_size = len(list(
 
 print('population_size = {}'.format(population_size))
 
-#global_population = numpy.zeros((population_size, 3))
-#
-#i = 0
-#for parameter_run in parameter_runs:
-#    for individual in parameter_run['population']:
-#        if individual['rank'] == 0:
-#            global_population[i, 0] = individual['distance']
-#            global_population[i, 1] = individual['cost']
-#            i += 1
-#
-#for i in range(population_size):
-#    if (i + 1) % 100 == 0:
-#        print('{}/{}'.format(i + 1, population_size))
-#
-#    p = global_population[i]
-#
-#    if p[2]:
-#        continue
-#
-#    for j in range(i, population_size):
-#        q = global_population[j]
-#
-#        if (p[0] < q[0] and
-#            p[1] < q[1]):
-#
-#            q[2] = 1
-#
-#        elif (q[0] < p[0] and
-#              q[1] < p[1]):
-#
-#            p[2] = 1
-#            break
-#
-#    if p[2] == 0:
-#        global_non_dominated_front.append(p)
-#
-#global_non_dominated_front.sort(key=lambda x: x[0])
-#distance_min = global_non_dominated_front[0][0]
-#distance_max = global_non_dominated_front[-1][0]
-#distance_scaling = 1 / (distance_max - distance_min)
-#
-#global_non_dominated_front.sort(key=lambda x: x[1])
-#cost_min = global_non_dominated_front[0][1]
-#cost_max = global_non_dominated_front[-1][1]
-#cost_scaling = 1 / (cost_max - cost_min)
-#
-#print('distance_min = {} distance_max = {}'.format(distance_min, distance_max))
-#print('cost_min = {} cost_max = {}'.format(cost_min, cost_max))
+global_population = numpy.zeros((population_size, 3))
+
+i = 0
+for parameter_run in parameter_runs:
+    for individual in parameter_run['population']:
+        if individual['rank'] == 0:
+            global_population[i, 0] = individual['distance']
+            global_population[i, 1] = individual['cost']
+            i += 1
+
+for i in range(population_size):
+    if (i + 1) % 100 == 0:
+        print('{}/{}'.format(i + 1, population_size))
+
+    p = global_population[i]
+
+    if p[2]:
+        continue
+
+    for j in range(i, population_size):
+        q = global_population[j]
+
+        if (p[0] < q[0] and
+            p[1] < q[1]):
+
+            q[2] = 1
+
+        elif (q[0] < p[0] and
+              q[1] < p[1]):
+
+            p[2] = 1
+            break
+
+    if p[2] == 0:
+        global_non_dominated_front.append(p)
+
+global_non_dominated_front.sort(key=lambda x: x[0])
+distance_min = global_non_dominated_front[0][0]
+distance_max = global_non_dominated_front[-1][0]
+distance_scaling = 1 / (distance_max - distance_min)
+
+global_non_dominated_front.sort(key=lambda x: x[1])
+cost_min = global_non_dominated_front[0][1]
+cost_max = global_non_dominated_front[-1][1]
+cost_scaling = 1 / (cost_max - cost_min)
+
+print('distance_min = {} distance_max = {}'.format(distance_min, distance_max))
+print('cost_min = {} cost_max = {}'.format(cost_min, cost_max))
 
 parameter_groups = {}
 
@@ -120,24 +118,33 @@ except OSError as exception:
 for population_size in [50, 100, 500, 1000]:
     for group_size in [0.05, 0.1, 0.2]:
         with open('plots/population-{}-generations-{}-group-{}'.format(
-            population_size, 100, group_size), 'w') as f:
+            population_size, 200, group_size), 'w') as f:
 
             for crossover_rate in [0, 0.2, 0.4, 0.6, 0.8, 1.0]:
                 for mutation_rate in [0.001, 0.005, 0.01, 0.05, 0.1, 0.5]:
                     parameters, runs = next((parameters, runs) for parameters, runs in parameter_groups.items()
-                        if parameters == (population_size, 100, group_size, crossover_rate, mutation_rate))
+                        if parameters == (population_size, 200, group_size, crossover_rate, mutation_rate))
 
-                    diversity_total = 0
-                    convergence_total = 0
+                    diversity_total    = 0
+                    convergence_total  = 0
+                    distance_min_total = 0
+                    cost_min_total     = 0
 
                     for run in runs:
-                        #ndf = [(individual['distance'], individual['cost']) for individual in run if individual['rank'] == 0]
-                        #diversity_total   += diversity_metric(ndf)
-                        #convergence_total += convergence_metric(ndf)
+                        ndf = [(individual['distance'], individual['cost']) for individual in run if individual['rank'] == 0]
+                        diversity_total    += diversity_metric(ndf)
+                        convergence_total  += convergence_metric(ndf)
+                        distance_min_total += min(individual['distance'] for individual in run)
+                        cost_min_total     += min(individual['cost'] for individual in run)
 
-                        diversity_total   += min(individual['distance'] for individual in run)
-                        convergence_total += min(individual['cost'] for individual in run)
+                    run_count = len(runs)
 
-                    print('{} {} {} {}'.format(crossover_rate, mutation_rate, diversity_total / len(runs), convergence_total / len(runs)), file=f)
+                    print('{} {} {} {} {} {}'.format(
+                        crossover_rate,
+                        mutation_rate,
+                        diversity_total / run_count,
+                        convergence_total / run_count,
+                        distance_min_total / run_count,
+                        cost_min_total / run_count), file=f)
 
                 print('', file=f)

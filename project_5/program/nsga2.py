@@ -77,6 +77,9 @@ class Nsga2(object):
 
             if is_non_dominated_front:
                 self.extreme_min[objective] = min_individual
+
+            if (not self.extreme_max[objective] or
+                max_individual.objective_values[objective] > self.extreme_max[objective].objective_values[objective]):
                 self.extreme_max[objective] = max_individual
 
             range_delta   = self.range_max[objective] - self.range_min[objective]
@@ -88,6 +91,8 @@ class Nsga2(object):
                      individuals[i - 1].objective_values[objective]))
 
     def evolve(self):
+        self.extreme_max = [ None for _ in range(self.options['objective_count']) ]
+
         offspring = []
         self.generate_individuals(self.population, offspring)
         self.population.extend(offspring)
@@ -140,16 +145,23 @@ class Nsga2(object):
             for j in range(i, element_count):
                 q = P[j]
 
-                if (p.objective_values[0] < q.objective_values[0] and
-                    p.objective_values[1] < q.objective_values[1]):
+                try:
 
-                    p.S.append(q)
-                    q.n += 1
-                elif (q.objective_values[0] < p.objective_values[0] and
-                      q.objective_values[1] < p.objective_values[1]):
+                    if (p.objective_values[0] < q.objective_values[0] and
+                        p.objective_values[1] < q.objective_values[1]):
 
-                    q.S.append(p)
-                    p.n += 1
+                        p.S.append(q)
+                        q.n += 1
+                    elif (q.objective_values[0] < p.objective_values[0] and
+                          q.objective_values[1] < p.objective_values[1]):
+
+                        q.S.append(p)
+                        p.n += 1
+
+                except:
+                    print(p.objective_values)
+                    print(q.objective_values)
+                    raise
 
             if p.n == 0:
                 p.rank = 0
@@ -179,7 +191,7 @@ class Nsga2(object):
                 child_a_genotype, child_b_genotype = self.crossover_operator(
                     parent_a.genotype, parent_b.genotype)
             else:
-                child_a_genotype, child_b_genotype = parent_a.genotype, parent_b.genotype
+                child_a_genotype, child_b_genotype = parent_a.genotype[:], parent_b.genotype[:]
 
             if random.random() < self.options['mutation_rate']:
                 self.mutation_operator(child_a_genotype)
@@ -198,6 +210,6 @@ class Nsga2(object):
 
         if (self.options['tournament_randomness'] == 0 or
             random.random() >= self.options['tournament_randomness']):
-            return min(group)#, key=Nsga2.crowding_distance_operator)
+            return min(group)
         else:
             return random.choice(group)

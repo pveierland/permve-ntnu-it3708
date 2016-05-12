@@ -1,5 +1,6 @@
 import numpy
 import random
+import sys
 
 from nsga2 import Nsga2
 
@@ -10,28 +11,28 @@ class Mtsp(object):
         child_sequence_a = [None] * sequence_length
         child_sequence_b = [None] * sequence_length
 
-        left, right = sorted(random.sample(range(sequence_length + 1), 2))
+        first  = random.randrange(sequence_length)
+        second = random.randrange(sequence_length)
 
-        for m in range(left, right):
+        left, right = min(first, second), max(first, second)
+
+        for m in range(left, right + 1):
             child_sequence_a[m] = parent_sequence_a[m]
             child_sequence_b[m] = parent_sequence_b[m]
 
-        m   = right % sequence_length
+        m   = (right + 1) % sequence_length
         n_a = m
         n_b = m
 
         while m != left:
-            while n_a != sequence_length:
-                if parent_sequence_a[n_a] not in child_sequence_b:
-                    child_sequence_b[m] = parent_sequence_a[n_a]
-                    break
+            while parent_sequence_a[n_a] in child_sequence_b:
                 n_a = (n_a + 1) % sequence_length
 
-            while True:
-                if parent_sequence_b[n_b] not in child_sequence_a:
-                    child_sequence_a[m] = parent_sequence_b[n_b]
-                    break
+            while parent_sequence_b[n_b] in child_sequence_a:
                 n_b = (n_b + 1) % sequence_length
+
+            child_sequence_b[m] = parent_sequence_a[n_a]
+            child_sequence_a[m] = parent_sequence_b[n_b]
 
             m = (m + 1) % sequence_length
 
@@ -72,7 +73,7 @@ class Mtsp(object):
         cost     = 0
 
         from_city_id = sequence[0]
-        for to_city_id in sequence[1:]
+        for to_city_id in sequence[1:]:
             distance     += self.distances[from_city_id, to_city_id]
             cost         += self.costs[from_city_id, to_city_id]
             from_city_id  = to_city_id

@@ -56,7 +56,7 @@ if __name__ == '__main__':
     runs = 5
 
     population_sizes  = [50, 100, 500, 1000]
-    generation_counts = [100]
+    generation_counts = [200]
     group_sizes       = [0.05, 0.1, 0.2]
     crossover_rates   = [0, 0.2, 0.4, 0.6, 0.8, 1.0]
     mutation_rates    = [0.001, 0.005, 0.01, 0.05, 0.1, 0.5]
