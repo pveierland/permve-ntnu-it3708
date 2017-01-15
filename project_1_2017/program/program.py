@@ -53,16 +53,8 @@ class BaselineAgent(object):
             if percepts[action][0] == FlatlandEntity.POISON]
 
         # Move forward by default:
-
-        a = food_actions + neutral_actions + poison_actions
-
-        if not a:
-            print("WTF!")
-            return FlatlandAction.MOVE_FORWARD
-
-        return a[0]
-        #return 
-        #        [FlatlandAction.MOVE_FORWARD])[0]
+        return (food_actions + neutral_actions + poison_actions +
+                [FlatlandAction.MOVE_FORWARD])[0]
 
 class RandomAgent(object):
     def __init__(self):
@@ -71,7 +63,7 @@ class RandomAgent(object):
     def act(self, percepts):
         return np.random.choice(list(FlatlandAction))
 
-def create_world(width, height):
+def create_world(width, height, food_ratio, poison_ratio):
     world = np.full((width, height), FlatlandEntity.OPEN, dtype=int)
 
     # Add obstacle border
@@ -80,40 +72,15 @@ def create_world(width, height):
     world[ :, 0] = FlatlandEntity.OBSTACLE
     world[ :,-1] = FlatlandEntity.OBSTACLE
 
-    #open_cells = list(zip(*np.where(world == FlatlandEntity.OPEN)))
-    #random.shuffle(open_cells)
-
-    #open_cell_count     = len(open_cells)
-    #food_cell_count     = round(0.5 * open_cell_count)
-    #poison_cell_count   = round(0.5 * (open_cell_count - food_cell_count))
-
-    #food_cell_indexes   = open_cells[0:food_cell_count]
-    #poison_cell_indexes = open_cells[food_cell_count:food_cell_count + poison_cell_count]
-    #agent_position      = open_cells[food_cell_count + poison_cell_count]
-    #agent_heading       = np.random.choice(list(FlatlandHeading))
-
-    #world[tuple(zip(*food_cell_indexes))]   = FlatlandEntity.FOOD
-    #world[tuple(zip(*poison_cell_indexes))] = FlatlandEntity.POISON
-
-    #open_cells = list(zip(*np.where(world == FlatlandEntity.OPEN)))
-    #world[tuple(zip(*open_cells))] = np.random.choice(
-    #    [FlatlandEntity.FOOD, FlatlandEntity.OPEN], len(open_cells), p=[0.5, 0.5])
-
-    #world[np.where(world == FlatlandEntity.OPEN)] =
-
-    # Default is used when all are false
+    world[np.where(np.logical_and(
+        world == FlatlandEntity.OPEN,
+        np.random.choice([True, False], world.shape, p=[food_ratio, 1.0 - food_ratio])))] \
+             = FlatlandEntity.FOOD
 
     world[np.where(np.logical_and(
         world == FlatlandEntity.OPEN,
-        np.random.choice([True, False], world.shape, p=[0.5, 0.5])))] = FlatlandEntity.FOOD
-
-    world[np.where(np.logical_and(
-        world == FlatlandEntity.OPEN,
-        np.random.choice([True, False], world.shape, p=[0.5, 0.5])))] = FlatlandEntity.POISON
-
-    #open_cells = list(zip(*np.where(world == FlatlandEntity.OPEN)))
-    #world[tuple(zip(*open_cells))] = np.random.choice(
-    #    [FlatlandEntity.POISON, FlatlandEntity.OPEN], len(open_cells), p=[0.5, 0.5])
+        np.random.choice([True, False], world.shape, p=[poison_ratio, 1.0 - poison_ratio])))] \
+            = FlatlandEntity.POISON
 
     agent_position = list(zip(*np.where(world == FlatlandEntity.OPEN)))[0]
     agent_heading  = np.random.choice(list(FlatlandHeading))
@@ -273,14 +240,19 @@ def render(output_filename, world, agent_path):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--pdf', metavar='output_filename', default='x.pdf')
-    parser.add_argument('--sensor_range', type=int, default=1)
-    parser.add_argument('--evaluate', type=int)
-    parser.add_argument('--max_steps', type=int, default=50)
     parser.add_argument('--agent', choices=['baseline', 'random', 'supervised', 'reinforcement'], required=True)
+    parser.add_argument('--evaluate', type=int)
+    parser.add_argument('--food_ratio', type=float, default=0.5)
+    parser.add_argument('--max_steps', type=int, default=50)
+    parser.add_argument('--pdf', metavar='output_filename', default='x.pdf')
+    parser.add_argument('--poison_ratio', type=float, default=0.5)
+    parser.add_argument('--sensor_range', type=int, default=1)
+    parser.add_argument('--world_width', type=int, default=10)
+    parser.add_argument('--world_height', type=int, default=10)
     args = parser.parse_args()
 
-    world, agent_position, agent_heading = create_world(12, 12)
+    world, agent_position, agent_heading = create_world(
+        args.world_width, args.world_height, args.food_ratio, args.poison_ratio)
 
     if args.agent == 'random':
         agent = RandomAgent()
@@ -296,17 +268,10 @@ def main():
     if args.evaluate:
         total_points = 0
         for _ in range(args.evaluate):
-            world, agent_position, agent_heading = create_world(12, 12)
+            world, agent_position, agent_heading = create_world(
+                args.world_width, args.world_height, args.food_ratio, args.poison_ratio)
 
             world, position_history, action_history, points = evaluate_agent(world, args.max_steps, args.sensor_range, agent, agent_position, agent_heading)
-
-#            if points == 0:
-#                print('wtf!')
-#                print(agent_heading)
-#                print(position_history)
-#                print(action_history)
-#                render(args.pdf, world, position_history)
-#                break
 
             total_points += points
 
