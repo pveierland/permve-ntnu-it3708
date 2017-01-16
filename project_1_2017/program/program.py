@@ -34,6 +34,15 @@ class FlatlandEntity(enum.IntEnum):
     FOOD_EATEN   = 4
     POISON_EATEN = 8
 
+FLATLAND_REWARDS = {
+    FlatlandEntity.OPEN:            0,
+    FlatlandEntity.OBSTACLE:     -100,
+    FlatlandEntity.FOOD:            1,
+    FlatlandEntity.FOOD_EATEN:      0,
+    FlatlandEntity.POISON:         -4,
+    FlatlandEntity.POISON_EATEN:    0
+}
+
 class BaselineAgent(object):
     def __init__(self, sensor_range):
         pass
@@ -131,81 +140,79 @@ def encode_percepts(percepts):
     return one_hot_percepts.flatten()
 
 def evaluate_agent(world, steps, sensor_range, agent, agent_position, agent_heading):
-    world = np.copy(world)
+    world  = np.copy(world)
+    done   = False
+    points = 0
 
-    rewards = {
-        FlatlandEntity.OPEN:            0,
-        FlatlandEntity.OBSTACLE:     -100,
-        FlatlandEntity.FOOD:            1,
-        FlatlandEntity.FOOD_EATEN:      0,
-        FlatlandEntity.POISON:         -4,
-        FlatlandEntity.POISON_EATEN:    0
-    }
+    position_history = [agent_position]
+    percepts_history = []
+    action_history   = []
 
+    while not done and steps > 0:
+        percepts, action, reward, done, agent_position, agent_heading = \
+            evaluate_step(world, sensor_range, agent, agent_position, agent_heading)
+
+        percepts_history.append(np.copy(percepts))
+        action_history.append(action)
+        position_history.append(agent_position)
+
+        points += reward
+        steps  -= 1
+
+    return world, position_history, percepts_history, action_history, points
+
+def evaluate_step(world, sensor_range, agent, agent_position, agent_heading):
+    # Construct perception
     padded_world = np.zeros(
         (world.shape[0] + 2 * sensor_range, world.shape[1] + 2 * sensor_range), dtype=int)
 
-    points           = 0
-    position_history = [agent_position]
-    percept_history  = []
-    action_history   = []
+    padded_world[sensor_range:sensor_range + world.shape[0],
+                 sensor_range:sensor_range + world.shape[1]] = world
 
-    while steps > 0:
-        # Construct perception
-        padded_world[sensor_range:sensor_range + world.shape[0],
-                     sensor_range:sensor_range + world.shape[1]] = world
+    # Rotate perception according to agent heading and mask two lower bits
+    # such that FOOD_EATEN and POISON_EATEN are mapped to OPEN.
+    agent_percepts = np.rot90(
+        padded_world[agent_position[0]:agent_position[0] + 2 * sensor_range + 1,
+                     agent_position[1]:agent_position[1] + 2 * sensor_range + 1],
+        agent_heading) & 0x3
 
-        # Rotate perception according to agent heading and mask two lower bits
-        # such that FOOD_EATEN and POISON_EATEN are mapped to OPEN.
-        agent_perception = np.rot90(
-            padded_world[agent_position[0]:agent_position[0] + 2 * sensor_range + 1,
-                         agent_position[1]:agent_position[1] + 2 * sensor_range + 1],
-            agent_heading) & 0x3
+    # Get agent action
+    percepts = np.stack((
+        agent_percepts[sensor_range - 1::-1, sensor_range], # Forward
+        agent_percepts[sensor_range, sensor_range - 1::-1], # Left
+        agent_percepts[sensor_range, sensor_range + 1:]))   # Right
 
-        # Get agent action
-        percepts = np.stack((
-            agent_perception[sensor_range - 1::-1, sensor_range], # Forward
-            agent_perception[sensor_range, sensor_range - 1::-1], # Left
-            agent_perception[sensor_range, sensor_range + 1:]))   # Right
+    action = agent.act(percepts)
 
-        percept_history.append(np.copy(percepts))
-        action = agent.act(percepts)
-        action_history.append(action)
+    # Update agent heading
+    if action == FlatlandAction.MOVE_LEFT:
+        agent_heading = (agent_heading + 4 - 1) % 4
+    elif action == FlatlandAction.MOVE_RIGHT:
+        agent_heading = (agent_heading + 1) % 4
 
-        # Update agent heading
-        if action == FlatlandAction.MOVE_LEFT:
-            agent_heading = (agent_heading + 4 - 1) % 4
-        elif action == FlatlandAction.MOVE_RIGHT:
-            agent_heading = (agent_heading + 1) % 4
+    # Update agent position
+    if agent_heading == FlatlandHeading.NORTH:
+        agent_position = (agent_position[0] - 1, agent_position[1])
+    elif agent_heading == FlatlandHeading.EAST:
+        agent_position = (agent_position[0], agent_position[1] + 1)
+    elif agent_heading == FlatlandHeading.SOUTH:
+        agent_position = (agent_position[0] + 1, agent_position[1])
+    elif agent_heading == FlatlandHeading.WEST:
+        agent_position = (agent_position[0], agent_position[1] - 1)
 
-        # Update agent position
-        if agent_heading == FlatlandHeading.NORTH:
-            agent_position = (agent_position[0] - 1, agent_position[1])
-        elif agent_heading == FlatlandHeading.EAST:
-            agent_position = (agent_position[0], agent_position[1] + 1)
-        elif agent_heading == FlatlandHeading.SOUTH:
-            agent_position = (agent_position[0] + 1, agent_position[1])
-        elif agent_heading == FlatlandHeading.WEST:
-            agent_position = (agent_position[0], agent_position[1] - 1)
+    agent_position = (np.clip(agent_position[0], 0, world.shape[0] - 1),
+                      np.clip(agent_position[1], 0, world.shape[1] - 1))
 
-        agent_position = (np.clip(agent_position[0], 0, world.shape[0] - 1),
-                          np.clip(agent_position[1], 0, world.shape[1] - 1))
+    entity = world[agent_position]
+    reward = FLATLAND_REWARDS[entity]
+    done   = entity == FlatlandEntity.OBSTACLE
 
-        position_history.append(agent_position)
+    if entity == FlatlandEntity.FOOD:
+        world[agent_position] = FlatlandEntity.FOOD_EATEN
+    elif entity == FlatlandEntity.POISON:
+        world[agent_position] = FlatlandEntity.POISON_EATEN
 
-        entity  = world[agent_position]
-        points += rewards[entity]
-
-        if entity == FlatlandEntity.OBSTACLE:
-            break
-        elif entity == FlatlandEntity.FOOD:
-            world[agent_position] = FlatlandEntity.FOOD_EATEN
-        elif entity == FlatlandEntity.POISON:
-            world[agent_position] = FlatlandEntity.POISON_EATEN
-
-        steps -= 1
-
-    return world, position_history, percept_history, action_history, points
+    return percepts, action, reward, done, agent_position, agent_heading
 
 def render(output_filename, world, agent_path):
     app = QApplication([ '-platform', 'offscreen'])
@@ -300,7 +307,8 @@ def main():
     parser.add_argument('--learning_rate', type=float, default=0.01)
     parser.add_argument('--training_rounds', type=int, default=1)
     parser.add_argument('--training_round_size', type=int, default=100)
-    parser.add_argument('--training_round_evaluations', type=int, default=1000)
+    parser.add_argument('--training_round_repetitions', type=int, default=1)
+    parser.add_argument('--verbose', type=bool, default=False)
     args = parser.parse_args()
 
     if args.agent == 'random':
@@ -311,31 +319,44 @@ def main():
         agent          = SupervisedLearningAgent(args.sensor_range)
         baseline_agent = BaselineAgent(args.sensor_range)
 
-        for training_round in range(args.training_rounds):
-            # Decay learning rate
-            #learning_rate = (1.0 - training_round / (args.training_rounds - 1)) * args.learning_rate
-            #print(learning_rate)
+        mean_agent_scores = np.zeros((args.training_round_repetitions, args.training_rounds))
 
-            for iteration in range(args.training_round_size):
-                world, agent_position, agent_heading = create_world(
-                    args.world_width, args.world_height, args.food_ratio, args.poison_ratio)
+        for training_round_repetition in range(args.training_round_repetitions):
+            for training_round in range(args.training_rounds):
+                # Decay learning rate
+                #learning_rate = (1.0 - training_round / (args.training_rounds - 1)) * args.learning_rate
+                #print(learning_rate)
 
-                world, position_history, percept_history, action_history, points = evaluate_agent(
-                    world, args.max_steps, args.sensor_range, baseline_agent, agent_position, agent_heading)
+                total_points = 0
 
-                # Shuffle training examples
-                shuffled_indexes = np.random.permutation(len(percept_history))
-                percept_history  = np.array(percept_history)[shuffled_indexes]
-                action_history   = np.array(action_history)[shuffled_indexes]
+                for iteration in range(args.training_round_size):
+                    world, agent_position, agent_heading = create_world(
+                        args.world_width, args.world_height, args.food_ratio, args.poison_ratio)
 
-                for percept, action in zip(percept_history, action_history):
-                    agent.train(percept, action, args.learning_rate)
+                    done   = False
+                    steps  = args.max_steps
+                    points = 0
 
-            mean_agent_score = benchmark_agent(
-                agent, args.training_round_evaluations, args)
+                    while not done and steps > 0:
+                        percepts, action, reward, done, agent_position, agent_heading = \
+                            evaluate_step(world, args.sensor_range, agent, agent_position, agent_heading)
 
-            print('Completed training round {}/{}. Mean score: {}'.format(
-                training_round + 1, args.training_rounds, mean_agent_score))
+                        target_action = baseline_agent.act(percepts)
+                        agent.train(percepts, target_action, args.learning_rate)
+
+                        points += reward
+                        steps  -= 1
+
+                    total_points += points
+
+                mean_agent_scores[training_round_repetition, training_round] += \
+                    total_points / args.training_round_size
+
+        print('\n'.join('{} {} {}'.format(training_round + 1, mean, std)
+            for training_round, mean, std in zip(
+                range(args.training_rounds),
+                np.mean(mean_agent_scores, axis=0),
+                np.std(mean_agent_scores, axis=0))))
 
     if args.evaluate:
         mean_agent_score = benchmark_agent(
@@ -348,7 +369,7 @@ def main():
         world, agent_position, agent_heading = create_world(
             args.world_width, args.world_height, args.food_ratio, args.poison_ratio)
 
-        world, position_history, percept_history, action_history, points = evaluate_agent(
+        world, position_history, percepts_history, action_history, points = evaluate_agent(
             world, args.max_steps, args.sensor_range, agent, agent_position, agent_heading)
 
         render(args.pdf, world, position_history)
