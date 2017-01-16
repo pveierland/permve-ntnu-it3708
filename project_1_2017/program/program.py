@@ -3,6 +3,7 @@
 import argparse
 import collections
 import enum
+import itertools
 import numpy as np
 import random
 import sys
@@ -14,8 +15,8 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtPrintSupport import *
 
 class FlatlandAction(enum.IntEnum):
-    MOVE_LEFT    = 0
-    MOVE_FORWARD = 1
+    MOVE_FORWARD = 0
+    MOVE_LEFT    = 1
     MOVE_RIGHT   = 2
 
 class FlatlandHeading(enum.IntEnum):
@@ -25,46 +26,83 @@ class FlatlandHeading(enum.IntEnum):
     WEST  = 3
 
 class FlatlandEntity(enum.IntEnum):
-    OPEN         = 1
-    OBSTACLE     = 2
-    FOOD         = 3
+    OPEN         = 0
+    OBSTACLE     = 1
+    FOOD         = 2
+    POISON       = 3
+    # These entities are mapped to OPEN by masking two lower bits:
     FOOD_EATEN   = 4
-    POISON       = 5
-    POISON_EATEN = 6
+    POISON_EATEN = 8
 
 class BaselineAgent(object):
-    def __init__(self):
+    def __init__(self, sensor_range):
         pass
 
     def act(self, percepts):
-        actions = list(FlatlandAction)
+        immidiate_percepts = percepts[:,0]
 
-        food_actions = [
-            action for action in actions
-            if percepts[action][0] == FlatlandEntity.FOOD]
+        food = (immidiate_percepts == FlatlandEntity.FOOD)
+        if np.any(food):
+            return np.argmax(food)
 
-        neutral_actions = [
-            action for action in actions
-            if percepts[action][0] != FlatlandEntity.OBSTACLE and
-               percepts[action][0] != FlatlandEntity.POISON]
+        neutral = (immidiate_percepts == FlatlandEntity.OPEN)
+        if np.any(neutral):
+            return np.argmax(neutral)
 
-        poison_actions = [
-            action for action in actions
-            if percepts[action][0] == FlatlandEntity.POISON]
+        poison = (immidiate_percepts == FlatlandEntity.POISON)
+        if np.any(poison):
+            return np.argmax(poison)
 
-        # Move forward by default:
-        return (food_actions + neutral_actions + poison_actions +
-                [FlatlandAction.MOVE_FORWARD])[0]
+        return FlatlandAction.MOVE_FORWARD
 
 class RandomAgent(object):
-    def __init__(self):
+    def __init__(self, sensor_range):
         pass
 
     def act(self, percepts):
         return np.random.choice(list(FlatlandAction))
 
+class SupervisedLearningAgent(object):
+    def __init__(self, sensor_range):
+        self.weights = np.random.randn(3, 3 * 4 * sensor_range) * 0.001
+
+    def act(self, percepts):
+        return np.argmax(np.dot(self.weights, encode_percepts(percepts)))
+
+    def evaluate(self, percepts):
+        return np.dot(self.weights, encode_percepts(percepts))
+
+    def train(self, percepts, target_action, learning_rate):
+        one_hot_target = np.zeros(3)
+        one_hot_target[target_action] = 1
+
+        inputs  = encode_percepts(percepts)
+        outputs = np.dot(self.weights, inputs)
+
+        # Shift values for numerical stability
+        outputs -= np.max(outputs)
+        softmax  = np.exp(outputs) / np.sum(np.exp(outputs))
+
+        delta = one_hot_target - softmax
+
+        self.weights += learning_rate * np.dot(delta.reshape((3, 1)), inputs.reshape((1, 12)))
+
+def benchmark_agent(agent, iterations, args):
+    total_points = 0
+
+    for _ in range(iterations):
+        world, agent_position, agent_heading = create_world(
+            args.world_width, args.world_height, args.food_ratio, args.poison_ratio)
+
+        _, _, _, _, points = evaluate_agent(
+            world, args.max_steps, args.sensor_range, agent, agent_position, agent_heading)
+
+        total_points += points
+
+    return total_points / iterations
+
 def create_world(width, height, food_ratio, poison_ratio):
-    world = np.full((width, height), FlatlandEntity.OPEN, dtype=int)
+    world = np.full((width + 2, height + 2), FlatlandEntity.OPEN, dtype=int)
 
     # Add obstacle border
     world[ 0, :] = FlatlandEntity.OBSTACLE
@@ -87,23 +125,29 @@ def create_world(width, height, food_ratio, poison_ratio):
 
     return world, agent_position, agent_heading
 
+def encode_percepts(percepts):
+    one_hot_percepts = np.zeros((3 * len(percepts[0]), 4))
+    one_hot_percepts[np.arange(one_hot_percepts.shape[0]), np.concatenate(percepts)] = 1
+    return one_hot_percepts.flatten()
+
 def evaluate_agent(world, steps, sensor_range, agent, agent_position, agent_heading):
     world = np.copy(world)
 
     rewards = {
         FlatlandEntity.OPEN:            0,
         FlatlandEntity.OBSTACLE:     -100,
-        FlatlandEntity.FOOD:            4,
+        FlatlandEntity.FOOD:            1,
         FlatlandEntity.FOOD_EATEN:      0,
-        FlatlandEntity.POISON:         -1,
+        FlatlandEntity.POISON:         -4,
         FlatlandEntity.POISON_EATEN:    0
     }
 
     padded_world = np.zeros(
-        (world.shape[0] + 2 * sensor_range, world.shape[1] + 2 * sensor_range))
+        (world.shape[0] + 2 * sensor_range, world.shape[1] + 2 * sensor_range), dtype=int)
 
     points           = 0
     position_history = [agent_position]
+    percept_history  = []
     action_history   = []
 
     while steps > 0:
@@ -111,17 +155,21 @@ def evaluate_agent(world, steps, sensor_range, agent, agent_position, agent_head
         padded_world[sensor_range:sensor_range + world.shape[0],
                      sensor_range:sensor_range + world.shape[1]] = world
 
+        # Rotate perception according to agent heading and mask two lower bits
+        # such that FOOD_EATEN and POISON_EATEN are mapped to OPEN.
         agent_perception = np.rot90(
             padded_world[agent_position[0]:agent_position[0] + 2 * sensor_range + 1,
                          agent_position[1]:agent_position[1] + 2 * sensor_range + 1],
-            agent_heading)
+            agent_heading) & 0x3
 
         # Get agent action
-        action = agent.act((
-            agent_perception[sensor_range, sensor_range - 1::-1],
-            agent_perception[sensor_range - 1::-1, sensor_range],
-            agent_perception[sensor_range, sensor_range + 1:]))
+        percepts = np.stack((
+            agent_perception[sensor_range - 1::-1, sensor_range], # Forward
+            agent_perception[sensor_range, sensor_range - 1::-1], # Left
+            agent_perception[sensor_range, sensor_range + 1:]))   # Right
 
+        percept_history.append(np.copy(percepts))
+        action = agent.act(percepts)
         action_history.append(action)
 
         # Update agent heading
@@ -157,7 +205,7 @@ def evaluate_agent(world, steps, sensor_range, agent, agent_position, agent_head
 
         steps -= 1
 
-    return world, position_history, action_history, points
+    return world, position_history, percept_history, action_history, points
 
 def render(output_filename, world, agent_path):
     app = QApplication([ '-platform', 'offscreen'])
@@ -249,33 +297,61 @@ def main():
     parser.add_argument('--sensor_range', type=int, default=1)
     parser.add_argument('--world_width', type=int, default=10)
     parser.add_argument('--world_height', type=int, default=10)
+    parser.add_argument('--learning_rate', type=float, default=0.01)
+    parser.add_argument('--training_rounds', type=int, default=1)
+    parser.add_argument('--training_round_size', type=int, default=100)
+    parser.add_argument('--training_round_evaluations', type=int, default=1000)
     args = parser.parse_args()
 
-    world, agent_position, agent_heading = create_world(
-        args.world_width, args.world_height, args.food_ratio, args.poison_ratio)
-
     if args.agent == 'random':
-        agent = RandomAgent()
+        agent = RandomAgent(args.sensor_range)
     elif args.agent == 'baseline':
-        agent = BaselineAgent()
+        agent = BaselineAgent(args.sensor_range)
+    elif args.agent == 'supervised':
+        agent          = SupervisedLearningAgent(args.sensor_range)
+        baseline_agent = BaselineAgent(args.sensor_range)
 
-    world, position_history, action_history, points = evaluate_agent(world, args.max_steps, args.sensor_range, agent, agent_position, agent_heading)
+        for training_round in range(args.training_rounds):
+            # Decay learning rate
+            #learning_rate = (1.0 - training_round / (args.training_rounds - 1)) * args.learning_rate
+            #print(learning_rate)
 
-    if args.pdf:
-        render(args.pdf, world, position_history)
-        print(points)
+            for iteration in range(args.training_round_size):
+                world, agent_position, agent_heading = create_world(
+                    args.world_width, args.world_height, args.food_ratio, args.poison_ratio)
+
+                world, position_history, percept_history, action_history, points = evaluate_agent(
+                    world, args.max_steps, args.sensor_range, baseline_agent, agent_position, agent_heading)
+
+                # Shuffle training examples
+                shuffled_indexes = np.random.permutation(len(percept_history))
+                percept_history  = np.array(percept_history)[shuffled_indexes]
+                action_history   = np.array(action_history)[shuffled_indexes]
+
+                for percept, action in zip(percept_history, action_history):
+                    agent.train(percept, action, args.learning_rate)
+
+            mean_agent_score = benchmark_agent(
+                agent, args.training_round_evaluations, args)
+
+            print('Completed training round {}/{}. Mean score: {}'.format(
+                training_round + 1, args.training_rounds, mean_agent_score))
 
     if args.evaluate:
-        total_points = 0
-        for _ in range(args.evaluate):
-            world, agent_position, agent_heading = create_world(
-                args.world_width, args.world_height, args.food_ratio, args.poison_ratio)
+        mean_agent_score = benchmark_agent(
+            agent, args.evaluate, args)
 
-            world, position_history, action_history, points = evaluate_agent(world, args.max_steps, args.sensor_range, agent, agent_position, agent_heading)
+        print('Mean {} score across {} trials: {}'.format(
+            agent.__class__.__name__, args.evaluate, mean_agent_score))
 
-            total_points += points
+    if args.pdf:
+        world, agent_position, agent_heading = create_world(
+            args.world_width, args.world_height, args.food_ratio, args.poison_ratio)
 
-        print(total_points / args.evaluate)
+        world, position_history, percept_history, action_history, points = evaluate_agent(
+            world, args.max_steps, args.sensor_range, agent, agent_position, agent_heading)
+
+        render(args.pdf, world, position_history)
 
 if __name__ == '__main__':
     main()
