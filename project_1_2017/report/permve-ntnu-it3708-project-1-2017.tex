@@ -1,0 +1,166 @@
+\documentclass[paper=a4, fontsize=10pt]{scrartcl}
+\usepackage[bottom=1in, left=1in, right=1in, top=1in]{geometry}
+\usepackage{layouts}
+
+\usepackage[usenames,dvipsnames,x11names]{xcolor}
+
+\usepackage[T1]{fontenc}
+\usepackage{fourier}
+\usepackage[english]{babel}
+\usepackage{amsmath,amsfonts,amsthm}
+
+\usepackage{sectsty}
+\allsectionsfont{\centering \normalfont\scshape}
+
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usetikzlibrary{plotmarks}
+
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{ragged2e}
+\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
+\usepackage{paralist}
+
+\usepackage{acronym}
+\usepackage[inline]{enumitem}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{lastpage}
+\usepackage{listings}
+\usepackage{multirow}
+\usepackage{subfigure}
+
+\pagestyle{fancyplain}
+\fancyhead{}
+\fancyfoot[L]{}
+\fancyfoot[C]{\thepage~of~4}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+\setlength{\headheight}{13.6pt}
+
+\newcommand{\horrule}[1]{\rule{\linewidth}{#1}}
+
+% For code fragments:
+%\usepackage{fontspec}
+\usepackage{minted}
+%\setsansfont{Calibri}
+%\setmonofont{Consolas}
+
+\usepackage{algorithm, algpseudocode}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{tabu}
+
+\usepackage{hyperref}
+\hypersetup{hidelinks}
+
+\pgfplotsset{compat=1.5}
+\usepackage{pgfplots, pgfplotstable}
+\usepgfplotslibrary{colorbrewer}
+\usepgfplotslibrary{fillbetween}
+
+\pgfplotsset{
+every axis/.append style={
+scale only axis,
+width=0.40\textwidth,height=0.3\textwidth,
+},
+/tikz/every picture/.append style={
+trim axis left,
+trim axis right,
+baseline
+}
+}
+
+% http://tex.stackexchange.com/questions/67895/is-there-an-easy-way-of-using-line-thickness-as-error-indicator-in-a-plot
+
+% Takes six arguments: data table name, x column, y column, error column,
+% color and error bar opacity.
+% ---
+% Creates invisible plots for the upper and lower boundaries of the error,
+% and names them. Then uses fill between to fill between the named upper and
+% lower error boundaries. All these plots are forgotten so that they are not
+% included in the legend. Finally, plots the y column above the error band.
+\newcommand{\errorband}[6]{
+\pgfplotstableread{#1}\datatable
+  \addplot [name path=pluserror,draw=none,no markers,forget plot]
+    table [x={#2},y expr=\thisrow{#3}+\thisrow{#4}] {\datatable};
+
+  \addplot [name path=minuserror,draw=none,no markers,forget plot]
+    table [x={#2},y expr=\thisrow{#3}-\thisrow{#4}] {\datatable};
+
+  \addplot [forget plot,fill=#5,opacity=#6]
+    fill between[on layer={},of=pluserror and minuserror];
+
+  \addplot [#5,thick,no markers]
+    table [x={#2},y={#3}] {\datatable};
+}
+
+
+\title{
+\normalfont \normalsize
+\textsc{Norwegian University of Science and Technology\\IT3708 -- Bio-Inspired Artificial Intelligence}
+\horrule{0.5pt} \\[0.4cm]
+\huge Project 1:\\ Supervised and Reinforcement Learning of\\Neural Agent Controllers\\
+\horrule{2pt} \\[0.5cm]
+}
+
+\author{Per Magnus Veierland\\permve@stud.ntnu.no}
+
+\date{\normalsize\today}
+
+\begin{document}
+
+%\fancyfoot[C]{}
+\maketitle
+
+\section*{Genotype}
+
+
+\renewcommand{\theFancyVerbLine}{
+  \sffamily\textcolor[rgb]{0.5,0.5,0.5}{\scriptsize\arabic{FancyVerbLine}}}
+
+\begin{figure}[H]
+\begin{minted}[mathescape,
+               linenos,
+               numbersep=5pt,
+               frame=lines,
+               framesep=2mm]{python}
+def train(self, percepts, target_action, learning_rate):
+  inputs   = encode_percepts(percepts)
+  outputs  = np.dot(self.weights, inputs)
+  outputs -= np.max(outputs) # Shift values for softmax numerical stability
+  softmax  = np.exp(outputs) / np.sum(np.exp(outputs))
+  one_hot_target = np.zeros(3)
+  one_hot_target[target_action] = 1 
+  delta = one_hot_target - softmax
+  self.weights += learning_rate * np.dot(delta.reshape((3, 1)), inputs.reshape((1, 12)))
+\end{minted}
+\vspace*{-5mm}
+\caption{\textit{Widroff-Hoff} rule implementation with cross-entropy ``softmax'' loss.}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\begin{tabularx}{\textwidth}{XcXc}
+~ &
+\begin{tikzpicture}
+\begin{axis}[xlabel={Generations},ylabel={Fitness / time step}]
+\errorband{../data/learning-curve-supervised-25-training-rounds-10-average.txt}{0}{1}{2}{Cyan}{0.4}
+\end{axis}
+\end{tikzpicture}
+& ~ &
+\begin{tikzpicture}
+\begin{axis}[xlabel={Generations},ylabel={Fitness / time step}]
+\errorband{../data/learning-curve-supervised-25-training-rounds-10-average.txt}{0}{1}{2}{Cyan}{0.4}
+\end{axis}
+\end{tikzpicture}
+\\
+\end{tabularx}
+\caption{\ac{EANN} performance when trained on 1~static~scenario~(left), and on 5~static~scenarios~(right). Mean population fitness is shown in blue with standard deviation shown in light blue, and the fitness of the best individual is shown in red.}
+\label{fig:performance_static}
+\end{figure}
+
+\end{document}
+
