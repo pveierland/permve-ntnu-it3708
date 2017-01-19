@@ -409,7 +409,7 @@ def main():
 
     if args.train:
         if args.agent == 'supervised':
-            baseline_agent = BaselineAgent(args.sensor_range)
+            baseline_agent = BaselineAgent(args)
 
         mean_agent_scores = np.zeros((args.training_round_repetitions, args.training_rounds))
 
