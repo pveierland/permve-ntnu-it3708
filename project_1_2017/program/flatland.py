@@ -16,16 +16,21 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtPrintSupport import *
 
 class Action(enum.IntEnum):
-    MOVE_FORWARD = 0
-    MOVE_LEFT    = 1
+    MOVE_LEFT    = 0
+    MOVE_FORWARD = 1
     MOVE_RIGHT   = 2
 
+class Direction(enum.IntEnum):
+    LEFT    = 0
+    FORWARD = 1
+    RIGHT   = 2
+
 class Entity(enum.IntEnum):
-    OPEN         = 0
-    OBSTACLE     = 1
+    EMPTY        = 0
+    WALL         = 1
     FOOD         = 2
     POISON       = 3
-    # These entities are mapped to OPEN by masking two lower bits:
+    # These entities are mapped to EMPTY by masking two lower bits:
     FOOD_EATEN   = 4
     POISON_EATEN = 8
 
@@ -36,8 +41,8 @@ class Heading(enum.IntEnum):
     WEST  = 3
 
 REWARDS = {
-    Entity.OPEN:            0,
-    Entity.OBSTACLE:     -100,
+    Entity.EMPTY:           0,
+    Entity.WALL:         -100,
     Entity.FOOD:            1,
     Entity.FOOD_EATEN:      0,
     Entity.POISON:         -4,
@@ -45,36 +50,84 @@ REWARDS = {
 }
 
 class BaselineAgent(object):
-    def __init__(self, sensor_range):
-        pass
+    def __init__(self, args):
+        self.baseline_go_straight         = args.baseline_go_straight
+        self.baseline_prefer_avoid_wall   = args.baseline_prefer_avoid_wall
+        self.baseline_prefer_right        = args.baseline_prefer_right
+        self.baseline_take_food_near_wall = args.baseline_take_food_near_wall
 
     def act(self, percepts):
-        immidiate_percepts = percepts[:,0]
+        ip = list(percepts[:,0])
 
-        food = (immidiate_percepts == Entity.FOOD)
-        if np.any(food):
-            return np.argmax(food)
+        # L/F/R ambiguity:
+        if ip[Direction.LEFT] == ip[Direction.FORWARD] and ip[Direction.FORWARD] == ip[Direction.RIGHT]:
+            return (Action.MOVE_FORWARD if self.baseline_go_straight  else
+                    Action.MOVE_RIGHT   if self.baseline_prefer_right else
+                    Action.MOVE_LEFT)
 
-        neutral = (immidiate_percepts == Entity.OPEN)
-        if np.any(neutral):
-            return np.argmax(neutral)
+        # Single side wall ambiguity:
+        if ip.count(Entity.WALL) == 1 and ip[Direction.FORWARD] == Entity.FOOD:
+            if ip.count(Entity.FOOD) == 2:
+                return (Action.MOVE_FORWARD if   self.baseline_take_food_near_wall else
+                        Action.MOVE_LEFT    if   ip[Direction.RIGHT] == Entity.WALL
+                                            else Action.MOVE_RIGHT)
+            elif self.baseline_prefer_avoid_wall and ip.count(Entity.EMPTY) == 1:
+                return Action.MOVE_LEFT if ip[Direction.RIGHT] == Entity.WALL else Action.MOVE_RIGHT
+            else:
+                return Action.MOVE_FORWARD
 
-        poison = (immidiate_percepts == Entity.POISON)
-        if np.any(poison):
-            return np.argmax(poison)
+        # Prefer food:
+        if ip.count(Entity.FOOD) == 1:
+            return (Action.MOVE_LEFT    if ip[Direction.LEFT]    == Entity.FOOD else
+                    Action.MOVE_FORWARD if ip[Direction.FORWARD] == Entity.FOOD else
+                    Action.MOVE_RIGHT)
 
-        return Action.MOVE_FORWARD
+        # L/R ambiguity:
+        if ip.count(Entity.FOOD) == 2 and ip[Direction.FORWARD] != Entity.FOOD:
+            return Action.MOVE_RIGHT if self.baseline_prefer_right else Action.MOVE_LEFT
+        if ip.count(Entity.EMPTY) == 2 and ip[Direction.FORWARD] != Entity.EMPTY:
+            return Action.MOVE_RIGHT if self.baseline_prefer_right else Action.MOVE_LEFT
+
+        # S/F ambiguity:
+        if ip.count(Entity.FOOD) == 2:
+            return (Action.MOVE_FORWARD if self.baseline_go_straight          else
+                    Action.MOVE_RIGHT   if ip[Direction.RIGHT] == Entity.FOOD else
+                    Action.MOVE_LEFT)
+        if ip.count(Entity.EMPTY) == 2:
+            return (Action.MOVE_FORWARD if self.baseline_go_straight           else
+                    Action.MOVE_RIGHT   if ip[Direction.RIGHT] == Entity.EMPTY else
+                    Action.MOVE_LEFT)
+
+        # Prefer open:
+        if ip.count(Entity.EMPTY) == 1:
+            return (Action.MOVE_LEFT    if ip[Direction.LEFT]    == Entity.EMPTY else
+                    Action.MOVE_FORWARD if ip[Direction.FORWARD] == Entity.EMPTY else
+                    Action.MOVE_RIGHT)
+        elif ip.count(Entity.EMPTY) == 2:
+            return (Action.MOVE_LEFT    if ip[Direction.RIGHT] == Entity.WALL else
+                    Action.MOVE_RIGHT)
+
+        # Prefer poison:
+        if ip.count(Entity.POISON) == 1:
+            return (Action.MOVE_LEFT    if ip[Direction.LEFT]    == Entity.POISON else
+                    Action.MOVE_FORWARD if ip[Direction.FORWARD] == Entity.POISON else
+                    Action.MOVE_RIGHT)
+        elif ip.count(Entity.POISON) == 2:
+            return (Action.MOVE_LEFT    if ip[Direction.RIGHT] == Entity.WALL else
+                    Action.MOVE_RIGHT)
+
+        raise Exception('unknown scenario: {}'.format(ip))
 
 class RandomAgent(object):
-    def __init__(self, sensor_range):
+    def __init__(self, args):
         pass
 
     def act(self, percepts):
         return np.random.choice(list(Action))
 
 class LearningAgent(object):
-    def __init__(self, sensor_range):
-        self.weights = np.random.randn(3, 3 * 4 * sensor_range) * 0.001
+    def __init__(self, args):
+        self.weights = np.random.randn(3, 3 * 4 * args.sensor_range) * 0.001
 
     def act(self, percepts):
         return np.argmax(self.evaluate(percepts)[1])
@@ -88,8 +141,8 @@ class LearningAgent(object):
         self.weights += learning_rate * np.dot(delta.reshape((-1, 1)), inputs.reshape((1, -1)))
 
 class ReinforcementAgent(LearningAgent):
-    def __init__(self, sensor_range):
-        super().__init__(sensor_range)
+    def __init__(self, args):
+        super().__init__(args)
 
     def train(self, percepts, percepts_next, learning_rate, discount_factor, reward):
         inputs, outputs = self.evaluate(percepts)
@@ -101,8 +154,8 @@ class ReinforcementAgent(LearningAgent):
         self.update_weights(learning_rate, delta, inputs)
 
 class SupervisedAgent(LearningAgent):
-    def __init__(self, sensor_range):
-        super().__init__(sensor_range)
+    def __init__(self, args):
+        super().__init__(args)
 
     def train(self, percepts, learning_rate, target_action):
         inputs, outputs = self.evaluate(percepts)
@@ -134,7 +187,7 @@ def apply_action(world, agent_position, agent_heading, action):
 
     entity = world[agent_position]
     reward = REWARDS[entity]
-    done   = entity == Entity.OBSTACLE
+    done   = entity == Entity.WALL
 
     if entity == Entity.FOOD:
         world[agent_position] = Entity.FOOD_EATEN
@@ -158,25 +211,25 @@ def benchmark_agent(agent, iterations, args):
     return total_points / iterations
 
 def create_world(width, height, food_ratio, poison_ratio):
-    world = np.full((width + 2, height + 2), Entity.OPEN, dtype=int)
+    world = np.full((width + 2, height + 2), Entity.EMPTY, dtype=int)
 
-    # Add obstacle border
-    world[ 0, :] = Entity.OBSTACLE
-    world[-1, :] = Entity.OBSTACLE
-    world[ :, 0] = Entity.OBSTACLE
-    world[ :,-1] = Entity.OBSTACLE
+    # Add wall border
+    world[ 0, :] = Entity.WALL
+    world[-1, :] = Entity.WALL
+    world[ :, 0] = Entity.WALL
+    world[ :,-1] = Entity.WALL
 
     world[np.where(np.logical_and(
-        world == Entity.OPEN,
+        world == Entity.EMPTY,
         np.random.choice([True, False], world.shape, p=[food_ratio, 1.0 - food_ratio])))] \
              = Entity.FOOD
 
     world[np.where(np.logical_and(
-        world == Entity.OPEN,
+        world == Entity.EMPTY,
         np.random.choice([True, False], world.shape, p=[poison_ratio, 1.0 - poison_ratio])))] \
             = Entity.POISON
 
-    agent_position = list(zip(*np.where(world == Entity.OPEN)))[0]
+    agent_position = list(zip(*np.where(world == Entity.EMPTY)))[0]
     agent_heading  = np.random.choice(list(Heading))
 
     return world, agent_position, agent_heading
@@ -225,7 +278,7 @@ def get_percepts(world, sensor_range, agent_position, agent_heading):
                  sensor_range:sensor_range + world.shape[1]] = world
 
     # Rotate perception according to agent heading and mask two lower bits
-    # such that FOOD_EATEN and POISON_EATEN are mapped to OPEN.
+    # such that FOOD_EATEN and POISON_EATEN are mapped to EMPTY.
     agent_percepts = np.rot90(
         padded_world[agent_position[0]:agent_position[0] + 2 * sensor_range + 1,
                      agent_position[1]:agent_position[1] + 2 * sensor_range + 1],
@@ -233,8 +286,8 @@ def get_percepts(world, sensor_range, agent_position, agent_heading):
 
     # Get agent action
     percepts = np.stack((
-        agent_percepts[sensor_range - 1::-1, sensor_range], # Forward
         agent_percepts[sensor_range, sensor_range - 1::-1], # Left
+        agent_percepts[sensor_range - 1::-1, sensor_range], # Forward
         agent_percepts[sensor_range, sensor_range + 1:]))   # Right
 
     return percepts
@@ -249,7 +302,7 @@ def render(output_filename, world, agent_path):
     colors = {
         'line':              QColor( 51,  51,  51),
         'path':              QColor( 51,  51,  51),
-        Entity.OBSTACLE:     QColor( 88,  89,  91),
+        Entity.WALL:         QColor( 88,  89,  91),
         Entity.FOOD:         QColor( 28, 150,  32),
         Entity.FOOD_EATEN:   QColor(135, 243, 132),
         Entity.POISON:       QColor(255, 153,   0),
@@ -295,7 +348,7 @@ def render(output_filename, world, agent_path):
     for row in range(world.shape[0]):
         for column in range(world.shape[1]):
             entity = world[row, column]
-            if entity != Entity.OPEN:
+            if entity != Entity.EMPTY:
                 painter.setBrush(QBrush(colors[entity]))
                 painter.drawEllipse(
                     QPointF(cell_size * (column + 0.5),
@@ -322,24 +375,30 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--agent',
         choices=['baseline', 'random', 'supervised', 'reinforcement'])
-    parser.add_argument('--discount_factor',            type=float, default=0.9)
-    parser.add_argument('--evaluate',                   type=int)
-    parser.add_argument('--food_ratio',                 type=float, default=0.5)
-    parser.add_argument('--learning_rate',              type=float, default=0.01)
-    parser.add_argument('--load',                       type=str)
-    parser.add_argument('--max_steps',                  type=int,   default=50)
-    parser.add_argument('--poison_ratio',               type=float, default=0.5)
-    parser.add_argument('--render',                     action='store_true')
-    parser.add_argument('--render_filename',            type=str,   default='flatland.pdf')
-    parser.add_argument('--report_weights',             action='store_true')
-    parser.add_argument('--save',                       type=str)
-    parser.add_argument('--sensor_range',               type=int,   default=1)
-    parser.add_argument('--train',                      action='store_true')
-    parser.add_argument('--training_round_repetitions', type=int,   default=1)
-    parser.add_argument('--training_round_size',        type=int,   default=100)
-    parser.add_argument('--training_rounds',            type=int,   default=1)
-    parser.add_argument('--world_height',               type=int,   default=10)
-    parser.add_argument('--world_width',                type=int,   default=10)
+    parser.add_argument('--baseline_go_straight',         action='store_true')
+    parser.add_argument('--baseline_prefer_avoid_wall',   action='store_true')
+    parser.add_argument('--baseline_prefer_right',        action='store_true')
+    parser.add_argument('--baseline_take_food_near_wall', action='store_true')
+    parser.add_argument('--compare',                      action='store_true')
+    parser.add_argument('--discount_factor',              type=float, default=0.9)
+    parser.add_argument('--evaluate',                     type=int)
+    parser.add_argument('--food_ratio',                   type=float, default=0.5)
+    parser.add_argument('--learning_rate',                type=float, default=0.01)
+    parser.add_argument('--load',                         type=str)
+    parser.add_argument('--max_steps',                    type=int,   default=50)
+    parser.add_argument('--poison_ratio',                 type=float, default=0.5)
+    parser.add_argument('--render',                       action='store_true')
+    parser.add_argument('--render_filename',              type=str,   default='flatland.pdf')
+    parser.add_argument('--report_output',                action='store_true')
+    parser.add_argument('--report_weights',               action='store_true')
+    parser.add_argument('--save',                         type=str)
+    parser.add_argument('--sensor_range',                 type=int,   default=1)
+    parser.add_argument('--train',                        action='store_true')
+    parser.add_argument('--training_round_repetitions',   type=int,   default=1)
+    parser.add_argument('--training_round_size',          type=int,   default=100)
+    parser.add_argument('--training_rounds',              type=int,   default=1)
+    parser.add_argument('--world_height',                 type=int,   default=10)
+    parser.add_argument('--world_width',                  type=int,   default=10)
     args = parser.parse_args()
 
     if args.load:
@@ -349,7 +408,7 @@ def main():
             print('Agent type must be specified')
             sys.exit(1)
 
-        agent = globals()[args.agent.title() + 'Agent'](args.sensor_range)
+        agent = globals()[args.agent.title() + 'Agent'](args)
 
     if args.train:
         if not issubclass(agent.__class__, LearningAgent):
@@ -413,24 +472,37 @@ def main():
         mean_agent_score = benchmark_agent(agent, args.evaluate, args)
         print(mean_agent_score)
 
-    if args.report_weights:
-        # Reorder weights to appear in LEFT, FORWARD, RIGHT order:
-        weights = agent.weights[np.ix_(
-            [Action.MOVE_LEFT, Action.MOVE_FORWARD, Action.MOVE_RIGHT],
-            (list(range((Action.MOVE_LEFT)        * 4 * args.sensor_range,
-                        (Action.MOVE_LEFT + 1)    * 4 * args.sensor_range)) +
-             list(range((Action.MOVE_FORWARD)     * 4 * args.sensor_range,
-                        (Action.MOVE_FORWARD + 1) * 4 * args.sensor_range)) +
-             list(range((Action.MOVE_RIGHT)       * 4 * args.sensor_range,
-                        (Action.MOVE_RIGHT + 1)   * 4 * args.sensor_range))))]
+    if args.report_output:
+        for i, scenario in enumerate(itertools.product([Entity.EMPTY, Entity.WALL, Entity.FOOD, Entity.POISON], repeat=3)):
+            percepts        = np.array(scenario).reshape(3, 1)
+            inputs, outputs = agent.evaluate(percepts)
+            action          = np.argmax(outputs)
 
+            print(' & '.join(
+                [str(i + 1)] +
+                ['\\textsc{{{}}}'.format(str(Entity(entity))) for entity in scenario] +
+                ['${:.5f}$'.format(float(output)) for output in outputs] +
+                ['\\textsc{{{}}}'.format(str(Action(action))), '~ \\\\']))
+
+    if args.report_weights:
         print('&{}\\\\'.format('&'.join(' \\textsc{{{}}} '.format(
             ''.join(x)) for x in itertools.product('LFR', 'EWFP'))))
 
         for i, action in enumerate(['Left', 'Forward', 'Right']):
             print('\\textsc{{{}}} &{}\\\\'.format(
                 action, '&'.join(' \\textsc{{{:.5f}}} '.format(weight)
-                    for weight in list(weights[i, :]))))
+                    for weight in list(agent.weights[i, :]))))
+
+    if args.compare:
+        baseline_agent = BaselineAgent(args)
+
+        for scenario in itertools.product([Entity.EMPTY, Entity.WALL, Entity.FOOD, Entity.POISON], repeat=3):
+            percepts        = np.array(scenario).reshape(3, 1)
+            action          = agent.act(percepts)
+            baseline_action = baseline_agent.act(percepts)
+
+            if action != baseline_action:
+                print('{} -> Agent: {} Baseline: {}'.format(scenario, str(Action(action)), str(Action(baseline_action))))
 
     if args.render:
         world, agent_position, agent_heading = create_world(
