@@ -51,7 +51,7 @@ REWARDS = {
 
 class BaselineAgent(object):
     def __init__(self, args):
-        self.baseline_go_straight         = args.baseline_go_straight
+        self.baseline_go_sideways         = args.baseline_go_sideways
         self.baseline_prefer_avoid_wall   = args.baseline_prefer_avoid_wall
         self.baseline_prefer_right        = args.baseline_prefer_right
         self.baseline_take_food_near_wall = args.baseline_take_food_near_wall
@@ -61,8 +61,8 @@ class BaselineAgent(object):
 
         # L/F/R ambiguity:
         if ip[Direction.LEFT] == ip[Direction.FORWARD] and ip[Direction.FORWARD] == ip[Direction.RIGHT]:
-            return (Action.MOVE_FORWARD if self.baseline_go_straight  else
-                    Action.MOVE_RIGHT   if self.baseline_prefer_right else
+            return (Action.MOVE_FORWARD if not self.baseline_go_sideways  else
+                    Action.MOVE_RIGHT   if     self.baseline_prefer_right else
                     Action.MOVE_LEFT)
 
         # Single side wall ambiguity:
@@ -90,12 +90,12 @@ class BaselineAgent(object):
 
         # S/F ambiguity:
         if ip.count(Entity.FOOD) == 2:
-            return (Action.MOVE_FORWARD if self.baseline_go_straight          else
-                    Action.MOVE_RIGHT   if ip[Direction.RIGHT] == Entity.FOOD else
+            return (Action.MOVE_FORWARD if not self.baseline_go_sideways          else
+                    Action.MOVE_RIGHT   if     ip[Direction.RIGHT] == Entity.FOOD else
                     Action.MOVE_LEFT)
         if ip.count(Entity.EMPTY) == 2:
-            return (Action.MOVE_FORWARD if self.baseline_go_straight           else
-                    Action.MOVE_RIGHT   if ip[Direction.RIGHT] == Entity.EMPTY else
+            return (Action.MOVE_FORWARD if not self.baseline_go_sideways           else
+                    Action.MOVE_RIGHT   if     ip[Direction.RIGHT] == Entity.EMPTY else
                     Action.MOVE_LEFT)
 
         # Prefer open:
@@ -375,7 +375,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--agent',
         choices=['baseline', 'random', 'supervised', 'reinforcement'])
-    parser.add_argument('--baseline_go_straight',         action='store_true')
+    parser.add_argument('--baseline_go_sideways',         action='store_true')
     parser.add_argument('--baseline_prefer_avoid_wall',   action='store_true')
     parser.add_argument('--baseline_prefer_right',        action='store_true')
     parser.add_argument('--baseline_take_food_near_wall', action='store_true')
@@ -396,19 +396,16 @@ def main():
     parser.add_argument('--train',                        action='store_true')
     parser.add_argument('--training_round_repetitions',   type=int,   default=1)
     parser.add_argument('--training_round_size',          type=int,   default=100)
-    parser.add_argument('--training_rounds',              type=int,   default=1)
+    parser.add_argument('--training_rounds',              type=int,   default=25)
     parser.add_argument('--world_height',                 type=int,   default=10)
     parser.add_argument('--world_width',                  type=int,   default=10)
     args = parser.parse_args()
 
     if args.load:
         agent = pickle.load(open(args.load, 'rb'))
-    else:
-        if not args.agent:
-            print('Agent type must be specified')
-            sys.exit(1)
-
-        agent = globals()[args.agent.title() + 'Agent'](args)
+    elif not args.agent:
+        print('Agent type must be specified')
+        sys.exit(1)
 
     if args.train:
         if not issubclass(agent.__class__, LearningAgent):
@@ -421,6 +418,8 @@ def main():
         mean_agent_scores = np.zeros((args.training_round_repetitions, args.training_rounds))
 
         for training_round_repetition in range(args.training_round_repetitions):
+            agent = globals()[args.agent.title() + 'Agent'](args)
+
             for training_round in range(args.training_rounds):
                 total_points = 0
 
@@ -467,6 +466,8 @@ def main():
 
         if args.save:
             pickle.dump(agent, open(args.save, 'wb'))
+    else:
+        agent = globals()[args.agent.title() + 'Agent'](args)
 
     if args.evaluate:
         mean_agent_score = benchmark_agent(agent, args.evaluate, args)
@@ -512,6 +513,8 @@ def main():
             world, args.max_steps, args.sensor_range, agent, agent_position, agent_heading)
 
         render(args.render_filename, world, position_history)
+
+        print(points)
 
 if __name__ == '__main__':
     main()
