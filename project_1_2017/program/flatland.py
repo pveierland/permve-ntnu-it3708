@@ -408,10 +408,6 @@ def main():
         sys.exit(1)
 
     if args.train:
-        if not issubclass(agent.__class__, LearningAgent):
-            print('Agent class cannot be trained')
-            sys.exit(1)
-
         if args.agent == 'supervised':
             baseline_agent = BaselineAgent(args.sensor_range)
 
@@ -419,6 +415,10 @@ def main():
 
         for training_round_repetition in range(args.training_round_repetitions):
             agent = globals()[args.agent.title() + 'Agent'](args)
+
+            if not issubclass(agent.__class__, LearningAgent):
+                print('Agent class cannot be trained')
+                sys.exit(1)
 
             for training_round in range(args.training_rounds):
                 total_points = 0
