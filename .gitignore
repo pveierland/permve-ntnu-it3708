@@ -8,12 +8,10 @@ CTestTestfile.cmake
 Testing/
 Thumbs.db
 cmake_install.cmake
-report/*ps
-report/
-report/_minted*
-report/*.aux
-report/*.fdb_latexmk
-report/*.fls
-report/*.log
-report/*.ps
+**/report/_minted*
+**/report/*.aux
+**/report/*.fdb_latexmk
+**/report/*.fls
+**/report/*.log
+**/report/*.ps
 
