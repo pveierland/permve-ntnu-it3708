@@ -148,7 +148,7 @@ A clear structure can be seen in the reinforcement agent weights (Table~\ref{tab
 
 The performance of the agent trained using supervised learning closely matches the performance of the baseline agent. This was expected as the baseline behavior is a simple function of preferring food over empty areas, empty areas over poison, and poison over walls. It is also expected that the supervised agent would not surpass the baseline agent since it should learn the baseline agent function. When comparing the reinforcement agent with sensor range~1 to the baseline agent it performs slightly, but distinctly better. This was unexpected as the baseline agent was designed to be optimal.
 
-To understand why the reinforcement agent performs slightly better the scenarios are looked at more closely. With a sensor range of~1 there are 64~possible inputs scenarios, out of which 44~are obvious (e.g.~\textsc{F/W/W}), 6~are left/right ambiguous (e.g.~\textsc{F/W/F}), 6~are sideways/forwards ambiguous (e.g.~\textsc{F/F/O}), 4~are left/forwards/right ambiguous (e.g.~\textsc{F/F/F}), and 4~are non-obvious since they involve a wall on a side and food or an empty area (e.g.~\textsc{W/F/O}. If the behavior of the baseline agent is adjusted such that in scenario \#5 it moves to the side instead of forwards, it ends up performing as good as the reinforcement trained agents, with a score of~$20.5$ when averaged over 1~million~trials. This is an improvement as moving away from the wall increases the probability of avoiding poison. Any slight remaining discrepancy between the reinforcement agent and baseline agent scores is hypothesized to be caused by the reinforcement agent not moving in the same direction for all left/right ambiguous situations, but balancing between both directions for different scenarios.
+To understand why the reinforcement agent performs slightly better the scenarios are looked at more closely. With a sensor range of~1 there are 64~possible inputs scenarios, out of which 44~are obvious (e.g.~\textsc{F/W/W}), 6~are left/right ambiguous (e.g.~\textsc{F/W/F}), 6~are sideways/forwards ambiguous (e.g.~\textsc{F/F/O}), 4~are left/forwards/right ambiguous (e.g.~\textsc{F/F/F}), and 4~are non-obvious since they involve a wall on a side and food or an empty area (e.g.~\textsc{W/F/O}. If the behavior of the baseline agent is adjusted such that in scenario \#5 it moves to the side instead of forwards, it ends up performing as good as the reinforcement trained agents, with a score of~$20.8$ when averaged over 1~million~trials. This is an improvement as moving away from the wall increases the probability of avoiding poison. Any slight remaining discrepancy between the reinforcement agent and baseline agent scores is hypothesized to be caused by the reinforcement agent not moving in the same direction for all left/right ambiguous situations, but balancing between both directions for different scenarios.
 
 An agent trained using reinforcement learning and a sensor range of~3 expectedly performs significantly better than the other agents as it is able to exploit more information, e.g. preferring a direction which has two food entities in a row, and avoiding poison or walls which are more than one move away.
 
@@ -190,7 +190,7 @@ width=4cm,
 height=4cm,
 scale only axis,
 every x tick label/.append style={font=\scriptsize\color{gray!80!black}},
-xmin=1, xmax=25,
+xmin=1, xmax=30,
 xlabel={Training Round},
 xlabel style={yshift=0.5ex},
 xmajorgrids,
@@ -202,8 +202,8 @@ ylabel style={yshift=-0.5ex},
 ymajorgrids,
 yminorgrids
 ]
-\errorband{../data/learning-curve-supervised-1-sensor-range-25-training-rounds-100-size-30-repetitions.txt}{0}{1}{2}{Cyan}{0.4}
-\addplot[mark=none, Magenta, very thick] coordinates {(0,20.2) (25,20.2)};
+\errorband{../data/learning-curve-supervised-1-sensor-range-30-training-rounds-100-size-30-repetitions.txt}{0}{1}{2}{Cyan}{0.4}
+\addplot[mark=none, Magenta, very thick] coordinates {(0,20.2) (30,20.2)};
 
 \nextgroupplot[%
 title={Reinforcement ($S=1$)},
@@ -212,7 +212,7 @@ width=4cm,
 height=4cm,
 scale only axis,
 every x tick label/.append style={font=\scriptsize\color{gray!80!black}},
-xmin=1, xmax=25,
+xmin=1, xmax=30,
 xlabel={Training Round},
 xlabel style={yshift=0.5ex},
 xmajorgrids,
@@ -224,8 +224,8 @@ ylabel style={yshift=-0.5ex},
 ymajorgrids,
 yminorgrids
 ]
-\errorband{../data/learning-curve-reinforcement-1-sensor-range-25-training-rounds-100-size-30-repetitions.txt}{0}{1}{2}{Cyan}{0.4}
-\addplot[mark=none, Magenta, very thick] coordinates {(0,20.2) (25,20.2)};
+\errorband{../data/learning-curve-reinforcement-1-sensor-range-30-training-rounds-100-size-30-repetitions.txt}{0}{1}{2}{Cyan}{0.4}
+\addplot[mark=none, Magenta, very thick] coordinates {(0,20.2) (30,20.2)};
 
 \nextgroupplot[%
 title={Reinforcement ($S=3$)},
@@ -234,7 +234,7 @@ width=4cm,
 height=4cm,
 scale only axis,
 every x tick label/.append style={font=\scriptsize\color{gray!80!black}},
-xmin=1, xmax=25,
+xmin=1, xmax=30,
 xlabel={Training Round},
 xlabel style={yshift=0.5ex},
 xmajorgrids,
@@ -245,13 +245,13 @@ ylabel={Score},
 ylabel style={yshift=-0.5ex},
 ymajorgrids,
 yminorgrids]
-\errorband{../data/learning-curve-reinforcement-3-sensor-range-25-training-rounds-100-size-30-repetitions.txt}{0}{1}{2}{Cyan}{0.4}
-\addplot[mark=none, Magenta, very thick] coordinates {(0,20.2) (25,20.2)};
+\errorband{../data/learning-curve-reinforcement-3-sensor-range-30-training-rounds-100-size-30-repetitions.txt}{0}{1}{2}{Cyan}{0.4}
+\addplot[mark=none, Magenta, very thick] coordinates {(0,20.2) (30,20.2)};
 \end{groupplot}
 \end{tikzpicture}
 \vspace{-0.2cm}
 \captionsetup{justification=centering,indention=-1.2cm}
-\caption{\small{}Agent scores showing gradual learning. Each training round consists of 100~random Flatland worlds. The dark blue lines show the mean across 30 repetitions and the light blue shows the standard deviation. The thick magenta line shows the baseline agent score.\\A learning rate $\alpha = 0.01$ and discount factor $\gamma = 0.9$ is used for all experiments.}
+\caption{\small{}Agent scores showing gradual learning. Each training round consists of 100~random Flatland worlds. The dark blue lines show the mean across 30 repetitions and the light blue shows the standard deviation. The thick magenta line shows the baseline agent score ($20.2$).\\A learning rate $\alpha = 0.01$ and discount factor $\gamma = 0.9$ is used for all experiments.}
 \label{fig:learning_plots}
 \vspace{-0.2cm}
 \end{figure}
@@ -269,7 +269,7 @@ yminorgrids]
 \bottomrule
 \end{tabular}
 \vspace{-0.2cm}
-\caption{Weights for agent trained using reinforcement learning with 25 training rounds of 100~Flatland worlds each ($S=1$).}
+\caption{Weights for agent trained using reinforcement learning with 30 training rounds of 100~Flatland worlds each ($S=1$).}
 \vspace{-0.2cm}
 \label{table:weights}
 \end{table}
