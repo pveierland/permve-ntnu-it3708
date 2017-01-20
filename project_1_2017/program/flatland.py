@@ -76,36 +76,62 @@ class BaselineAgent(object):
             else:
                 return Action.MOVE_FORWARD
 
+        # Single wall:
+        if ip.count(Entity.WALL) == 1 and ip[Direction.FORWARD] != Entity.WALL:
+            if ip.count(Entity.FOOD) == 2:
+                return (Action.MOVE_FORWARD if   self.baseline_take_food_near_wall else
+                        Action.MOVE_LEFT    if   ip[Direction.RIGHT] == Entity.WALL
+                                            else Action.MOVE_RIGHT)
+            elif ip.count(Entity.FOOD) == 1:
+                if ip[Direction.FORWARD] == Entity.FOOD:
+                    if self.baseline_prefer_avoid_wall and ip.count(Entity.EMPTY) == 1:
+                        return Action.MOVE_LEFT if ip[Direction.RIGHT] == Entity.WALL else Action.MOVE_RIGHT
+                    else:
+                        return Action.MOVE_FORWARD
+                else:
+                    return Action.MOVE_LEFT if ip[Direction.RIGHT] == Entity.WALL else Action.MOVE_RIGHT
+            elif ip.count(Entity.EMPTY) == 2:
+                return Action.MOVE_LEFT if ip[Direction.RIGHT] == Entity.WALL else Action.MOVE_RIGHT
+            elif ip.count(Entity.EMPTY) == 1:
+                return (Action.MOVE_FORWARD if ip[Direction.FORWARD] == Entity.EMPTY else
+                        Action.MOVE_LEFT    if ip[Direction.RIGHT]   == Entity.WALL  else
+                        Action.MOVE_RIGHT)
+            elif ip.count(Entity.POISON) == 2:
+                return Action.MOVE_LEFT if ip[Direction.RIGHT] == Entity.WALL else Action.MOVE_RIGHT
+            elif ip.count(Entity.POISON) == 1:
+                return (Action.MOVE_FORWARD if ip[Direction.FORWARD] == Entity.POISON else
+                        Action.MOVE_LEFT    if ip[Direction.RIGHT]   == Entity.WALL  else
+                        Action.MOVE_RIGHT)
+
         # Prefer food:
         if ip.count(Entity.FOOD) == 1:
             return (Action.MOVE_LEFT    if ip[Direction.LEFT]    == Entity.FOOD else
                     Action.MOVE_FORWARD if ip[Direction.FORWARD] == Entity.FOOD else
                     Action.MOVE_RIGHT)
+        elif ip.count(Entity.FOOD) == 2:
+            if ip[Direction.FORWARD] != Entity.FOOD:
+                # L/R ambiguity:
+                return Action.MOVE_RIGHT if self.baseline_prefer_right else Action.MOVE_LEFT
+            else:
+                # S/F ambiguity:
+                return (Action.MOVE_FORWARD if not self.baseline_go_sideways          else
+                        Action.MOVE_RIGHT   if     ip[Direction.RIGHT] == Entity.FOOD else
+                        Action.MOVE_LEFT)
 
-        # L/R ambiguity:
-        if ip.count(Entity.FOOD) == 2 and ip[Direction.FORWARD] != Entity.FOOD:
-            return Action.MOVE_RIGHT if self.baseline_prefer_right else Action.MOVE_LEFT
-        if ip.count(Entity.EMPTY) == 2 and ip[Direction.FORWARD] != Entity.EMPTY:
-            return Action.MOVE_RIGHT if self.baseline_prefer_right else Action.MOVE_LEFT
-
-        # S/F ambiguity:
-        if ip.count(Entity.FOOD) == 2:
-            return (Action.MOVE_FORWARD if not self.baseline_go_sideways          else
-                    Action.MOVE_RIGHT   if     ip[Direction.RIGHT] == Entity.FOOD else
-                    Action.MOVE_LEFT)
-        if ip.count(Entity.EMPTY) == 2:
-            return (Action.MOVE_FORWARD if not self.baseline_go_sideways           else
-                    Action.MOVE_RIGHT   if     ip[Direction.RIGHT] == Entity.EMPTY else
-                    Action.MOVE_LEFT)
-
-        # Prefer open:
+        # Prefer empty:
         if ip.count(Entity.EMPTY) == 1:
             return (Action.MOVE_LEFT    if ip[Direction.LEFT]    == Entity.EMPTY else
                     Action.MOVE_FORWARD if ip[Direction.FORWARD] == Entity.EMPTY else
                     Action.MOVE_RIGHT)
         elif ip.count(Entity.EMPTY) == 2:
-            return (Action.MOVE_LEFT    if ip[Direction.RIGHT] == Entity.WALL else
-                    Action.MOVE_RIGHT)
+            if ip[Direction.FORWARD] != Entity.EMPTY:
+                # L/R ambiguity:
+                return Action.MOVE_RIGHT if self.baseline_prefer_right else Action.MOVE_LEFT
+            else:
+                # S/F ambiguity:
+                return (Action.MOVE_FORWARD if not self.baseline_go_sideways           else
+                        Action.MOVE_RIGHT   if     ip[Direction.RIGHT] == Entity.EMPTY else
+                        Action.MOVE_LEFT)
 
         # Prefer poison:
         if ip.count(Entity.POISON) == 1:
@@ -113,8 +139,13 @@ class BaselineAgent(object):
                     Action.MOVE_FORWARD if ip[Direction.FORWARD] == Entity.POISON else
                     Action.MOVE_RIGHT)
         elif ip.count(Entity.POISON) == 2:
-            return (Action.MOVE_LEFT    if ip[Direction.RIGHT] == Entity.WALL else
-                    Action.MOVE_RIGHT)
+            if ip[Direction.FORWARD] != Entity.POISON:
+                # L/R ambiguity:
+                return Action.MOVE_RIGHT if self.baseline_prefer_right else Action.MOVE_LEFT
+            else:
+                return (Action.MOVE_FORWARD if not self.baseline_go_sideways            else
+                        Action.MOVE_RIGHT   if     ip[Direction.RIGHT] == Entity.POISON else
+                        Action.MOVE_LEFT)
 
         raise Exception('unknown scenario: {}'.format(ip))
 
@@ -403,11 +434,18 @@ def main():
 
     if args.load:
         agent = pickle.load(open(args.load, 'rb'))
-    elif not args.agent:
-        print('Agent type must be specified')
-        sys.exit(1)
+    else:
+        if not args.agent:
+            print('Agent type must be specified')
+            sys.exit(1)
+
+        agent = globals()[args.agent.title() + 'Agent'](args)
 
     if args.train:
+        if not issubclass(agent.__class__, LearningAgent):
+            print('Agent class cannot be trained')
+            sys.exit(1)
+
         if args.agent == 'supervised':
             baseline_agent = BaselineAgent(args)
 
@@ -415,10 +453,6 @@ def main():
 
         for training_round_repetition in range(args.training_round_repetitions):
             agent = globals()[args.agent.title() + 'Agent'](args)
-
-            if not issubclass(agent.__class__, LearningAgent):
-                print('Agent class cannot be trained')
-                sys.exit(1)
 
             for training_round in range(args.training_rounds):
                 total_points = 0
@@ -466,8 +500,6 @@ def main():
 
         if args.save:
             pickle.dump(agent, open(args.save, 'wb'))
-    else:
-        agent = globals()[args.agent.title() + 'Agent'](args)
 
     if args.evaluate:
         mean_agent_score = benchmark_agent(agent, args.evaluate, args)
