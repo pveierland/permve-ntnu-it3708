@@ -302,8 +302,9 @@ def evaluate_agent(world, steps, sensor_range, agent, agent_position, agent_head
 
 def get_percepts(world, sensor_range, agent_position, agent_heading):
     # Construct perception
-    padded_world = np.zeros(
-        (world.shape[0] + 2 * sensor_range, world.shape[1] + 2 * sensor_range), dtype=int)
+    padded_world = np.full(
+        (world.shape[0] + 2 * sensor_range, world.shape[1] + 2 * sensor_range),
+        Entity.WALL, dtype=int)
 
     padded_world[sensor_range:sensor_range + world.shape[0],
                  sensor_range:sensor_range + world.shape[1]] = world
