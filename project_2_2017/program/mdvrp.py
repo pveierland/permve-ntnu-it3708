@@ -503,7 +503,10 @@ def main():
     parser.add_argument('--render_grouping',                       action='store_true')
     parser.add_argument('--solution')
     parser.add_argument('--verify',          action='store_true')
-    parser.add_argument('--silent', action='store_true')
+    parser.add_argument('--script', action='store_true')
+    parser.add_argument('--tournament_group_size', type=int, default=5)
+    parser.add_argument('--tournament_randomness', type=float, default=0.1)
+    parser.add_argument('--elitism_ratio', type=float, default=0.01)
     args = parser.parse_args()
 
     if args.instance:
@@ -539,9 +542,13 @@ def main():
     if args.evolve:
         system = vi.ea.system.System(
             Creator(problem),
-            #vi.ea.parent_selection.Rank(),
-            vi.ea.parent_selection.Tournament(group_size=5, random_selection_probability=0.1),
-            vi.ea.adult_selection.GenerationalMixing(args.population_size, None, 0.01),
+            vi.ea.parent_selection.Tournament(
+                group_size=args.tournament_group_size,
+                random_selection_probability=args.tournament_randomness),
+            vi.ea.adult_selection.GenerationalMixing(
+                population_size=args.population_size,
+                num_children=None,
+                elitism_ratio=args.elitism_ratio),
             vi.ea.reproduction.Sexual(
                 crossover_rate=args.crossover_rate,
                 crossover_function=BestCostRouteCrossover(problem),
@@ -556,7 +563,7 @@ def main():
             for generation in range(args.evolve + 1):
                 best_individual = max(system.population, key=operator.attrgetter('fitness'))
 
-                if not args.silent:
+                if not args.script:
                     if solution:
                         print('Generation {}: Best={:.2f} ({:.2f}%)'.format(
                             generation,
@@ -574,7 +581,7 @@ def main():
             if best_individual:
                 best_solution = Solution.from_genotype(problem, best_individual.genotype)
 
-                if not args.silent:
+                if not args.script:
                     print()
                     print(best_solution)
 

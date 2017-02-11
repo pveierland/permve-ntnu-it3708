@@ -98,6 +98,8 @@ class Tournament(object):
         else:
             selected_individual = max(group, key=operator.attrgetter('fitness'))
 
+        return selected_individual
+
     def prepare(self, population):
         return None
 
