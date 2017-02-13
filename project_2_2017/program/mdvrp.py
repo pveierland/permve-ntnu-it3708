@@ -36,9 +36,58 @@ class Creator(object):
     def __call__(self):
         return copy.deepcopy(self.depot_sequences)
 
+class BestCostCustomerMutation(object):
+    def __init__(self, problem, random_insertion_probability):
+        self.problem                      = problem
+        self.random_insertion_probability = random_insertion_probability
+
+    def __call__(self, genotype):
+        mutated = copy.deepcopy(genotype)
+
+        random_depot_sequence = mutated[random.randrange(len(self.problem.depots))]
+        if not random_depot_sequence:
+            return genotype
+
+        random_sequence = random.choice(random_depot_sequence)
+        random_customer = random.choice(random_sequence)
+        random_sequence.remove(random_customer)
+
+        insertion_points = []
+
+        for depot_index, depot_sequences in enumerate(mutated):
+            depot = self.problem.depots[depot_index]
+
+            for sequence_index, sequence in enumerate(depot_sequences):
+                sequence_cost = calculate_duration_including_service_time(self.problem, depot, sequence)
+
+                for insertion_position in range(len(sequence) + 1):
+                    modified = sequence[:]
+                    modified.insert(insertion_position, random_customer)
+
+                    cost = calculate_duration_including_service_time(self.problem, depot, modified)
+                    load = calculate_load(self.problem, modified)
+
+                    if within_limits(depot, cost, load):
+                        insertion_cost = cost - sequence_cost
+                        insertion_points.append((insertion_cost, sequence, insertion_position))
+
+        if not insertion_points:
+            return genotype
+
+        if random.random() < self.random_insertion_probability:
+            insertion_point = random.choice(insertion_points)
+        else:
+            insertion_points.sort(key=lambda insertion_point: insertion_point[0])
+            insertion_point = insertion_points[0]
+
+        insertion_point[1].insert(insertion_point[2], random_customer)
+
+        return mutated
+
 class BestCostRouteCrossover(object):
-    def __init__(self, problem):
-        self.problem = problem
+    def __init__(self, problem, random_insertion_probability):
+        self.problem                      = problem
+        self.random_insertion_probability = random_insertion_probability
 
     def __call__(self, parent_1, parent_2):
         def insert_sequence_in_individual(individual, sequence):
@@ -49,12 +98,12 @@ class BestCostRouteCrossover(object):
                     depot = self.problem.depots[depot_index]
 
                     for sequence_index, sequence in enumerate(depot_sequences):
-                        sequence_cost = calculate_duration(self.problem, depot, sequence)
+                        sequence_cost = calculate_duration_including_service_time(self.problem, depot, sequence)
                         for insertion_position in range(len(sequence) + 1):
                             modified = sequence[:]
                             modified.insert(insertion_position, c)
 
-                            cost = calculate_duration(self.problem, depot, modified)
+                            cost = calculate_duration_including_service_time(self.problem, depot, modified)
                             load = calculate_load(self.problem, modified)
 
                             if within_limits(depot, cost, load):
@@ -64,7 +113,7 @@ class BestCostRouteCrossover(object):
                 if not insertion_points:
                     return False
 
-                if random.random() < 0.1:
+                if random.random() < self.random_insertion_probability:
                     insertion_point = random.choice(insertion_points)
                 else:
                     insertion_points.sort(key=lambda insertion_point: insertion_point[0])
@@ -105,47 +154,8 @@ class FitnessFunction(object):
         self.problem = problem
 
     def __call__(self, solution):
-        return 1.0 / sum(calculate_duration(self.problem, self.problem.depots[depot_index], sequence)
+        return 1.0 / sum(calculate_duration_excluding_service_time(self.problem, self.problem.depots[depot_index], sequence)
                          for depot_index, depot_sequences in enumerate(solution) for sequence in depot_sequences)
-
-class MoveCustomerMutation(object):
-    def __init__(self, problem):
-        self.problem = problem
-
-    def __call__(self, genotype):
-        mutated = copy.deepcopy(genotype)
-
-        random_depot_sequence = mutated[random.randrange(len(self.problem.depots))]
-        if not random_depot_sequence:
-            return genotype
-
-        random_sequence = random.choice(random_depot_sequence)
-        random_customer = random.choice(random_sequence)
-        random_sequence.remove(random_customer)
-
-        insertion_points = []
-
-        for depot_index, depot_sequences in enumerate(mutated):
-            depot = self.problem.depots[depot_index]
-
-            for sequence_index, sequence in enumerate(depot_sequences):
-                for insertion_position in range(len(sequence) + 1):
-                    modified = sequence[:]
-                    modified.insert(insertion_position, random_customer)
-
-                    cost = calculate_duration(self.problem, depot, modified)
-                    load = calculate_load(self.problem, modified)
-
-                    if within_limits(depot, cost, load):
-                        insertion_points.append((sequence, insertion_position))
-
-        if not insertion_points:
-            return genotype
-
-        insertion_point = random.choice(insertion_points)
-        insertion_point[0].insert(insertion_point[1], random_customer)
-
-        return mutated
 
 class Problem(object):
     @staticmethod
@@ -202,13 +212,16 @@ class Solution(object):
     def from_genotype(problem, genotype):
         routes = [Route(depot_index + 1,
                         sequence_index + 1,
-                        calculate_duration(problem, problem.depots[depot_index], sequence),
+                        calculate_duration_including_service_time(problem, problem.depots[depot_index], sequence),
                         calculate_load(problem, sequence),
                         sequence)
                   for depot_index, depot_sequences in enumerate(genotype)
                   for sequence_index, sequence in enumerate(depot_sequences)]
 
-        cost = sum(route.duration for route in routes)
+        cost = sum(
+            calculate_duration_excluding_service_time(problem, problem.depots[depot_index], sequence)
+            for depot_index, depot_sequences in enumerate(genotype)
+            for sequence_index, sequence in enumerate(depot_sequences))
 
         return Solution(cost, routes)
 
@@ -287,7 +300,7 @@ def assign_depot_customers_to_sequences(problem, depot_customer_indexes):
 
             if not customer_a_assigned and not customer_b_assigned:
                 sequence = [customer_a_index + 1, customer_b_index + 1]
-                cost     = calculate_duration(problem, depot, sequence)
+                cost     = calculate_duration_including_service_time(problem, depot, sequence)
                 load     = calculate_load(problem, sequence)
 
                 if within_limits(depot, cost, load):
@@ -309,7 +322,7 @@ def assign_depot_customers_to_sequences(problem, depot_customer_indexes):
                 else:
                     modified.append(second_customer_number)
 
-                cost = calculate_duration(problem, depot, modified)
+                cost = calculate_duration_including_service_time(problem, depot, modified)
                 load = calculate_load(problem, modified)
 
                 if within_limits(depot, cost, load):
@@ -331,7 +344,7 @@ def assign_depot_customers_to_sequences(problem, depot_customer_indexes):
 
                 modified.extend(customer_b_sequence if customer_b_sequence[0] == customer_b_number else reversed(customer_b_sequence))
 
-                cost = calculate_duration(problem, depot, modified)
+                cost = calculate_duration_including_service_time(problem, depot, modified)
                 load = calculate_load(problem, modified)
 
                 if within_limits(depot, cost, load):
@@ -354,7 +367,13 @@ def calculate_distance(from_location, to_location):
     return math.sqrt((to_location.x - from_location.x) ** 2 +
                      (to_location.y - from_location.y) ** 2)
 
-def calculate_duration(problem, depot, sequence):
+def calculate_duration_excluding_service_time(problem, depot, sequence):
+    if not sequence: return 0.0
+    return (calculate_distance(depot, problem.customers[sequence[ 0] - 1]) +
+            calculate_distance(depot, problem.customers[sequence[-1] - 1]) +
+            sum(calculate_distance(problem.customers[a - 1], problem.customers[b - 1]) for a, b in zip(sequence, sequence[1:])))
+
+def calculate_duration_including_service_time(problem, depot, sequence):
     if not sequence: return 0.0
     return (calculate_distance(depot, problem.customers[sequence[ 0] - 1]) +
             calculate_distance(depot, problem.customers[sequence[-1] - 1]) +
@@ -425,7 +444,7 @@ def render(output_filename, problem, routes, grouping):
 
     if grouping:
         for depot_index, depot_customer_indexes in enumerate(grouping):
-            color = route_colors[depot_index]
+            color = route_colors[depot_index % len(route_colors)]
 
             for customer_index in depot_customer_indexes:
                 painter.setPen(QPen(color, 0))
@@ -434,15 +453,15 @@ def render(output_filename, problem, routes, grouping):
                 painter.drawEllipse(QPointF(customer.x, customer.y), 0.35, 0.35)
 
         for depot in problem.depots:
-            color = route_colors[depot.number - 1]
+            color = route_colors[(depot.number - 1) % len(route_colors)]
             painter.setPen(QPen(color, 0))
             painter.setBrush(QBrush(color))
             painter.drawEllipse(QPointF(depot.x, depot.y), 0.8, 0.8)
 
     else:
         for route in routes:
-            painter.setPen(QPen(route_colors[route.depot_number - 1], pen_thickness, Qt.SolidLine, Qt.RoundCap))
-            #painter.setPen(QPen(route_colors[route.vehicle_index], pen_thickness, Qt.SolidLine, Qt.RoundCap))
+            #painter.setPen(QPen(route_colors[route.depot_number - 1], pen_thickness, Qt.SolidLine, Qt.RoundCap))
+            painter.setPen(QPen(route_colors[(route.vehicle_number - 1) % len(route_colors)], pen_thickness, Qt.SolidLine, Qt.RoundCap))
             sequence = [0] + route.sequence + [0]
             for a_index, b_index in zip(sequence, sequence[1:]):
                 a = problem.locations[a_index - 1] if a_index else problem.depots[route.depot_number - 1]
@@ -475,7 +494,7 @@ def verify(problem, solution):
             sys.exit(1)
 
     # Check that all customers are visited exactly once:
-    unique_entries = list(set(customer for customer in itertools.chain.from_iterable(route.sequence for route in solution.routes) if customer))
+    unique_entries = list(set(customer for customer in itertools.chain.from_iterable(route.sequence[1:-1] for route in solution.routes) if customer))
     num_customers  = len(problem.customers)
     if not (len(unique_entries) == num_customers and all(entry >= 1 and entry <= num_customers for entry in unique_entries)):
         print('verify failed: every customer is not visited')
@@ -483,8 +502,14 @@ def verify(problem, solution):
 
     # Calculate total range:
     calculated_cost = sum(
-        calculate_duration(problem, problem.depots[route.depot_number - 1], route.sequence[1:-1])
+        calculate_duration_excluding_service_time(problem, problem.depots[route.depot_number - 1], route.sequence[1:-1])
         for route in solution.routes)
+
+    for route in solution.routes:
+        print(route)
+        print(sum(problem.customers[customer_number - 1].duration for customer_number in route.sequence[1:-1]))
+        print(calculate_duration_excluding_service_time(problem, problem.depots[route.depot_number - 1], route.sequence[1:-1]))
+        print(route.duration)
 
     if abs(calculated_cost - solution.cost) > 0.1:
         print('verify failed: total cost does not match. actual={} expected={}'.format(calculated_cost, solution.cost))
@@ -492,21 +517,24 @@ def verify(problem, solution):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--crossover_rate',  type=float, default=0.9)
-    parser.add_argument('--evolve',          type=int)
-    parser.add_argument('--instance',        type=int)
-    parser.add_argument('--mutation_rate',   type=float, default=0.25)
-    parser.add_argument('--population_size', type=int, default=200)
+    parser.add_argument('--crossover_randomness',  type=float, default=0.1)
+    parser.add_argument('--crossover_rate',        type=float, default=0.9)
+    parser.add_argument('--elitism_ratio',         type=float, default=0.01)
+    parser.add_argument('--evolve',                type=int)
+    parser.add_argument('--instance',              type=int)
+    parser.add_argument('--mutation_randomness',   type=float, default=0.1)
+    parser.add_argument('--mutation_rate',         type=float, default=0.25)
+    parser.add_argument('--population_size',       type=int,   default=200)
     parser.add_argument('--problem')
-    parser.add_argument('--render',          action='store_true')
-    parser.add_argument('--render_filename', type=str,   default='mdvrp.pdf')
-    parser.add_argument('--render_grouping',                       action='store_true')
+    parser.add_argument('--render',                action='store_true')
+    parser.add_argument('--render_filename',       type=str,   default='mdvrp.pdf')
+    parser.add_argument('--render_grouping',       action='store_true')
+    parser.add_argument('--render_routing',        action='store_true')
+    parser.add_argument('--script',                action='store_true')
     parser.add_argument('--solution')
-    parser.add_argument('--verify',          action='store_true')
-    parser.add_argument('--script', action='store_true')
-    parser.add_argument('--tournament_group_size', type=int, default=5)
+    parser.add_argument('--tournament_group_size', type=int,   default=5)
     parser.add_argument('--tournament_randomness', type=float, default=0.1)
-    parser.add_argument('--elitism_ratio', type=float, default=0.01)
+    parser.add_argument('--verify',                action='store_true')
     args = parser.parse_args()
 
     if args.instance:
@@ -527,18 +555,17 @@ def main():
         if args.solution:
             solution = Solution.from_file(args.solution)
 
-    if args.render_grouping:
+    if args.render_grouping or args.render_routing:
         depot_customers_indexes = assign_customers_to_depots(problem)
         depot_sequences         = assign_depot_customers_to_sequences(problem, depot_customers_indexes)
         solution                = Solution.from_genotype(problem, depot_sequences)
 
-        print(solution)
+        print(solution.cost)
 
-        #verify(problem, solution)
-
-        render(args.render_filename, problem, solution.routes, None)
-        #render(args.render_filename, problem, None, depot_customers_indexes)
-
+        if args.render_grouping:
+            render(args.render_filename, problem, None, depot_customers_indexes)
+        elif args.render_routing:
+            render(args.render_filename, problem, solution.routes, None)
     if args.evolve:
         system = vi.ea.system.System(
             Creator(problem),
@@ -551,9 +578,9 @@ def main():
                 elitism_ratio=args.elitism_ratio),
             vi.ea.reproduction.Sexual(
                 crossover_rate=args.crossover_rate,
-                crossover_function=BestCostRouteCrossover(problem),
+                crossover_function=BestCostRouteCrossover(problem, args.crossover_randomness),
                 mutation_rate=args.mutation_rate,
-                mutation_function=MoveCustomerMutation(problem)),
+                mutation_function=BestCostCustomerMutation(problem, args.mutation_randomness)),
             FitnessFunction(problem),
             args.population_size)
 
