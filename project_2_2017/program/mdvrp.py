@@ -154,8 +154,11 @@ class FitnessFunction(object):
         self.problem = problem
 
     def __call__(self, solution):
-        return 1.0 / sum(calculate_duration_excluding_service_time(self.problem, self.problem.depots[depot_index], sequence)
-                         for depot_index, depot_sequences in enumerate(solution) for sequence in depot_sequences)
+        num_vehicles_past_limit = sum(
+            max(len(depot_routes) - self.problem.max_vehicles, 0) for depot_index, depot_routes in enumerate(solution))
+        cost = sum(calculate_duration_excluding_service_time(self.problem, self.problem.depots[depot_index], sequence)
+                   for depot_index, depot_sequences in enumerate(solution) for sequence in depot_sequences)
+        return 1.0 / (cost * math.pow(1.5, num_vehicles_past_limit))
 
 class Problem(object):
     @staticmethod
@@ -214,7 +217,7 @@ class Solution(object):
                         sequence_index + 1,
                         calculate_duration_including_service_time(problem, problem.depots[depot_index], sequence),
                         calculate_load(problem, sequence),
-                        sequence)
+                        [0] + sequence + [0])
                   for depot_index, depot_sequences in enumerate(genotype)
                   for sequence_index, sequence in enumerate(depot_sequences)]
 
@@ -247,7 +250,7 @@ class Solution(object):
                             route.vehicle_number,
                             route.duration,
                             route.load,
-                            ' '.join(map(str, [0] + route.sequence + [0])))
+                            ' '.join(map(str, route.sequence)))
                 for route in sorted(self.routes, key=lambda route: (route.depot_number, route.vehicle_number))))
 
 def assign_customers_to_depots(problem):
@@ -505,11 +508,11 @@ def verify(problem, solution):
         calculate_duration_excluding_service_time(problem, problem.depots[route.depot_number - 1], route.sequence[1:-1])
         for route in solution.routes)
 
-    for route in solution.routes:
-        print(route)
-        print(sum(problem.customers[customer_number - 1].duration for customer_number in route.sequence[1:-1]))
-        print(calculate_duration_excluding_service_time(problem, problem.depots[route.depot_number - 1], route.sequence[1:-1]))
-        print(route.duration)
+    # for route in solution.routes:
+    #     print(route)
+    #     print(sum(problem.customers[customer_number - 1].duration for customer_number in route.sequence[1:-1]))
+    #     print(calculate_duration_excluding_service_time(problem, problem.depots[route.depot_number - 1], route.sequence[1:-1]))
+    #     print(route.duration)
 
     if abs(calculated_cost - solution.cost) > 0.1:
         print('verify failed: total cost does not match. actual={} expected={}'.format(calculated_cost, solution.cost))
@@ -518,12 +521,12 @@ def verify(problem, solution):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--crossover_randomness',  type=float, default=0.1)
-    parser.add_argument('--crossover_rate',        type=float, default=0.9)
+    parser.add_argument('--crossover_rate',        type=float, default=0.6)
     parser.add_argument('--elitism_ratio',         type=float, default=0.01)
     parser.add_argument('--evolve',                type=int)
     parser.add_argument('--instance',              type=int)
     parser.add_argument('--mutation_randomness',   type=float, default=0.1)
-    parser.add_argument('--mutation_rate',         type=float, default=0.25)
+    parser.add_argument('--mutation_rate',         type=float, default=0.35)
     parser.add_argument('--population_size',       type=int,   default=200)
     parser.add_argument('--problem')
     parser.add_argument('--render',                action='store_true')
@@ -532,7 +535,7 @@ def main():
     parser.add_argument('--render_routing',        action='store_true')
     parser.add_argument('--script',                action='store_true')
     parser.add_argument('--solution')
-    parser.add_argument('--tournament_group_size', type=int,   default=5)
+    parser.add_argument('--tournament_group_size', type=int,   default=10)
     parser.add_argument('--tournament_randomness', type=float, default=0.1)
     parser.add_argument('--verify',                action='store_true')
     args = parser.parse_args()
@@ -559,8 +562,6 @@ def main():
         depot_customers_indexes = assign_customers_to_depots(problem)
         depot_sequences         = assign_depot_customers_to_sequences(problem, depot_customers_indexes)
         solution                = Solution.from_genotype(problem, depot_sequences)
-
-        print(solution.cost)
 
         if args.render_grouping:
             render(args.render_filename, problem, None, depot_customers_indexes)
@@ -608,8 +609,9 @@ def main():
             if best_individual:
                 best_solution = Solution.from_genotype(problem, best_individual.genotype)
 
-                if not args.script:
-                    print()
+                if args.script:
+                    print(best_solution.cost)
+                else:
                     print(best_solution)
 
                 if args.instance and (not current_best_solution or best_solution.cost < current_best_solution.cost):
@@ -621,8 +623,7 @@ def main():
 
                 if args.verify:
                     verify(problem, best_solution)
-
-                print(best_solution.cost)
+                
     else:
         if args.render:
             if problem and solution:
