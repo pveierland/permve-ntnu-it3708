@@ -1,5 +1,5 @@
-\documentclass[paper=a4, fontsize=10pt]{scrartcl}
-\usepackage[bottom=0.65in, left=0.5in, right=0.5in, top=0.65in, foot=0.4in]{geometry}
+\documentclass[paper=a4, fontsize=9pt]{scrartcl}
+\usepackage[bottom=0.7in, left=0.5in, right=0.5in, top=0.75in, foot=0.35in]{geometry}
 \usepackage{layouts}
 
 \usepackage[usenames,dvipsnames,x11names]{xcolor}
@@ -21,21 +21,23 @@
 \usepackage[htt]{hyphenat}
 \usepackage{lastpage}
 \usepackage{listings}
-\usepackage{longtable}
-\usepackage{minted}
 \usepackage{multicol}
-
 \usepackage{titlesec}
-
 \usepackage[inline]{enumitem}
-
-\usepackage{multirow}
-
-\usepackage{tabularx}
-\usepackage{ragged2e}
-\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
-
 \usepackage{algorithm, algpseudocode}
+
+\usepackage{minted}
+
+\setminted[text]{
+    numbersep=5pt,
+    fontsize=\footnotesize,
+    frame=lines,
+    framesep=2mm,
+    xleftmargin=3mm,
+    xrightmargin=3mm
+}
+
+\input{minted-code-environment}
 
 \pagestyle{fancyplain}
 \fancyhead{}
@@ -47,50 +49,12 @@
 
 \newcommand{\horrule}[1]{\rule{\linewidth}{#1}}
 
-\usepackage{tikz}
-\usetikzlibrary{plotmarks}
-\usepackage{pgfplots, pgfplotstable}
-\pgfplotsset{compat=1.5}
-\usepgfplotslibrary{colorbrewer}
-\usepgfplotslibrary{fillbetween}
-\usepgfplotslibrary{groupplots}
-
-\titlespacing*{\section}
-{0pt}{1.25ex plus .25ex minus .25ex}{1.25ex plus .25ex minus .25ex}
-
-% http://tex.stackexchange.com/questions/67895/is-there-an-easy-way-of-using-line-thickness-as-error-indicator-in-a-plot
-
-% Takes six arguments: data table name, x column, y column, error column,
-% color and error bar opacity.
-% ---
-% Creates invisible plots for the upper and lower boundaries of the error,
-% and names them. Then uses fill between to fill between the named upper and
-% lower error boundaries. All these plots are forgotten so that they are not
-% included in the legend. Finally, plots the y column above the error band.
-\newcommand{\errorband}[6]{
-\pgfplotstableread{#1}\datatable
-  \addplot [name path=pluserror,draw=none,no markers,forget plot]
-    table [x={#2},y expr=\thisrow{#3}+\thisrow{#4}] {\datatable};
-
-  \addplot [name path=minuserror,draw=none,no markers,forget plot]
-    table [x={#2},y expr=\thisrow{#3}-\thisrow{#4}] {\datatable};
-
-  \addplot [forget plot,fill=#5,opacity=#6]
-    fill between[on layer={},of=pluserror and minuserror];
-
-  \addplot [#5,thick,no markers]
-    table [x={#2},y={#3}] {\datatable};
-}
-
-\newacro{GA}{Genetic Algorithm}
-\newacro{MDVRP}{Multi-Depot Vehicle Routing Problem}
-
 \title{
 \vspace{-1cm}
 \normalfont \normalsize
 \textsc{Norwegian University of Science and Technology\\IT3708 -- Bio-Inspired Artificial Intelligence}
 \horrule{0.5pt} \\[0cm]
-\Huge Project 2:\\ Solving the Multi-Depot Vehicle-Routing Problem\\using Genetic Algorithms\\[-0.3cm]
+\Huge Project 2: Solving the Multi-Depot \\Vehicle-Routing Problem using Genetic Algorithms\\[-0.3cm]
 \horrule{2pt} \\[0.1cm]
 }
 
@@ -106,7 +70,7 @@
 
 \section*{Chromosome representation}
 
-The chromosome is represented as a list of fixed length equal to the total number of depots ($t$). Each entry in the list consists of a list of variable length, with each entry representing a route assigned to the associated depot. Each of the routes is a variable length list consisting of the integer indexes of the customers visited on the route, depots not included. Flattening out this nested list structure will always yield a list with a length equal to the total number of customers $n$.
+The chromosome is represented as a list of fixed length equal to the total number of depots $t$. Each entry in the list consists of a list of variable length of at least the number of maximum vehicles $m$, with each entry representing a route assigned to the associated depot. Each of the routes is a variable length list consisting of the integer indexes of the customers visited on the route, depots not included. These route lists can be empty. Flattening out this nested list structure will always yield a list with a length equal to the total number of customers $n$.
 
 \section*{Creation}
 
@@ -130,6 +94,15 @@ After grouping all customers to a depot, the \textit{Clarke and Wright Savings} 
 
 After computing a list of the savings for combining each pair of customers within a depot, this list is sorted in descending order such that the list begins with the greatest saving. For each entry in the savings list, the following evaluation is made:
 
+\begin{enumerate}[label=\alph*)]
+    \item If $c_i$ and $c_j$ have neither been assigned a route and they can be added to a route within the duration and load constraints of their depot, a new route consisting of $c_i$ and $c_j$ is created.
+    \item If exactly one of $c_i$ and $c_j$ has been assigned to a route, and it is adjacent to a depot within the route, the other customer is added into the route between the customer and the depot, if this modification does not violate the given duration and load constraints for their depot.
+    \item If both $c_i$ and $c_j$ have been added to two different routes and are both adjacent to the depot in their routes, the two routes are merged into a single route with $c_i$ and $c_j$ in the middle, if the resulting route does not violate the duration and load constraints for their depot.
+\end{enumerate}
+
+Any remaining customers are assigned individual routes. The sequencing of the resulting routes are such that they work well as an input to the genetic algorithm, and no separate sequencing algorithm was found necessary.
+
+% http://web.mit.edu/course/other/urban_or_book/OldFiles/www/book/chapter6/6.4.12.html
 {
 \begin{minipage}{\linewidth-4mm}
 \begin{algorithm}[H]
@@ -137,7 +110,7 @@ After computing a list of the savings for combining each pair of customers withi
 \begin{algorithmic}[1]
 \Function{Best-Cost-Route-Crossover}{$p_1, p_2$}
     \State let $c_1 \gets \textsc{Copy}(p_1), c_2 \gets \textsc{Copy}(p_2)$
-    \State let $\textit{depot\_index} \gets \textsc{RandomChoice}(V_d)$
+    \State let $\textit{depot\_index} \gets \textsc{RandomChoice}(\vert \textit{Depots} \vert)$
     \State let $r_1 \gets \textsc{RandomChoice}(c_1[\textit{depot\_index}])$
     \State let $r_2 \gets \textsc{RandomChoice}(c_2[\textit{depot\_index}])$
     \For{$c$ \textbf{in} $r_1$}
@@ -152,8 +125,8 @@ After computing a list of the savings for combining each pair of customers withi
                 \For{$\textit{insert\_position}~\textbf{in}~\textsc{Range}(\textsc{Len}(\textit{route}) + 1)$}
                     \State let $\textit{modified} \gets \textsc{Copy}(\textit{route})$
                     \State \textbf{insert} $c$ at position \textit{insert\_position} into \textit{modified}
-                    \State let $\textit{modified\_cost} \gets \textsc{RouteCost}(\textit{modified})$
                     \If{\textsc{WithinLimits}(\textit{modified})}
+                        \State let $\textit{modified\_cost} \gets \textsc{RouteCost}(\textit{modified})$
                         \State let $\textit{insertion\_cost} \gets \textit{modified\_cost} - \textit{route\_cost}$
                         \State \textbf{append} $(\textit{insertion\_cost}, \textit{route}, \textit{insert\_position})$
                     \EndIf
@@ -174,14 +147,6 @@ After computing a list of the savings for combining each pair of customers withi
 \end{minipage}
 }
 
-\begin{enumerate}[label=\alph*)]
-    \item If $c_i$ and $c_j$ have neither been assigned a route and they can be added to a route within the duration and load constraints of their depot, a new route consisting of $c_i$ and $c_j$ is created.
-    \item If exactly one of $c_i$ and $c_j$ has been assigned to a route, and it is adjacent to a depot within the route, the other customer is added into the route between the customer and the depot, if this modification does not violate the given duration and load constraints for their depot.
-    \item If both $c_i$ and $c_j$ have been added to two different routes and are both adjacent to the depot in their routes, the two routes are merged into a single route with $c_i$ and $c_j$ in the middle, if the resulting route does not violate the duration and load constraints for their depot.
-\end{enumerate}
-
-Any remaining customers are assigned individual routes. The sequencing of the resulting routes are such that they work well as an input to the genetic algorithm, and no separate sequencing algorithm was found necessary.
-
 \section*{Crossover operator}
 
 \textit{Best-Cost-Route-Crossover} as developed in \cite{ombuki2006multi} was selected as the genetic operator for crossover to combine the chromosomes of individuals for inheritance, see Algorithm~\ref{alg:bcrc}. When applying it, a random route is selected from the same depot for both parents. The customers belonging to each of the selected routes are removed from the other parent. Further, the removed customers of each parent are reassigned to the feasible location with the lowest insertion cost. Insertion cost is given by the cost of a route after inserting a customer, minus the cost of a route before inserting a customer.
@@ -198,18 +163,26 @@ The chosen parent selection mechanism is tournament selection, where to select a
 
 \section*{Parameters}
 
-Using a grid search, the best parameters was found to be a population size of 42, a tournament group size of 42, a tournament randomness factor $\epsilon$ of 0.1, a crossover rate of 0.42, and a mutation rate of 0.42.
+Using a grid search, the best parameters was found to be a population size of 200, a generation number of 100, a crossover rate of 0.6, a mutation rate of 0.35, a tournament group size of 10, and a tournament randomness factor $\epsilon$ of 0.1, 
 
 \section*{Feasibility}
 
-All individuals created are constructed as feasible solutions. The \textit{Best-Cost-Route-Crossover} genetic operator only produces feasible offspring as only route insertions are made which respect the duration and load constraints provided. The \textit{Best-Cost-Customer-Mutation} genetic operator only produces valid modifications, as any route insertion made must respect the duration and load constraints provided as well. In any case where the crossover or mutation operator fails to insert a customer to create a feasible route, the operators will return their input chromosomes.
+The creation process may produce infeasible solutions, as they may exceed the maximum number of allowed vehicles. The \textit{Best-Cost-Route-Crossover} genetic operator only produces feasible offspring as only route insertions are made which respect the duration and load constraints provided and it cannot create routes. The \textit{Best-Cost-Customer-Mutation} genetic operator only produces valid modifications, as any route insertion made must respect the duration and load constraints provided and it cannot create routes. In any case where the crossover or mutation operator fails to insert a customer to create a feasible route, the operators will return their input chromosomes.
+
+Infeasible solutions are handled by penalizing them heavily in the fitness function. Thus they are allowed to exist in the population and contribute to diversity, without being selected as the best solution.
 
 \section*{Fitness function}
 
 The primary objective of the assignment is to minimize the total distance travelled by all vehicles. To reflect this, the fitness of an individual $i$ is given by the sum of the distances of its routes $r \in \textit{routes}_i$. To simplify the notation it is assumed that both depot endpoints are contained in $r$, although this is not how the chromosome encodes it.
 
+Infeasible solutions are penalized by a factor of $p^{E_i}$, where $p$ is a constant set to 1.5 and $E_i$ is the number of vehicles used in the solution $i$ exceeding the maximum number allowed for each depot.
+
 \begin{equation}
-\textsc{Fitness}(i) = \sum_{r \in \textit{routes}_i}~\sum_{j=1}^{\vert{} r \vert{} - 1} \textsc{Distance}(r_j, r_{j+1})
+E_i = \sum_{d \in \textit{depots}_i} \max \big(0, \vert \textit{routes}_{di} \vert - \textit{MaxVehicles} \big)
+\end{equation}
+
+\begin{equation}
+\textsc{Fitness}(i) = p^{E_i} \cdot \sum_{r \in \textit{routes}_i}~\sum_{j=1}^{\vert{} r \vert{} - 1} \textsc{Distance}(r_j, r_{j+1})
 \label{eq:fitness}
 \end{equation}
 
@@ -221,38 +194,40 @@ A low degree (0.01\%) of elitism is employed to ensure that the best solutions a
 
 In addition to preserving the top solutions, elitism helps pressure the evolution process by sustaining the portion of top solutions within the population.
 
+\section*{Solution}
+
 {
 \vspace{0.3cm}
 \centering
-\includegraphics[scale=0.01]{figures/solution.pdf}
-\captionof{figure}{Flatland visualization of baseline agent}
+\includegraphics[scale=0.1]{figures/solution.pdf}
+\captionof{figure}{Visualization of problem \texttt{p04}.}
 \label{figure:flatland_baseline}
 \vspace{0.3cm}
 }
 
 {
-\footnotesize
-\begin{minted}[mathescape,
-               numbersep=5pt,
-               frame=lines,
-               framesep=2mm,
-               xleftmargin=3mm,
-               xrightmargin=3mm]{text}
-600.68
-1   1   60.06   71   0 17 37 15 33 45 44 0
-1   2   26.96   50   0 18 4 0
-1   3   66.55   79   0 42 19 40 41 13 0
-2   1   96.01   80   0 23 24 43 7 26 48 0
-2   2   58.23   76   0 11 32 1 8 27 0
-2   3   51.19   64   0 6 14 25 0
-2   4   24.74   59   0 46 12 47 0
-3   1   53.43   74   0 10 39 30 34 50 0
-3   2   38.97   80   0 49 5 38 16 9 0
-4   1   79.44   72   0 22 31 28 3 36 35 0
-4   2   45.10   72   0 21 29 2 20 0
-\end{minted}
-\vspace*{-3mm}
-\captionof{figure}{Solution to problem \texttt{p01}.}
+\centering
+\begin{code}
+1076.56
+1   1    58.97    99   0 85 16 61 5 0
+1   2    98.17    99   0 60 84 17 86 38 44 91 100 0
+1   3    88.00    96   0 54 55 25 67 39 56 74 0
+1   4    43.19    90   0 37 98 93 99 96 59 92 0
+1   5    66.62   100   0 21 4 23 75 22 41 0
+1   6    33.52    85   0 13 6 94 95 97 0
+1   7    41.94    75   0 58 53 40 72 73 0
+1   8    57.73    80   0 87 42 14 43 15 57 2 0
+2   1    62.43    96   0 19 47 48 82 0
+2   2    98.84    96   0 33 78 34 35 71 65 66 0
+2   3    80.85    97   0 63 90 32 20 9 81 51 0
+2   4   121.10    98   0 7 83 45 8 46 36 49 64 11 0
+2   5    46.35    52   0 52 18 89 27 0
+2   6    75.47   100   0 68 80 24 29 79 3 1 0
+2   7    43.45    97   0 31 88 62 10 30 70 0
+2   8    59.93    98   0 69 28 26 12 77 76 50 0
+\end{code}
+\vspace*{-2mm}
+\captionof{figure}{Solution to problem \texttt{p04} (106.8\% of best known cost).}
 \label{fig:code_delta_reinforcement}
 }
 

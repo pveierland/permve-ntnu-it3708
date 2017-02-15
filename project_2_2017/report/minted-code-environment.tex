@@ -1,0 +1,15 @@
+\makeatletter
+\newenvironment{code}
+ {\RecustomVerbatimEnvironment{Verbatim}{BVerbatim}{}%
+  % \def\FV@BProcessLine##1{%
+  %   \hbox{%
+  %     \hbox to\z@{\hss\theFancyVerbLine\kern\FV@NumberSep}%
+  %     \FancyVerbFormatLine{##1}%
+  %   }%
+  % }%
+  \VerbatimEnvironment
+  \setbox\z@=\hbox\bgroup
+  \begin{minted}{text}}
+ {\end{minted}\egroup
+  \leavevmode\vbox{\hrule\kern2mm\box\z@\kern2mm\hrule}}
+\makeatother
