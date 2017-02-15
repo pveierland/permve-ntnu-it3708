@@ -10,7 +10,7 @@ import os
 import random
 import sys
 
-from collections import namedtuple, defaultdict
+from collections import namedtuple
 
 import vi.ea.adult_selection
 import vi.ea.fixed_int_vector
@@ -44,11 +44,15 @@ class BestCostCustomerMutation(object):
     def __call__(self, genotype):
         mutated = copy.deepcopy(genotype)
 
-        random_depot_sequence = mutated[random.randrange(len(self.problem.depots))]
+        random_depot_sequence = random.choice(mutated)
         if not random_depot_sequence:
             return genotype
 
         random_sequence = random.choice(random_depot_sequence)
+
+        if not random_sequence:
+            return genotype
+
         random_customer = random.choice(random_sequence)
         random_sequence.remove(random_customer)
 
@@ -81,6 +85,11 @@ class BestCostCustomerMutation(object):
             insertion_point = insertion_points[0]
 
         insertion_point[1].insert(insertion_point[2], random_customer)
+
+        # Reduce size of mutated depot entries if there are empty entries past the maximum allowed
+        for depot_sequences in mutated:
+            while len(depot_sequences) > self.problem.max_vehicles and [] in depot_sequences:
+                depot_sequences.remove([])
 
         return mutated
 
@@ -137,12 +146,28 @@ class BestCostRouteCrossover(object):
             child_2 = copy.deepcopy(parent_2)
 
             # Remove all customers c belonging to sequence_2 from child_1
-            child_1 = [list(filter(None, [[c for c in sequence if c not in sequence_2] for sequence in depot_sequences]))
-                       for depot_sequences in child_1]
-            
+            for c in sequence_2:
+                for depot_sequences in child_1:
+                    for sequence in depot_sequences:
+                        if c in sequence:
+                            sequence.remove(c)
+
             # Remove all customers c belonging to sequence_1 from child_2
-            child_2 = [list(filter(None, [[c for c in sequence if c not in sequence_1] for sequence in depot_sequences]))
-                       for depot_sequences in child_2]
+            for c in sequence_1:
+                for depot_sequences in child_2:
+                    for sequence in depot_sequences:
+                        if c in sequence:
+                            sequence.remove(c)
+
+            # Reduce size of child_1 depot entries if there are empty entries past the maximum allowed
+            for depot_sequences in child_1:
+                while len(depot_sequences) > self.problem.max_vehicles and [] in depot_sequences:
+                    depot_sequences.remove([])
+
+            # Reduce size of child_2 depot entries if there are empty entries past the maximum allowed
+            for depot_sequences in child_2:
+                while len(depot_sequences) > self.problem.max_vehicles and [] in depot_sequences:
+                    depot_sequences.remove([])
 
             if insert_sequence_in_individual(child_2, sequence_1) and insert_sequence_in_individual(child_1, sequence_2):
                 return child_1, child_2
@@ -219,7 +244,8 @@ class Solution(object):
                         calculate_load(problem, sequence),
                         [0] + sequence + [0])
                   for depot_index, depot_sequences in enumerate(genotype)
-                  for sequence_index, sequence in enumerate(depot_sequences)]
+                  for sequence_index, sequence in enumerate(depot_sequences)
+                  if sequence]
 
         cost = sum(
             calculate_duration_excluding_service_time(problem, problem.depots[depot_index], sequence)
@@ -364,6 +390,9 @@ def assign_depot_customers_to_sequences(problem, depot_customer_indexes):
             customer_number = customer_index + 1
             depot_sequences[depot_index].append([customer_number])
 
+    for depot_sequence in depot_sequences:
+        depot_sequence.extend([] for _ in range(max(0, problem.max_vehicles) - len(depot_sequence)))
+
     return depot_sequences
 
 def calculate_distance(from_location, to_location):
@@ -503,30 +532,37 @@ def verify(problem, solution):
         print('verify failed: every customer is not visited')
         sys.exit(1)
 
-    # Calculate total range:
+    # Verify solution cost:
     calculated_cost = sum(
         calculate_duration_excluding_service_time(problem, problem.depots[route.depot_number - 1], route.sequence[1:-1])
         for route in solution.routes)
-
-    # for route in solution.routes:
-    #     print(route)
-    #     print(sum(problem.customers[customer_number - 1].duration for customer_number in route.sequence[1:-1]))
-    #     print(calculate_duration_excluding_service_time(problem, problem.depots[route.depot_number - 1], route.sequence[1:-1]))
-    #     print(route.duration)
 
     if abs(calculated_cost - solution.cost) > 0.1:
         print('verify failed: total cost does not match. actual={} expected={}'.format(calculated_cost, solution.cost))
         sys.exit(1)
 
+    for route in solution.routes:
+        # Verify route duration
+        calculated_duration = calculate_duration_including_service_time(problem, problem.depots[route.depot_number - 1], route.sequence[1:-1])
+        if abs(calculated_duration - route.duration) > 0.1:
+            print('verify failed: route duration mismatch. actual={} expected={}'.format(calculated_duration, route.duration))
+            sys.exit(1)
+
+        # Verify route load
+        calculated_load = sum(problem.customers[customer_number - 1].demand for customer_number in route.sequence[1:-1])
+        if abs(calculated_load - route.load) > 0.1:
+            print('verify failed: route load mismatch. actual={} expected={}'.format(calculated_load, route.load))
+            sys.exit(1)
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--crossover_randomness',  type=float, default=0.1)
-    parser.add_argument('--crossover_rate',        type=float, default=0.6)
+    parser.add_argument('--crossover_rate',        type=float, default=0.5)
     parser.add_argument('--elitism_ratio',         type=float, default=0.01)
     parser.add_argument('--evolve',                type=int)
-    parser.add_argument('--instance',              type=int)
+    parser.add_argument('--instance')
     parser.add_argument('--mutation_randomness',   type=float, default=0.1)
-    parser.add_argument('--mutation_rate',         type=float, default=0.35)
+    parser.add_argument('--mutation_rate',         type=float, default=0.6)
     parser.add_argument('--population_size',       type=int,   default=200)
     parser.add_argument('--problem')
     parser.add_argument('--render',                action='store_true')
@@ -535,20 +571,21 @@ def main():
     parser.add_argument('--render_routing',        action='store_true')
     parser.add_argument('--script',                action='store_true')
     parser.add_argument('--solution')
-    parser.add_argument('--tournament_group_size', type=int,   default=10)
+    parser.add_argument('--tournament_group_size', type=int,   default=25)
     parser.add_argument('--tournament_randomness', type=float, default=0.1)
     parser.add_argument('--verify',                action='store_true')
     args = parser.parse_args()
 
     if args.instance:
+        instance = 'p{:02d}'.format(args.instance) if args.instance.isdigit() else args.instance
         program_path = os.path.dirname(os.path.realpath(__file__))
         problem = Problem.from_file(os.path.join(program_path,
-            '../assignment/data/instances/p{:02d}'.format(args.instance)))
+            '../assignment/data/instances/{}'.format(instance)))
         solution = Solution.from_file(os.path.join(program_path,
-            '../assignment/data/solutions/p{:02d}.res'.format(args.instance)))
+            '../assignment/data/solutions/{}.res'.format(instance)))
 
         current_best_solution_path = os.path.join(program_path,
-            '../data/top/p{:02d}.res'.format(args.instance))
+            '../data/top/{}.res'.format(instance))
         current_best_solution = (Solution.from_file(current_best_solution_path)
                                  if os.path.isfile(current_best_solution_path) else None)
     else:
@@ -612,6 +649,7 @@ def main():
                 if args.script:
                     print(best_solution.cost)
                 else:
+                    print()
                     print(best_solution)
 
                 if args.instance and (not current_best_solution or best_solution.cost < current_best_solution.cost):
