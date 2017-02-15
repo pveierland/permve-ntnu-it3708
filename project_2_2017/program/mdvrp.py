@@ -577,7 +577,7 @@ def main():
     args = parser.parse_args()
 
     if args.instance:
-        instance = 'p{:02d}'.format(args.instance) if args.instance.isdigit() else args.instance
+        instance = 'p{:02d}'.format(int(args.instance)) if args.instance.isdigit() else args.instance
         program_path = os.path.dirname(os.path.realpath(__file__))
         problem = Problem.from_file(os.path.join(program_path,
             '../assignment/data/instances/{}'.format(instance)))
