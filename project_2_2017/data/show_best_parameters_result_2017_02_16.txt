@@ -1,0 +1,396 @@
+instance: p01
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.2 605.5712983411573 4.975349444616171
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.5 606.4177948569699 5.122089007396781
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.5 606.7884801773304 5.186347041331729
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.5 606.8672327697525 5.199998746641796
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.2 607.0668242938767 5.234597793935677
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.5 607.0766257274424 5.236296865401641
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.5 607.2593757265261 5.2679764464309216
+evolve-10-population-200-tournament-group-5-crossover-1.0-mutation-0.5 607.4686989408492 5.304262475228256
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.1 607.4983723872053 5.309406345832741
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.0 607.7339338187733 5.3502407507364325
+
+instance: p02
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.5 480.77970658376114 1.530992035089895
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.5 481.19887531870313 1.6195120306428663
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.1 481.68336995680477 1.721827541402817
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.2 481.724038674588 1.7304159556074552
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.5 482.25836932901086 1.8432558294112198
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.1 482.3563439843992 1.8639461036046754
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.2 482.38088154014207 1.8691279412375366
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.1 482.8872186890395 1.976056150410642
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.2 483.03051771164195 2.0063180182125677
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.5 483.1011325823594 2.0212304568579498
+
+instance: p03
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.5 669.3166465418113 4.386632128044937
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.2 669.5387164713449 4.421266156887157
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.5 671.0148776306598 4.651488268790814
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.5 671.5699354303907 4.738055089815916
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.2 671.6242279144899 4.74652254627955
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.5 672.2898510656047 4.850333140817028
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.2 672.5821273301356 4.895916550497589
+evolve-10-population-200-tournament-group-5-crossover-0.6-mutation-0.5 672.8613354247811 4.939461848247959
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.1 673.1398003629506 4.982891243305502
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.1 673.9996947482107 5.117000381822962
+
+instance: p04
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.5 1076.3292371745613 7.4620590435768435
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.5 1077.83023787698 7.611920833572611
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.0 1078.1261860644904 7.641468671261734
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.1 1078.4751303076873 7.676307701523314
+evolve-10-population-200-tournament-group-5-crossover-0.6-mutation-0.2 1079.0034185273726 7.729052659009426
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.2 1079.4153753511346 7.770182944232118
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.5 1079.434760798776 7.772118411603159
+evolve-10-population-200-tournament-group-5-crossover-0.6-mutation-0.1 1079.4457118228443 7.773211775561279
+evolve-10-population-200-tournament-group-5-crossover-1.0-mutation-0.1 1079.74100128444 7.802693845230081
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.2 1080.04843374988 7.833388287610688
+
+instance: p05
+evolve-10-population-200-tournament-group-5-crossover-1.0-mutation-0.2 820.673944915449 9.418815902757103
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.5 821.2538128684287 9.49612853731567
+evolve-10-population-200-tournament-group-5-crossover-0.8-mutation-0.5 822.1976224584964 9.621964782541568
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.2 822.2624817894397 9.630612347431395
+evolve-10-population-200-tournament-group-2-crossover-1.0-mutation-0.2 822.6587888491956 9.683451175179073
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.5 823.4324464836158 9.786601400426093
+evolve-10-population-200-tournament-group-5-crossover-1.0-mutation-0.1 823.5449065647772 9.801595478151171
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.1 824.7609214404107 9.963724309749054
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.5 825.5474956725496 10.06859667913946
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.0 825.9059271874073 10.11638563622887
+
+instance: p06
+evolve-10-population-200-tournament-group-5-crossover-1.0-mutation-0.5 942.1592659699447 7.491074269246397
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.5 944.6465002056884 7.774843149536608
+evolve-10-population-200-tournament-group-5-crossover-0.8-mutation-0.2 944.8379106935647 7.79668119721218
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.1 945.1577029756583 7.8331663406341505
+evolve-10-population-200-tournament-group-5-crossover-0.6-mutation-0.5 945.2996743711441 7.8493638757722834
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.5 945.3807783448923 7.8586170387783625
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.1 945.6577150904922 7.89021278841895
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.2 946.0029829315604 7.929604441706829
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.0 946.0045969236085 7.929788582271357
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.2 946.1018247799409 7.940881321156979
+
+instance: p07
+evolve-10-population-200-tournament-group-5-crossover-0.8-mutation-0.1 933.8450815937274 5.423919800601425
+evolve-10-population-200-tournament-group-5-crossover-1.0-mutation-0.2 934.3878518152467 5.485194379684657
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.1 934.7677728779718 5.52808454255721
+evolve-10-population-200-tournament-group-5-crossover-1.0-mutation-0.5 935.4591028356842 5.606130372057379
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.5 937.054372508449 5.786224035724658
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.5 937.4800111993387 5.834275366825338
+evolve-10-population-200-tournament-group-5-crossover-0.8-mutation-0.0 937.8583047993427 5.876981801686924
+evolve-10-population-200-tournament-group-2-crossover-0.8-mutation-0.5 937.9899996927611 5.891849141201291
+evolve-10-population-200-tournament-group-5-crossover-1.0-mutation-0.1 938.177853917962 5.9130564368889225
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.2 938.2146415398844 5.917209476166676
+
+instance: p08
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.5 4615.801807436556 4.013849746636893
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.5 4621.000443611757 4.130997359245299
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.2 4621.758243885535 4.148073855833104
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.5 4622.035369837371 4.154318694393709
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.2 4623.523034950165 4.187842182179992
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.5 4623.924982846692 4.196899795539366
+evolve-10-population-200-tournament-group-5-crossover-0.6-mutation-0.5 4625.433668222148 4.2308969601717195
+evolve-10-population-200-tournament-group-5-crossover-0.8-mutation-0.5 4626.374730932908 4.252103146980133
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.1 4627.12168781715 4.26893529540547
+evolve-10-population-200-tournament-group-5-crossover-0.6-mutation-0.2 4627.463287826078 4.2766330115302935
+
+instance: p09
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.5 4146.985490754592 6.326963370132773
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.2 4149.958444229362 6.403188646521528
+evolve-10-population-200-tournament-group-5-crossover-0.6-mutation-0.5 4150.606050382215 6.4197929958365165
+evolve-10-population-200-tournament-group-5-crossover-0.8-mutation-0.5 4151.234000686875 6.435893377472951
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.2 4151.764388735908 6.449492303918959
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.5 4152.064476843638 6.457186436755819
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.5 4152.335821645174 6.464143603314028
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.1 4152.465186437122 6.467460462156538
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.5 4152.911691827988 6.478908672536107
+evolve-10-population-200-tournament-group-5-crossover-0.8-mutation-0.1 4152.998825502811 6.481142743301959
+
+instance: p10
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.5 3950.8220604034404 7.856961206966943
+evolve-10-population-200-tournament-group-5-crossover-0.6-mutation-0.2 3957.1934443469836 8.030899212862153
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.5 3961.2880519744226 8.142681502542231
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.5 3961.4289761425007 8.146528715172195
+evolve-10-population-200-tournament-group-5-crossover-1.0-mutation-0.1 3962.583167335997 8.17803799422326
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.5 3963.3765207669003 8.199696446290233
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.5 3964.6745212276314 8.235131700826955
+evolve-10-population-200-tournament-group-5-crossover-1.0-mutation-0.5 3966.487281727498 8.284619841756196
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.2 3966.804579098314 8.293282021346158
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.2 3970.647782744092 8.398201012937207
+
+instance: p11
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.5 3871.5320747174783 8.928981501147334
+evolve-10-population-200-tournament-group-5-crossover-0.6-mutation-0.5 3886.4794973371536 9.349540466075268
+evolve-10-population-200-tournament-group-5-crossover-0.8-mutation-0.5 3889.2740246242915 9.428166964652647
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.2 3889.67305919226 9.4393941553962
+evolve-10-population-200-tournament-group-5-crossover-1.0-mutation-0.0 3890.7505005493695 9.469708921590069
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.5 3893.39072701666 9.543994030033943
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.0 3894.0123511648885 9.561483975625563
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.5 3894.303419217848 9.569673432911344
+evolve-10-population-200-tournament-group-5-crossover-0.8-mutation-0.2 3895.0620957327483 9.591019468140288
+evolve-10-population-200-tournament-group-2-crossover-0.6-mutation-0.2 3895.166378623625 9.59395355957281
+
+instance: p12
+evolve-10-population-200-tournament-group-5-crossover-0.6-mutation-0.0 1318.9548983110476 0.00037137958584310127
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.5 1318.9548983110476 0.00037137958584310127
+evolve-10-population-200-tournament-group-5-crossover-0.6-mutation-0.2 1318.9548983110476 0.00037137958584310127
+evolve-10-population-200-tournament-group-5-crossover-1.0-mutation-0.1 1318.9548983110476 0.00037137958584310127
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.2 1318.9548983110476 0.00037137958584310127
+evolve-10-population-200-tournament-group-2-crossover-0.8-mutation-0.1 1318.9548983110476 0.00037137958584310127
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.0 1318.9548983110476 0.00037137958584310127
+evolve-10-population-200-tournament-group-2-crossover-0.6-mutation-0.5 1318.9548983110476 0.00037137958584310127
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.5 1318.9548983110476 0.00037137958584310127
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.1 1318.9548983110476 0.00037137958584310127
+
+instance: p13
+evolve-10-population-200-tournament-group-5-crossover-0.6-mutation-0.0 1318.9548983110476 0.00037137958584310127
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.5 1318.9548983110476 0.00037137958584310127
+evolve-10-population-200-tournament-group-5-crossover-0.6-mutation-0.2 1318.9548983110476 0.00037137958584310127
+evolve-10-population-200-tournament-group-2-crossover-0.8-mutation-0.2 1318.9548983110476 0.00037137958584310127
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.2 1318.9548983110476 0.00037137958584310127
+evolve-10-population-200-tournament-group-2-crossover-0.8-mutation-0.1 1318.9548983110476 0.00037137958584310127
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.0 1318.9548983110476 0.00037137958584310127
+evolve-10-population-200-tournament-group-2-crossover-0.6-mutation-0.5 1318.9548983110476 0.00037137958584310127
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.5 1318.9548983110476 0.00037137958584310127
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.1 1318.9548983110476 0.00037137958584310127
+
+instance: p14
+evolve-10-population-200-tournament-group-5-crossover-0.6-mutation-0.0 1365.685424949238 0.40918631806297867
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.5 1365.685424949238 0.40918631806297867
+evolve-10-population-200-tournament-group-5-crossover-0.6-mutation-0.2 1365.685424949238 0.40918631806297867
+evolve-10-population-200-tournament-group-2-crossover-0.8-mutation-0.2 1365.685424949238 0.40918631806297867
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.2 1365.685424949238 0.40918631806297867
+evolve-10-population-200-tournament-group-2-crossover-0.8-mutation-0.1 1365.685424949238 0.40918631806297867
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.0 1365.685424949238 0.40918631806297867
+evolve-10-population-200-tournament-group-2-crossover-0.6-mutation-0.5 1365.685424949238 0.40918631806297867
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.0 1365.685424949238 0.40918631806297867
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.1 1365.685424949238 0.40918631806297867
+
+instance: p15
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.5 2569.2896764215966 2.549260260618837
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.1 2569.663923825386 2.5641977722452225
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.0 2569.7644457151832 2.568209949436948
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.2 2570.4910706978785 2.5972120721427387
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.1 2570.5138100388194 2.598119678090683
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.1 2570.6512390999883 2.6036049484712436
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.1 2571.9430202369003 2.655164413028558
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.2 2573.5179908585274 2.7180269519093514
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.0 2574.1603551669523 2.743665938922504
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.5 2574.4726070091874 2.7561289927112966
+
+instance: p16
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.1 2575.0748297240143 0.11059779739814246
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.2 2575.1145245503726 0.11214100412377093
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.1 2575.333191090354 0.1206420534071242
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.2 2575.333191090354 0.1206420534071242
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.5 2575.372885916712 0.12218526013272424
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.5 2575.372885916712 0.12218526013272424
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.0 2575.6312472830514 0.13222951614169176
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.5 2575.6312472830514 0.13222951614169176
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.0 2575.6312472830514 0.13222951614169176
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.2 2575.631247283052 0.13222951614170597
+
+instance: p17
+evolve-10-population-200-tournament-group-5-crossover-0.6-mutation-0.0 2731.370849898477 0.8224477554631449
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.5 2731.370849898477 0.8224477554631449
+evolve-10-population-200-tournament-group-5-crossover-0.6-mutation-0.2 2731.370849898477 0.8224477554631449
+evolve-10-population-200-tournament-group-5-crossover-1.0-mutation-0.1 2731.370849898477 0.8224477554631449
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.2 2731.370849898477 0.8224477554631449
+evolve-10-population-200-tournament-group-2-crossover-0.8-mutation-0.1 2731.370849898477 0.8224477554631449
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.0 2731.370849898477 0.8224477554631449
+evolve-10-population-200-tournament-group-2-crossover-0.6-mutation-0.5 2731.370849898477 0.8224477554631449
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.5 2731.370849898477 0.8224477554631449
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.1 2731.370849898477 0.8224477554631449
+
+instance: p18
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.5 3862.125042078452 4.3014176128779695
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.2 3862.2139495524675 4.303818668119632
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.1 3866.261705107157 4.413133265110844
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.0 3867.3257645332083 4.441869493314826
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.0 3869.4641875877724 4.499620227332258
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.2 3870.978046148188 4.540503832134377
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.5 3872.1532583136295 4.572241876220474
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.1 3872.2852244372984 4.575805783040053
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.0 3879.0276275760525 4.757892638806666
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.5 3882.7109980666555 4.8573665707942695
+
+instance: p19
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.2 3864.159597633707 0.9694020379535999
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.5 3864.767702283793 0.9852916412021955
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.0 3865.346328105099 1.0004109709567928
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.1 3865.935065209306 1.0157945056859745
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.1 3869.5352052203434 1.1098651502809815
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.0 3869.825333275815 1.1174461146628119
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.1 3870.8065975518407 1.1430862738457392
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.2 3874.659510167201 1.2437617954043247
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.5 3877.293224928615 1.3125800203972489
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.0 3880.2280645670585 1.3892665536223205
+
+instance: p20
+evolve-10-population-200-tournament-group-5-crossover-0.6-mutation-0.0 4097.056274847716 0.960709767148316
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.5 4097.056274847716 0.960709767148316
+evolve-10-population-200-tournament-group-5-crossover-0.6-mutation-0.2 4097.056274847716 0.960709767148316
+evolve-10-population-200-tournament-group-5-crossover-1.0-mutation-0.1 4097.056274847716 0.960709767148316
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.2 4097.056274847716 0.960709767148316
+evolve-10-population-200-tournament-group-2-crossover-0.8-mutation-0.1 4097.056274847716 0.960709767148316
+evolve-10-population-200-tournament-group-5-crossover-0.8-mutation-0.1 4097.056274847716 0.960709767148316
+evolve-10-population-200-tournament-group-2-crossover-0.6-mutation-0.5 4097.056274847716 0.960709767148316
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.1 4097.056274847716 0.960709767148316
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.1 4097.056274847716 0.960709767148316
+
+instance: p21
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.5 5875.887243039153 7.325277871849266
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.5 5878.591632821339 7.374674562568742
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.1 5881.625040132106 7.430080881488863
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.0 5881.84619963513 7.434120442517582
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.2 5881.97185539925 7.4364155920401345
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.1 5888.418125989168 7.554159135046291
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.0 5891.244986279608 7.605792795398727
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.2 5894.417849976324 7.663746337360067
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.2 5897.257855029937 7.715620091727558
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.0 5899.050868440423 7.748370152194823
+
+instance: p22
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.2 5867.62048857002 2.9017159913089046
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.1 5871.94787490959 2.9776062914683052
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.5 5876.6948282255535 3.060854627466668
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.0 5877.587131266476 3.0765031368196674
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.0 5879.6826431334575 3.1132525768034895
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.5 5882.137455235808 3.156303141893744
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.1 5882.5109045204335 3.1628524019044306
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.2 5885.137241546752 3.2089110362871764
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.2 5885.596239270152 3.216960577573275
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.5 5888.195653446224 3.2625470601706184
+
+instance: p23
+evolve-10-population-200-tournament-group-5-crossover-0.6-mutation-0.0 6145.584412271574 0.8223237011082745
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.5 6145.584412271574 0.8223237011082745
+evolve-10-population-200-tournament-group-5-crossover-0.6-mutation-0.2 6145.584412271574 0.8223237011082745
+evolve-10-population-200-tournament-group-5-crossover-1.0-mutation-0.1 6145.584412271574 0.8223237011082745
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.2 6145.584412271574 0.8223237011082745
+evolve-10-population-200-tournament-group-2-crossover-0.8-mutation-0.1 6145.584412271574 0.8223237011082745
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.0 6145.584412271574 0.8223237011082745
+evolve-10-population-200-tournament-group-2-crossover-0.6-mutation-0.5 6145.584412271574 0.8223237011082745
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.1 6145.584412271574 0.8223237011082745
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.1 6145.584412271574 0.8223237011082745
+
+instance: pr01
+evolve-10-population-200-tournament-group-2-crossover-1.0-mutation-0.0 891.2357174523602 3.4732407760600097
+evolve-10-population-200-tournament-group-5-crossover-1.0-mutation-0.0 891.8201497874269 3.5410938777024654
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.2 894.8843289420258 3.8968477385902816
+evolve-10-population-200-tournament-group-5-crossover-1.0-mutation-0.1 895.0005114377796 3.9103366272441633
+evolve-10-population-200-tournament-group-2-crossover-1.0-mutation-0.1 895.6114747948691 3.98127000358393
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.0 896.4284179419465 4.076117812421231
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.2 896.5935440220345 4.095289093720623
+evolve-10-population-200-tournament-group-5-crossover-1.0-mutation-0.2 896.9128939430194 4.132365896881467
+evolve-10-population-200-tournament-group-2-crossover-0.8-mutation-0.0 898.4361608080238 4.309218502765958
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.5 898.7307004413565 4.343414809984253
+
+instance: pr02
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.1 1421.2916047469573 8.693846387451714
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.1 1423.4273463370978 8.857178083457441
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.1 1425.3288894620778 9.002599357765519
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.0 1425.8050804327631 9.039016253528445
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.0 1426.3066145141472 9.077371273862028
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.5 1427.7812077609713 9.190141384737899
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.5 1429.4081008839512 9.314558689819691
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.2 1431.3903830898137 9.466154517770121
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.5 1431.521041113896 9.476146642645446
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.0 1433.6964055047335 9.642508508250444
+
+instance: pr03
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.5 1931.9149357937386 6.9365070183626045
+evolve-10-population-200-tournament-group-5-crossover-0.8-mutation-0.2 1932.7274185809297 6.981480049868807
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.5 1936.0446829157033 7.165099242538673
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.2 1936.531840859068 7.19206469938382
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.5 1937.8219787283274 7.263477179692657
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.5 1937.9938017163176 7.2729880281366945
+evolve-10-population-200-tournament-group-5-crossover-0.6-mutation-0.5 1938.9078229613829 7.323581476883817
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.2 1939.0489384951643 7.331392588019725
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.1 1939.2179878343675 7.340749907802916
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.2 1939.4909347604741 7.355858228743173
+
+instance: pr04
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.2 2242.3431615588597 8.194042110998197
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.0 2252.592523784956 8.688578338687023
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.0 2252.849959345396 8.7009997175128
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.1 2259.2406170640793 9.009351758442833
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.5 2259.696916890282 9.031368425408786
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.5 2259.719747485084 9.032470011632427
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.1 2259.8855456360766 9.040469845216293
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.5 2261.094402385476 9.098797714158422
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.1 2261.365961614889 9.111900566213535
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.0 2263.819124794691 9.230266766771422
+
+instance: pr05
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.0 2691.4410327370406 12.812259049993955
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.0 2695.5932215128964 12.986298826496125
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.5 2697.7207034175876 13.07547263221467
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.2 2699.238281204035 13.139082191662865
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.2 2700.8145695305416 13.205152614482614
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.1 2703.248759358328 13.307182140706274
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.5 2703.3007883701516 13.309362946560285
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.1 2711.383153527061 13.64813680811902
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.5 2714.0075076928715 13.758137108475324
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.5 2717.0512577015215 13.88571646476909
+
+instance: pr06
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.1 2963.0325942134896 8.804216776650492
+evolve-10-population-200-tournament-group-10-crossover-0.6-mutation-0.2 2968.519739666161 9.005707831620114
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.1 2971.0970623638977 9.100348564920026
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.0 2975.7879563915526 9.272600821495942
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.5 2976.487654175884 9.298294116113496
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.5 2977.7377217913286 9.344197299251576
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.2 2978.9589324543713 9.38904083893155
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.2 2980.5897220428938 9.44892434620489
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.5 2981.229770818765 9.472427295815876
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.1 2981.736295594212 9.491027169329968
+
+instance: pr07
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.5 1144.0646609051455 5.002446942357068
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.2 1159.2392132765249 6.395169910470727
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.5 1159.3607415657398 6.406323797288792
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.5 1160.0011816751783 6.4651034982174735
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.1 1160.9011687204968 6.547704460561775
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.0 1161.34475298889 6.588416699299714
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.5 1161.3908637961786 6.592648756945806
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.2 1161.6804914785032 6.619230834327922
+evolve-10-population-200-tournament-group-5-crossover-1.0-mutation-0.0 1162.2453590142463 6.671074471735963
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.5 1164.8977203538777 6.914508641458724
+
+instance: pr08
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.0 1796.260349524927 7.779932168782381
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.1 1813.440069181806 8.810756581171603
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.5 1818.6899949711485 9.125764728858073
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.2 1823.5260151340428 9.415937545544395
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.1 1824.412222685764 9.469112125630858
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.5 1825.4248772892765 9.529873832309903
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.0 1825.7195163173615 9.547552881156946
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.1 1825.762582763647 9.55013697129769
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.2 1828.0100405528226 9.684989832762668
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.5 1830.8556511111947 9.855733296003535
+
+instance: pr09
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.2 2369.416810322364 10.046760964300987
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.5 2372.0001511541273 10.166743353960683
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.5 2372.793573052205 10.203593565194609
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.5 2374.850286238817 10.299116912303987
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.0 2375.711889057064 10.339133763274546
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.1 2376.80209719709 10.389768110960489
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.2 2376.929998090865 10.395708424637277
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.5 2377.0685483388434 10.402143343961896
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.5 2377.9637249537195 10.443719518541627
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.0 2378.3437001754905 10.461367338975919
+
+instance: pr10
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.2 3377.3394796692965 15.589078141222046
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.0 3385.669014312987 15.874155562845019
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.1 3392.39854263745 16.104472941371057
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.2 3398.5263080151517 16.314195048176742
+evolve-10-population-200-tournament-group-10-crossover-0.8-mutation-0.2 3403.789639776684 16.494332008032032
+evolve-10-population-200-tournament-group-25-crossover-0.8-mutation-0.0 3404.9241660386074 16.533161046549537
+evolve-10-population-200-tournament-group-25-crossover-1.0-mutation-0.5 3405.017186691191 16.536344668316005
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.0 3408.653434817401 16.660794866861792
+evolve-10-population-200-tournament-group-25-crossover-0.6-mutation-0.1 3409.3824668540583 16.68574590940871
+evolve-10-population-200-tournament-group-10-crossover-1.0-mutation-0.1 3411.2799288630463 16.75068634129221
+

@@ -4,5 +4,5 @@ set -e
 
 for instance in `ls -1 ../assignment/data/instances`
 do
-    ./grid_search "${instance}"
+    ./grid_search.bash "${instance}"
 done
