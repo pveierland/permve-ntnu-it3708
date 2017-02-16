@@ -238,14 +238,21 @@ class Solution(object):
 
     @staticmethod
     def from_genotype(problem, genotype):
+        genotype = copy.deepcopy(genotype)
+
+        # Remove empty sequences for correct vehicle numbering:
+        for depot_index, depot_sequences in genotype:
+            for sequence_index, sequence in depot_sequences:
+                while [] in depot_sequences:
+                    depot_sequences.remove([])
+
         routes = [Route(depot_index + 1,
                         sequence_index + 1,
                         calculate_duration_including_service_time(problem, problem.depots[depot_index], sequence),
                         calculate_load(problem, sequence),
                         [0] + sequence + [0])
                   for depot_index, depot_sequences in enumerate(genotype)
-                  for sequence_index, sequence in enumerate(depot_sequences)
-                  if sequence]
+                  for sequence_index, sequence in enumerate(depot_sequences)]
 
         cost = sum(
             calculate_duration_excluding_service_time(problem, problem.depots[depot_index], sequence)
