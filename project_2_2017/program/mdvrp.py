@@ -241,8 +241,8 @@ class Solution(object):
         genotype = copy.deepcopy(genotype)
 
         # Remove empty sequences for correct vehicle numbering:
-        for depot_index, depot_sequences in genotype:
-            for sequence_index, sequence in depot_sequences:
+        for depot_sequences in genotype:
+            for sequence in depot_sequences:
                 while [] in depot_sequences:
                     depot_sequences.remove([])
 
