@@ -149,9 +149,9 @@ Any remaining customers are assigned individual routes. The sequencing of the re
 
 \section*{Crossover operator}
 
-\textit{Best-Cost-Route-Crossover} as developed in \cite{ombuki2006multi} was selected as the genetic operator for crossover to combine the chromosomes of individuals for inheritance, see Algorithm~\ref{alg:bcrc}. When applying it, a random route is selected from the same depot for both parents. The customers belonging to each of the selected routes are removed from the other parent. Further, the removed customers of each parent are reassigned to the feasible location with the lowest insertion cost. Insertion cost is given by the cost of a route after inserting a customer, minus the cost of a route before inserting a customer.
+\textit{Best-Cost-Route-Crossover} as developed in \cite{ombuki2006multi} was selected as the genetic operator for crossover to combine the chromosomes of individuals for inheritance, see Algorithm~\ref{alg:bcrc}. When applying it, a random route is selected from the same depot for both parents. The customers belonging to each of the selected routes are removed from the other parent. Further, the removed customers of each parent are reinserted into the their respective feasible location with the lowest insertion cost. Insertion cost is given by the cost of a route after inserting a customer, minus the cost of a route before inserting a customer.
 
-In 10\% of insertions, a random feasible insertion point is chosen instead of the best possible insertion point.
+In 10\% of cases on a per customer basis, a random feasible insertion point is chosen instead of the best possible insertion point.
 
 \section*{Mutation operator}
 
@@ -163,13 +163,13 @@ The chosen parent selection mechanism is tournament selection, where to select a
 
 \section*{Parameters}
 
-Using a grid search, the best parameters was found to be a population size of 200, a generation number of 100, a crossover rate of 0.6, a mutation rate of 0.35, a tournament group size of 10, and a tournament randomness factor $\epsilon$ of 0.1, 
+Using a grid search, the best parameters was found to be a population size of 200, a generation number of 100, a crossover rate of 0.8, a mutation rate of 0.2, a tournament group size of 10, and a tournament randomness factor $\epsilon$ of 0.1, 
 
 \section*{Feasibility}
 
 The creation process may produce infeasible solutions, as they may exceed the maximum number of allowed vehicles. The \textit{Best-Cost-Route-Crossover} genetic operator only produces feasible offspring as only route insertions are made which respect the duration and load constraints provided and it cannot create routes. The \textit{Best-Cost-Customer-Mutation} genetic operator only produces valid modifications, as any route insertion made must respect the duration and load constraints provided and it cannot create routes. In any case where the crossover or mutation operator fails to insert a customer to create a feasible route, the operators will return their input chromosomes.
 
-Infeasible solutions are handled by penalizing them heavily in the fitness function. Thus they are allowed to exist in the population and contribute to diversity, without being selected as the best solution.
+Infeasible solutions are handled by penalizing them heavily in the fitness function. Thus they are allowed to exist in the population and contribute to diversity, while unlikely being the best candidate.
 
 \section*{Fitness function}
 
@@ -190,9 +190,9 @@ As the genetic algorithm code is implemented to only support the maximizing of a
 
 \section*{Elitism}
 
-A low degree (0.01\%) of elitism is employed to ensure that the best solutions are not lost from the population during evolution. This is handled by sorting the population by fitness and always adding the elite individuals to the next generation before generating offspring to fill the rest of the next generation.
+A low degree (0.01\%) of elitism is employed to ensure that the best solutions are not lost from the population during evolution. This is handled by sorting the population by fitness and always adding the top individuals to the next generation before generating offspring to fill the rest of the next generation.
 
-In addition to preserving the top solutions, elitism helps pressure the evolution process by sustaining the portion of top solutions within the population.
+In addition to preserving the top solutions, elitism helps pressure the evolution process by sustaining a portion of top solutions within the population.
 
 \section*{Solution}
 
