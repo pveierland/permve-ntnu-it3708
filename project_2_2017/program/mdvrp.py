@@ -525,7 +525,10 @@ def verify(problem, solution):
         depot_vehicles = list(set(route.vehicle_number for route in depot_routes))
 
         if len(depot_routes) > problem.max_vehicles:
-            print('verify failed: using too many vehicles')
+            print('verify failed: using too many vehicles. actual={} max={} (depot={})'.format(
+                len(depot_routes),
+                problem.max_vehicles,
+                depot))
             sys.exit(1)
 
         if not (len(depot_vehicles) == len(depot_routes) and all(vehicle >= 1 and vehicle <= len(depot_routes) for vehicle in depot_vehicles)):
