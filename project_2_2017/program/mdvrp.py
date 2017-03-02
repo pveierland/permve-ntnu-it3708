@@ -604,6 +604,8 @@ def main():
 
         if args.solution:
             solution = Solution.from_file(args.solution)
+        else:
+            solution = None
 
     if args.render_grouping or args.render_routing:
         depot_customers_indexes = assign_customers_to_depots(problem)
@@ -671,7 +673,6 @@ def main():
 
                 if args.verify:
                     verify(problem, best_solution)
-                
     else:
         if args.render:
             if problem and solution:
