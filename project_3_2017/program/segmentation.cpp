@@ -1,167 +1,93 @@
-#include <cmath>
-#include <cstddef>
 #include <iostream>
-#include <iterator>
-#include <limits>
-#include <set>
 #include <string>
-#include <vector>
-
-#include <boost/numeric/ublas/io.hpp>
-#include <boost/numeric/ublas/matrix.hpp>
 
 #include <boost/gil/gil_all.hpp>
 #include <boost/gil/extension/io/jpeg_io.hpp>
 
-#include <boost/type_index.hpp>
+#include "q_gil_converter.hpp"
+#include "vi_segment.hpp"
 
-using boost::numeric::ublas::matrix;
+#include <QApplication>
+#include <QColor>
+#include <QImage>
+#include <QPageSize>
+#include <QPainter>
+#include <QPoint>
+#include <QPrinter>
+#include <QSizeF>
 
-using namespace boost::gil;
+// #include <boost/type_index.hpp>
 
-template <class T>
-void print_type(T) {
-    std::cout << boost::typeindex::type_id<T>().pretty_name() << std::endl;
-}
+// template <class T>
+// void print_type(T) {
+//     std::cout << boost::typeindex::type_id<T>().pretty_name() << std::endl;
+// }
 
-template <typename pixel_type>
-void print_pixel(const pixel_type& p) {
-    std::cout << static_cast<int>(get_color(p, red_t())) << ','
-              << static_cast<int>(get_color(p, green_t())) << ','
-              << static_cast<int>(get_color(p, blue_t())) << std::endl;
-}
+// template <typename pixel_type>
+// void print_pixel(const pixel_type& p) {
+//     std::cout << static_cast<int>(get_color(p, red_t())) << ','
+//               << static_cast<int>(get_color(p, green_t())) << ','
+//               << static_cast<int>(get_color(p, blue_t())) << std::endl;
+// }
 
-template <typename pixel_type>
-inline
-double
-compute_pixel_distance(const pixel_type& a, const pixel_type& b)
+int
+main(int argc, char *argv[])
 {
-    return std::sqrt(
-        std::pow(static_cast<double>(get_color(a, red_t()))   - static_cast<double>(get_color(b, red_t())),   2) +
-        std::pow(static_cast<double>(get_color(a, green_t())) - static_cast<double>(get_color(b, green_t())), 2) +
-        std::pow(static_cast<double>(get_color(a, blue_t()))  - static_cast<double>(get_color(b, blue_t())),  2));
-}
+    int arg_count = 3;
+    auto arg0     = "application";
+    auto arg1     = "-platform";
+    auto arg2     = "offscreen";
+    char* args[]  = {const_cast<char*>(arg0), const_cast<char*>(arg1), const_cast<char*>(arg2)};
 
-const auto UNASSIGNED = std::numeric_limits<unsigned>::max();
+    QApplication app{arg_count, args};
 
-struct vertex_cost_comparator
-{
-    vertex_cost_comparator(const std::vector<double>& costs)
-        : costs{&costs} {}
+    auto input_image = boost::gil::rgb8_image_t{};
+    boost::gil::jpeg_read_image(std::string(argv[1]), input_image);
 
-    inline
-    bool
-    operator()(const unsigned vertex_a, const unsigned vertex_b) const
+    auto input_image_view      = boost::gil::view(input_image);
+    auto input_image_distances = vi::segment::image_distances{input_image_view};
+
+    auto graph        = vi::segment::build_minimum_spanning_tree(input_image_distances, 100);
+    auto segmentation = vi::segment::process(
+        graph, input_image_distances.image_width, input_image_distances.image_height);
+
+    QPrinter printer{};
+    printer.setOutputFormat(QPrinter::PdfFormat);
+    printer.setOutputFileName("output.pdf");
+    printer.setPageMargins(0, 0, 0, 0, QPrinter::Inch);
+
+    printer.setPageSize(QPageSize(
+        QSizeF(static_cast<double>(input_image_distances.image_width)  / printer.resolution(),
+               static_cast<double>(input_image_distances.image_height) / printer.resolution()),
+        QPageSize::Inch));
+
+    QPainter painter{&printer};
+
+    const QImage input_image_q = q_gil::gil_view_to_qimage(boost::gil::const_view(input_image));
+
+    painter.drawImage(QPoint(0, 0), input_image_q);
+
+    painter.setPen(QPen{QBrush(Qt::red), 0.0});
+
+    for (std::size_t y = 0; y < input_image_distances.image_height - 1; ++y)
     {
-        const auto cost_a = (*costs)[vertex_a];
-        const auto cost_b = (*costs)[vertex_b];
-        return cost_a != cost_b ? cost_a < cost_b : vertex_a < vertex_b;
-    }
-
-    const std::vector<double>* costs;
-};
-
-template <typename frontier_type>
-inline
-bool
-update_cheapest(
-    const rgb8c_view_t&          view,
-    const std::vector<unsigned>& graph,
-    const unsigned               parent_vertex,
-    const unsigned               target_vertex,
-    frontier_type&               frontier,
-    std::vector<double>&         cheapest_costs,
-    std::vector<unsigned>&       cheapest_edges)
-{
-    if (graph[target_vertex] == UNASSIGNED)
-    {
-        const auto cost = compute_pixel_distance(view[parent_vertex], view[target_vertex]);
-
-        if (cost < cheapest_costs[target_vertex])
+        for (std::size_t x = 0; x < input_image_distances.image_width - 1; ++x)
         {
-            if (frontier.count(target_vertex))
+            const auto index = y * input_image_distances.image_width + x;
+
+            if (segmentation[index] != segmentation[index + 1])
             {
-                frontier.erase(target_vertex);
+                painter.drawLine(QPointF(static_cast<double>(x) + 1.0, static_cast<double>(y)),
+                                 QPointF(static_cast<double>(x) + 1.0, static_cast<double>(y) + 1.0));
             }
 
-            cheapest_costs[target_vertex] = cost;
-            cheapest_edges[target_vertex] = parent_vertex;
-            
-            frontier.insert(target_vertex);
+            if (segmentation[index] != segmentation[index + input_image_distances.image_width])
+            {
+                painter.drawLine(QPointF(static_cast<double>(x),       static_cast<double>(y) + 1.0),
+                                 QPointF(static_cast<double>(x) + 1.0, static_cast<double>(y) + 1.0));
+            }
         }
-    }
+    } 
 
-    return false;
-}
-
-void build_minimum_spanning_tree(const rgb8c_view_t& view)
-{
-    const auto width  = static_cast<std::size_t>(view.width());
-    const auto height = static_cast<std::size_t>(view.height());
-    const auto count  = width * height;
-
-    std::vector<double>   cheapest_costs(count, std::numeric_limits<double>::max());
-    std::vector<unsigned> cheapest_edges(count, UNASSIGNED);
-    std::vector<unsigned> graph(count, UNASSIGNED);
-
-    vertex_cost_comparator comparator{cheapest_costs};
-    std::set<unsigned, vertex_cost_comparator> frontier{comparator};
-
-    frontier.insert(0);
-
-    unsigned i = 0;
-
-    while (!frontier.empty())
-    {
-        i += 1;
-
-        const auto vertex_it = frontier.begin();
-        const auto vertex = *vertex_it;
-
-        frontier.erase(vertex_it);
-
-        const auto cheapest_edge = cheapest_edges[vertex];
-        graph[vertex] = cheapest_edge != UNASSIGNED ? cheapest_edge : vertex;
-
-        const auto row    = vertex / width;
-        const auto column = vertex % width;
-
-        if (row > 0)
-        {
-            update_cheapest(view, graph, vertex, vertex - width, frontier, cheapest_costs, cheapest_edges);
-        }
-        if (row < height - 1)
-        {
-            update_cheapest(view, graph, vertex, vertex + width, frontier, cheapest_costs, cheapest_edges);
-        }
-        if (column > 0)
-        {
-            update_cheapest(view, graph, vertex, vertex - 1, frontier, cheapest_costs, cheapest_edges);
-        }
-        if (column < width - 1)
-        {
-            update_cheapest(view, graph, vertex, vertex + 1, frontier, cheapest_costs, cheapest_edges);
-        }
-    }
-
-    unsigned j = 0;
-
-    for (const auto g : graph)
-    {
-        if (g == UNASSIGNED)
-        {
-            j += 1;
-        }
-    }
-
-    std::cout << i << std::endl;
-    std::cout << j << std::endl;
-}
-
-int main(const int argc, char *argv[])
-{
-    rgb8_image_t image{};
-    jpeg_read_image(std::string(argv[1]), image);
-
-    build_minimum_spanning_tree(view(image));
+    painter.end();
 }
