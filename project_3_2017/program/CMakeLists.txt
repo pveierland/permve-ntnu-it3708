@@ -5,11 +5,12 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
 
 find_package(Boost REQUIRED COMPONENTS program_options)
 find_package(JPEG)
+find_package(PNG)
 find_package(Qt5Gui)
 find_package(Qt5PrintSupport)
 find_package(Qt5Widgets)
 
-include_directories(. ${Boost_INCLUDE_DIR} ${JPEG_INCLUDE_DIR})
+include_directories(. ${Boost_INCLUDE_DIR} ${JPEG_INCLUDE_DIR} ${PNG_INCLUDE_DIRS})
 
 add_executable(segmentation segmentation.cpp)
 
@@ -17,6 +18,7 @@ target_link_libraries(
     segmentation
     ${Boost_LIBRARIES}
     ${JPEG_LIBRARIES}
+    ${PNG_LIBRARIES}
     Qt5::Gui
     Qt5::PrintSupport
     Qt5::Widgets)

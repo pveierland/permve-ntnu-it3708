@@ -85,6 +85,23 @@ namespace vi
             }
 
             inline
+            double
+            maximum() const
+            {
+                auto max_value = std::numeric_limits<double>::min();
+                
+                for (const auto value : costs)
+                {
+                    if (!std::isnan(value) && value > max_value)
+                    {
+                        max_value = value;
+                    }
+                }
+
+                return max_value;
+            }
+
+            inline
             double&
             operator()(const std::size_t x, const std::size_t y, const image_direction direction)
             {
