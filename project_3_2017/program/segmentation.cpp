@@ -250,6 +250,80 @@ compute_overall_deviation(
     return overall_deviation;
 }
 
+double
+compute_edge_value(
+    const boost::gil::rgb8_view_t                  image_view,
+    const std::vector<vi::segment::segment_index>& segmentation,
+    const int                                      segment_count)
+{
+    double edge_value = 0.0;
+
+    const auto width  = static_cast<std::size_t>(image_view.width());
+    const auto height = static_cast<std::size_t>(image_view.height());
+
+    auto pixel_current   = image_view.begin();
+    auto pixel_next      = pixel_current + 1;
+    auto pixel_below     = pixel_current + width;
+    auto segment_current = segmentation.begin();
+    auto segment_next    = segment_current + 1;
+    auto segment_below   = segment_current + width;
+
+    for (std::size_t y = 0; y < height - 1; ++y)
+    {
+        for (std::size_t x = 0; x < width - 1; ++x)
+        {
+            if (*segment_current != *segment_below)
+            {
+                edge_value += 2.0 * vi::segment::compute_pixel_distance(*pixel_current, *pixel_below);
+            }
+
+            if (*segment_current != *segment_next)
+            {
+                edge_value += 2.0 * vi::segment::compute_pixel_distance(*pixel_current, *pixel_next);
+            }
+
+            ++pixel_current;
+            ++pixel_next;
+            ++pixel_below;
+
+            ++segment_current;
+            ++segment_next;
+            ++segment_below;
+        }
+
+        if (*segment_current != *segment_below)
+        {
+            edge_value += 2.0 * vi::segment::compute_pixel_distance(*pixel_current, *pixel_below);
+        }
+
+        ++pixel_current;
+        ++pixel_next;
+        ++pixel_below;
+
+        ++segment_current;
+        ++segment_next;
+        ++segment_below;
+    }
+
+    for (std::size_t x = 0; x < width - 1; ++x)
+    {
+        if (*segment_current != *segment_next)
+        {
+            edge_value += 2.0 * vi::segment::compute_pixel_distance(*pixel_current, *pixel_next);
+        }
+
+        ++pixel_current;
+        ++pixel_next;
+        ++pixel_below;
+
+        ++segment_current;
+        ++segment_next;
+        ++segment_below;
+    }
+
+    return edge_value;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -265,16 +339,21 @@ main(int argc, char *argv[])
     //boost::gil::jpeg_read_image(std::string(argv[1]), input_image);
     boost::gil::png_read_image(std::string(argv[1]), input_image);
 
-    auto input_image_view      = boost::gil::view(input_image);
-    //auto input_image_view      = boost::gil::subimage_view(boost::gil::view(input_image), 0, 0, 10, 10);
+    //auto input_image_view      = boost::gil::view(input_image);
+    auto input_image_view      = boost::gil::subimage_view(boost::gil::view(input_image), 0, 0, 4, 7);
     auto input_image_distances = vi::segment::image_distances{input_image_view};
 
     auto graph        = vi::segment::build_minimum_spanning_tree(input_image_distances, 0);
-    auto segmentation = vi::segment::process(
-        graph, input_image_distances.image_width, input_image_distances.image_height);
+    // auto segmentation = vi::segment::process(
+    //     graph, input_image_distances.image_width, input_image_distances.image_height);
+
+    std::vector<vi::segment::segment_index> segmentation{
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28
+    };
 
     //render_graph(input_image_distances.image_width, input_image_distances.image_height, input_image_view, input_image_distances, graph);
     //render_segmentation(input_image_distances.image_width, input_image_distances.image_height, input_image_view, segmentation, input_image_distances, graph);
 
-    std::cout << compute_overall_deviation(input_image_view, segmentation, 1) << std::endl;
+    //std::cout << compute_overall_deviation(input_image_view, segmentation, 1) << std::endl;
+    std::cout << compute_edge_value(input_image_view, segmentation, 28) << std::endl;
 }
