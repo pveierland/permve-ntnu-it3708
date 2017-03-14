@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <limits>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -95,6 +96,8 @@ namespace vi
                 std::vector<individual_type>               population{};
                 std::vector<std::vector<individual_type*>> fronts;
 
+                std::bernoulli_distribution                crossover_distribution;
+                std::bernoulli_distribution                mutation_distribution;
                 std::set<std::size_t>                      tournament_group{};
                 std::bernoulli_distribution                tournament_select_best_distribution;
 
@@ -114,6 +117,8 @@ namespace vi
                       extreme_min(system_options.objective_count, nullptr),
                       extreme_min(system_options.objective_count, nullptr),
                       fronts(system_options.population_size),
+                      crossover_distribution{system_options.crossover_rate},
+                      mutation_distribution{system_options.mutation_rate},
                       tournament_select_best_distribution{1.0 - system_options.tournament_randomness}
                 {
                     population.reserve(system_options.population_size);
@@ -197,18 +202,48 @@ namespace vi
 //
 //
 //                }
-//
-//                void
-//                generate_individuals(const std::vector<individual_type>& population,
-//                                     std::vector<individual_type>&       offspring)
-//                {
-//                    while (offspring.size() < system_options.population_size)
-//                    {
-//                        const auto parent_a = tournament_selector(population);
-//                        const auto parent_b = tournament_selector(population);
-//
-//                    }
-//                }
+
+                template <typename random_generator_type>
+                void
+                generate_individuals(random_generator_type&              random_generator,
+                                     const std::vector<individual_type>& population,
+                                     std::vector<individual_type>&       offspring)
+                {
+                    while (offspring.size() < system_options.population_size)
+                    {
+                        const auto parent_a = tournament_selector(random_generator, population);
+                        const auto parent_b = tournament_selector(random_generator, population);
+
+                        typename individual_type::genotype_type child_a_genotype{};
+                        typename individual_type::genotype_type child_b_genotype{};
+
+                        if (crossover_distribution(random_generator))
+                        {
+                            std::tie(child_a_genotype, child_b_genotype) = crossover_operator(parent_a->genotype, parent_b->genotype);
+                        }
+                        else
+                        {
+                            child_a_genotype = parent_a->genotype;
+                            child_b_genotype = parent_b->genotype;
+                        }
+
+                        if (mutation_distribution(random_generator))
+                        {
+                            mutation_operator(child_a_genotype);
+                        }
+
+                        if (mutation_distribution(random_generator))
+                        {
+                            mutation_operator(child_b_genotype);
+                        }
+
+                        auto child_a_objective_values = objective_evaluator(child_a_genotype);
+                        auto child_b_objective_values = objective_evaluator(child_b_genotype);
+
+                        offspring.emplace_back(std::move(child_a_genotype), std::move(child_a_objective_values));
+                        offspring.emplace_back(std::move(child_b_genotype), std::move(child_b_objective_values));
+                    }
+                }
 
                 template <typename random_generator_type>
                 individual_type*
