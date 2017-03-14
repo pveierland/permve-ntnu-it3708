@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <iterator>
 #include <limits>
 #include <tuple>
 #include <utility>
@@ -93,7 +94,9 @@ namespace vi
                 std::vector<individual_type*> extreme_min;
                 std::vector<individual_type*> extreme_max;
 
-                std::vector<individual_type>               population{};
+                std::vector<individual_type>               current_population{};
+                std::vector<individual_type>               next_population{};
+                std::vector<individual_type>               offspring{};
                 std::vector<std::vector<individual_type*>> fronts;
 
                 std::bernoulli_distribution                crossover_distribution;
@@ -115,20 +118,22 @@ namespace vi
                       range_min(system_options.objective_count,   +std::numeric_limits<double>::infinity()),
                       range_max(system_options.objective_count,   -std::numeric_limits<double>::infinity()),
                       extreme_min(system_options.objective_count, nullptr),
-                      extreme_min(system_options.objective_count, nullptr),
+                      extreme_max(system_options.objective_count, nullptr),
                       fronts(system_options.population_size),
                       crossover_distribution{system_options.crossover_rate},
                       mutation_distribution{system_options.mutation_rate},
                       tournament_select_best_distribution{1.0 - system_options.tournament_randomness}
                 {
-                    population.reserve(system_options.population_size);
+                    current_population.reserve(system_options.population_size);
+                    next_population.reserve(system_options.population_size);
+                    offspring.reserve(system_options.population_size);
                     create_initial_population();
                 }
 
                 void
                 create_initial_population()
                 {
-                    population.clear();
+                    current_population.clear();
 
                     for (auto& front : fronts)
                     {
@@ -139,7 +144,7 @@ namespace vi
                     {
                         auto genotype         = genotype_creator();
                         auto objective_values = objective_evaluator(genotype);
-                        population.emplace_back(std::move(genotype), std::move(objective_values));
+                        current_population.emplace_back(std::move(genotype), std::move(objective_values));
                     }
                 }
 
@@ -192,27 +197,138 @@ namespace vi
                     }
                 }
 
-//                void
-//                evolve()
-//                {
-//                    for (unsigned objective = 0; objective != system_options.objective_count; ++objective)
-//                    {
-//                        extreme_max[objective] = nullptr;
-//                    }
-//
-//
-//                }
+                template <typename random_generator_type>
+                void
+                evolve(random_generator_type& random_generator)
+                {
+                    std::fill(extreme_max.begin(), extreme_max.end(), nullptr);
+
+                    offspring.clear();
+                    generate_individuals(random_generator);
+                    offspring.erase(offspring.begin(),
+                        std::move(offspring.begin(), offspring.end(), std::back_inserter(current_population)));
+                    fast_non_dominated_sort();
+
+                    next_population.clear();
+                    auto remaining = system_options.population_size;
+                    auto first = true;
+
+                    for (auto& front : fronts)
+                    {
+                        if (remaining > 0)
+                        {
+                            assign_crowding_distances(front, first);
+                            first = false;
+
+                            const auto front_size = static_cast<unsigned>(front.size());
+
+                            if (front_size <= remaining)
+                            {
+                                for (auto individual : front)
+                                {
+                                    next_population.emplace_back(std::move(*individual));
+                                }
+
+                                remaining -= front_size;
+                            }
+                            else
+                            {
+                                // Shuffle to avoid order bias from crowding_distance_assignment
+                                std::shuffle(front.begin(), front.end(), random_generator);
+                                std::sort(front.begin(), front.end(),
+                                    [](const auto a, const auto b)
+                                    {
+                                        return (*a) < (*b);
+                                    });
+
+                                for (auto individual = front.begin(); individual != front.begin() + remaining; ++individual)
+                                {
+                                    next_population.emplace_back(std::move(**individual));
+                                }
+
+                                remaining = 0;
+                            }
+                        }
+                        else
+                        {
+                            if (!front.empty())
+                            {
+                                front.clear();
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+                    }
+
+                    std::swap(current_population, next_population);
+                    ++generation;
+                }
+
+                void
+                fast_non_dominated_sort()
+                {
+                    for (auto& front : fronts)
+                    {
+                        front.clear();
+                    }
+
+                    for (auto& individual : current_population)
+                    {
+                        individual.S.clear();
+                        individual.n = 0U;
+                    }
+
+                    const auto end = current_population.end();
+
+                    for (auto p = current_population.begin(); p != end; ++p)
+                    {
+                        for (auto q = p + 1; q != end; ++q)
+                        {
+                            if (p->dominates(*q))
+                            {
+                                p->S.push_back(&*q);
+                                ++q->n;
+                            }
+                            else if (q->dominates(*p))
+                            {
+                                q->S.push_back(&*p);
+                                ++p->n;
+                            }
+                        }
+
+                        if (p->n == 0)
+                        {
+                            p->rank = 0;
+                            fronts[0].push_back(&*p);
+                        }
+                    }
+
+                    for (auto front_index = 0U; !fronts[front_index].empty(); ++front_index)
+                    {
+                        for (auto p : fronts[front_index])
+                        {
+                            for (auto q : p->S)
+                            {
+                                if (--q->n == 0)
+                                {
+                                    q->rank = front_index + 1U;
+                                    fronts[front_index + 1].push_back(&*q);
+                                }
+                            }
+                        }
+                    }
+                }
 
                 template <typename random_generator_type>
                 void
-                generate_individuals(random_generator_type&              random_generator,
-                                     const std::vector<individual_type>& population,
-                                     std::vector<individual_type>&       offspring)
+                generate_individuals(random_generator_type& random_generator)
                 {
                     while (offspring.size() < system_options.population_size)
                     {
-                        const auto parent_a = tournament_selector(random_generator, population);
-                        const auto parent_b = tournament_selector(random_generator, population);
+                        const auto parent_a = tournament_selector(random_generator, current_population);
+                        const auto parent_b = tournament_selector(random_generator, current_population);
 
                         typename individual_type::genotype_type child_a_genotype{};
                         typename individual_type::genotype_type child_b_genotype{};
