@@ -8,6 +8,8 @@
 #include <utility>
 #include <vector>
 
+#include <boost/optional.hpp>
+
 #include "vi_algo.hpp"
 
 namespace vi
@@ -34,7 +36,7 @@ namespace vi
                 }
 
                 bool
-                dominates(const individual& other)
+                dominates(const individual& other) const
                 {
                     assert(objective_values.size() == other.objective_values.size());
 
@@ -57,7 +59,7 @@ namespace vi
                 }
 
                 bool
-                operator<(const individual& other)
+                operator<(const individual& other) const
                 {
                     return rank < other.rank || (rank == other.rank && crowding_distance > other.crowding_distance);
                 }
@@ -82,29 +84,31 @@ namespace vi
             {
                 using individual_type = individual<genotype_type>;
 
-                options                       system_options;
-                genotype_creator_type         genotype_creator;
-                objective_evaluator_type      objective_evaluator;
-                crossover_operator_type       crossover_operator;
-                mutation_operator_type        mutation_operator;
+                options                                       system_options;
+                genotype_creator_type                         genotype_creator;
+                objective_evaluator_type                      objective_evaluator;
+                crossover_operator_type                       crossover_operator;
+                mutation_operator_type                        mutation_operator;
 
-                unsigned                      generation;
-                std::vector<double>           range_min;
-                std::vector<double>           range_max;
-                std::vector<individual_type*> extreme_min;
-                std::vector<individual_type*> extreme_max;
+                unsigned                                      generation;
+                std::vector<double>                           range_min;
+                std::vector<double>                           range_max;
+                std::vector<boost::optional<individual_type>> extreme_min;
+                std::vector<boost::optional<individual_type>> extreme_max;
 
-                std::vector<individual_type>               current_population{};
-                std::vector<individual_type>               next_population{};
-                std::vector<individual_type>               offspring{};
-                std::vector<std::vector<individual_type*>> fronts;
+                std::vector<individual_type>                  current_population{};
+                std::vector<individual_type>                  next_population{};
+                std::vector<individual_type>                  offspring{};
+                std::vector<std::vector<individual_type*>>    fronts;
 
-                std::bernoulli_distribution                crossover_distribution;
-                std::bernoulli_distribution                mutation_distribution;
-                std::set<std::size_t>                      tournament_group{};
-                std::bernoulli_distribution                tournament_select_best_distribution;
+                std::bernoulli_distribution                   crossover_distribution;
+                std::bernoulli_distribution                   mutation_distribution;
+                std::set<unsigned>                            tournament_group{};
+                std::bernoulli_distribution                   tournament_select_best_distribution;
 
-                system(const options&           system_options,
+                template <typename random_generator_type>
+                system(random_generator_type&   random_generator,
+                       const options&           system_options,
                        genotype_creator_type    genotype_creator,
                        objective_evaluator_type objective_evaluator,
                        crossover_operator_type  crossover_operator,
@@ -117,8 +121,8 @@ namespace vi
                       generation{0},
                       range_min(system_options.objective_count,   +std::numeric_limits<double>::infinity()),
                       range_max(system_options.objective_count,   -std::numeric_limits<double>::infinity()),
-                      extreme_min(system_options.objective_count, nullptr),
-                      extreme_max(system_options.objective_count, nullptr),
+                      extreme_min(system_options.objective_count),
+                      extreme_max(system_options.objective_count),
                       fronts(system_options.population_size),
                       crossover_distribution{system_options.crossover_rate},
                       mutation_distribution{system_options.mutation_rate},
@@ -127,11 +131,12 @@ namespace vi
                     current_population.reserve(system_options.population_size);
                     next_population.reserve(system_options.population_size);
                     offspring.reserve(system_options.population_size);
-                    create_initial_population();
+                    create_initial_population(random_generator);
                 }
 
+                template <typename random_generator_type>
                 void
-                create_initial_population()
+                create_initial_population(random_generator_type& random_generator)
                 {
                     current_population.clear();
 
@@ -142,7 +147,7 @@ namespace vi
 
                     for (auto i = system_options.population_size; i != 0; --i)
                     {
-                        auto genotype         = genotype_creator();
+                        auto genotype         = genotype_creator(random_generator);
                         auto objective_values = objective_evaluator(genotype);
                         current_population.emplace_back(std::move(genotype), std::move(objective_values));
                     }
@@ -171,18 +176,18 @@ namespace vi
                         min_individual->crowding_distance = std::numeric_limits<double>::infinity();
                         max_individual->crowding_distance = std::numeric_limits<double>::infinity();
 
-                        range_min[objective] = std::min(range_min[objective], min_individual.objective_values[objective]);
-                        range_max[objective] = std::max(range_max[objective], max_individual.objective_values[objective]);
+                        range_min[objective] = std::min(range_min[objective], min_individual->objective_values[objective]);
+                        range_max[objective] = std::max(range_max[objective], max_individual->objective_values[objective]);
 
                         if (is_non_dominated_front)
                         {
-                            extreme_min[objective] = min_individual;
+                            extreme_min[objective] = *min_individual;
                         }
 
-                        if (!extreme_max[objective] or
-                            max_individual->objective_values[objective] > extreme_max[objective].objective_values[objective])
+                        if ((!extreme_max[objective]) or
+                            (max_individual->objective_values[objective] > extreme_max[objective]->objective_values[objective]))
                         {
-                            extreme_max[objective] = max_individual;
+                            extreme_max[objective] = *max_individual;
                         }
 
                         const auto range_delta   = range_max[objective] - range_min[objective];
@@ -201,12 +206,15 @@ namespace vi
                 void
                 evolve(random_generator_type& random_generator)
                 {
-                    std::fill(extreme_max.begin(), extreme_max.end(), nullptr);
+                    for (auto& entry : extreme_max)
+                    {
+                        entry = boost::none;
+                    }
 
                     offspring.clear();
                     generate_individuals(random_generator);
-                    offspring.erase(offspring.begin(),
-                        std::move(offspring.begin(), offspring.end(), std::back_inserter(current_population)));
+
+                    std::move(offspring.begin(), offspring.end(), std::back_inserter(current_population));
                     fast_non_dominated_sort();
 
                     next_population.clear();
@@ -262,6 +270,7 @@ namespace vi
                         }
                     }
 
+                    current_population.clear();
                     std::swap(current_population, next_population);
                     ++generation;
                 }
@@ -330,12 +339,13 @@ namespace vi
                         const auto parent_a = tournament_selector(random_generator, current_population);
                         const auto parent_b = tournament_selector(random_generator, current_population);
 
-                        typename individual_type::genotype_type child_a_genotype{};
-                        typename individual_type::genotype_type child_b_genotype{};
+                        genotype_type child_a_genotype{};
+                        genotype_type child_b_genotype{};
 
                         if (crossover_distribution(random_generator))
                         {
-                            std::tie(child_a_genotype, child_b_genotype) = crossover_operator(parent_a->genotype, parent_b->genotype);
+                            std::tie(child_a_genotype, child_b_genotype) = crossover_operator(
+                                random_generator, parent_a->genotype, parent_b->genotype);
                         }
                         else
                         {
@@ -345,12 +355,12 @@ namespace vi
 
                         if (mutation_distribution(random_generator))
                         {
-                            mutation_operator(child_a_genotype);
+                            mutation_operator(random_generator, child_a_genotype);
                         }
 
                         if (mutation_distribution(random_generator))
                         {
-                            mutation_operator(child_b_genotype);
+                            mutation_operator(random_generator, child_b_genotype);
                         }
 
                         auto child_a_objective_values = objective_evaluator(child_a_genotype);
@@ -362,7 +372,7 @@ namespace vi
                 }
 
                 template <typename random_generator_type>
-                individual_type*
+                const individual_type*
                 tournament_selector(random_generator_type&                       random_generator,
                                     const typename std::vector<individual_type>& population)
                 {
@@ -382,7 +392,7 @@ namespace vi
                         for (const auto index : tournament_group)
                         {
                             const auto& individual = population[index];
-                            if (!selected_individual or individual.fitness > selected_individual->fitness)
+                            if (!selected_individual or (individual < (*selected_individual)))
                             {
                                 selected_individual = &individual;
                             }
@@ -392,12 +402,40 @@ namespace vi
                     }
                     else
                     {
-                        const auto random_individual_index = std::uniform_int_distribution<>{
-                            0U, population.size()}(random_generator);
-                        return &population[random_individual_index];
+                        const auto random_individual_index = std::uniform_int_distribution<unsigned>{
+                            0U, static_cast<unsigned>(population.size()) - 1U}(random_generator);
+                        return &(population[random_individual_index]);
                     }
                 }
             };
+
+            template <typename genotype_type,
+                      typename random_generator_type,
+                      typename genotype_creator_type,
+                      typename objective_evaluator_type,
+                      typename crossover_operator_type,
+                      typename mutation_operator_type>
+            auto
+            build_system(random_generator_type&   random_generator,
+                         const options&           system_options,
+                         genotype_creator_type    genotype_creator,
+                         objective_evaluator_type objective_evaluator,
+                         crossover_operator_type  crossover_operator,
+                         mutation_operator_type   mutation_operator)
+            {
+                using system_type = system<genotype_type,
+                                           genotype_creator_type,
+                                           objective_evaluator_type,
+                                           crossover_operator_type,
+                                           mutation_operator_type>;
+
+                return system_type{random_generator,
+                                   system_options,
+                                   std::move(genotype_creator),
+                                   std::move(objective_evaluator),
+                                   std::move(crossover_operator),
+                                   std::move(mutation_operator)};
+            }
         }
     }
 }
