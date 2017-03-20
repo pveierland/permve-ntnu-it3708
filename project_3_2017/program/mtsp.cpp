@@ -194,7 +194,7 @@ main(int argc, char** argv)
             ("generations",           po::value<unsigned>()->default_value(200),  "Generation count")
             ("mutation_rate",         po::value<double>()->default_value(0.05),   "Mutation rate")
             ("population_size",       po::value<unsigned>()->default_value(1000), "Population size")
-            ("tournament_group_size", po::value<unsigned>()->default_value(200),  "Tournament group size")
+            ("tournament_group_size", po::value<unsigned>()->default_value(20),  "Tournament group size")
             ("tournament_randomness", po::value<double>()->default_value(0.1),    "Tournament probability of selecting random winner");
 
         po::variables_map variables{};
