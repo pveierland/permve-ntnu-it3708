@@ -26,6 +26,11 @@
 \usepackage[inline]{enumitem}
 \usepackage{algorithm, algpseudocode}
 
+\usepackage{tikz} % To generate the plot from csv
+\usepackage{pgfplots, pgfplotstable}
+\pgfplotsset{compat=1.5}
+\usepgfplotslibrary{colorbrewer}
+
 \pagestyle{fancyplain}
 \fancyhead{}
 \fancyfoot[L]{}
@@ -51,38 +56,69 @@
 
 \begin{document}
 
-\maketitle
+%\maketitle
 
-\begin{multicols}{2}
+% \begin{multicols}{2}
 
-\section*{Image segmentation}
+% \section*{Image segmentation}
 
-% How does your MOEA find segmentation? (0.5p)
+% % How does your MOEA find segmentation? (0.5p)
 
-\section*{MOEA Implementation}
+% \section*{MOEA Implementation}
 
-% Describe  your  implementation,  only  for  MOEA  optimizing  three  objectives.  Your  description should  include  every  step  of  your  implementation  including  representation  and  evolutionary operators. Using figure(s) for chromosome is a must. (2p)
+% % Describe  your  implementation,  only  for  MOEA  optimizing  three  objectives.  Your  description should  include  every  step  of  your  implementation  including  representation  and  evolutionary operators. Using figure(s) for chromosome is a must. (2p)
 
-\section*{Parameters}
+% \section*{Parameters}
 
-% Mention the values for every parameter of your chosen MOEA. (0.5p) 
+% % Mention the values for every parameter of your chosen MOEA. (0.5p) 
 
-\section*{Solutions}
+% \section*{Solutions}
 
-% For any of the test images, provide one of the segmentation solution from the final optimal/near-optimal (for single objective) and Pareto-optimal (for two and three objectives) solutions. You need to use the same test image for all categories (3 single objective, 3 two objectives, 1 three objectives). You need to show both types (as Fig. 2a and 2b) of segmentation for each solution.   (1p)
+% % For any of the test images, provide one of the segmentation solution from the final optimal/near-optimal (for single objective) and Pareto-optimal (for two and three objectives) solutions. You need to use the same test image for all categories (3 single objective, 3 two objectives, 1 three objectives). You need to show both types (as Fig. 2a and 2b) of segmentation for each solution.   (1p)
 
-% (3 + 1) objectives x 3 types of solutions = 12 images
-% Include objective values + segmentation count + image ID for each
+% % (3 + 1) objectives x 3 types of solutions = 12 images
+% % Include objective values + segmentation count + image ID for each
 
-\section*{Pareto fronts}
+% \section*{Pareto fronts}
 
-% Plot Pareto-fronts (3 two objectives, 1 three objectives) for the same solutions those you will use in Point-3.  (1p)  
+% % Plot Pareto-fronts (3 two objectives, 1 three objectives) for the same solutions those you will use in Point-3.  (1p)  
 
-% (3 + 1) objectives = 4 plots
+% % (3 + 1) objectives = 4 plots
 
-\bibliographystyle{unsrt}
-\bibliography{references.bib}
+% \bibliographystyle{unsrt}
+% \bibliography{references.bib}
 
-\end{multicols}
+% \end{multicols}
+
+\clearpage
+
+\newcommand{\paretoscattertwodimensional}[4]{
+    \pgfplotsset{cycle list/RdYlGn-9}
+    \pgfplotstablesort[sort key=1,sort cmp=int >]{#1}{#2}
+
+    \begin{tikzpicture}
+    \begin{axis}[xlabel={#3},ylabel={#4},legend pos=south east,colormap name={RdYlGn-9}]
+    \addplot [scatter,only marks,scatter src=explicit,scatter/use mapped color={draw opacity=0,fill=mapped color}] table[x index=3,y index=4,meta index=1,col sep=space] {#1};
+    \end{axis}
+    \end{tikzpicture}
+}
+
+\newcommand{\paretoscatterthreedimensional}[6]{
+    \pgfplotsset{cycle list/RdYlGn-9}
+    \pgfplotstablesort[sort key=1,sort cmp=int >]{#1}{#2}
+
+    \begin{tikzpicture}
+    \begin{axis}[xlabel={#3},ylabel={#4},zlabel={#5},legend pos=south east,colormap name={RdYlGn-9},#6]
+    \addplot3[scatter,only marks,scatter/use mapped color={draw opacity=0,fill=mapped color}] table[x index=3,y index=4,z index=5,col sep=space] {#1};
+    \end{axis}
+    \end{tikzpicture}
+}
+
+\paretoscattertwodimensional{\paretodatadeviationedge}{../data/population_deviation_edge.txt}{Overall deviation}{Edge value}
+\paretoscattertwodimensional{\paretodataedgeconnectivity}{../data/population_edge_connectivity.txt}{Edge value}{Connectivity measure}
+\paretoscattertwodimensional{\paretodatadeviationconnectivity}{../data/population_deviation_connectivity.txt}{Overall deviation}{Connectivity measure}
+\paretoscatterthreedimensional{\paretodatadeviationedgeconnectivity}{../data/population_deviation_edge_connectivity.txt}{Overall deviation}{Edge value}{Connectivity measure}{view/v=-20,view/az=20}
+\paretoscatterthreedimensional{\paretodatadeviationedgeconnectivity}{../data/population_deviation_edge_connectivity.txt}{Overall deviation}{Edge value}{Connectivity measure}{view/v=-20,view/az=-20}
+
 
 \end{document}
