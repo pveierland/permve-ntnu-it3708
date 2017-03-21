@@ -18,6 +18,29 @@ namespace vi
     {
         namespace nsga2
         {
+            bool
+            dominates(const std::vector<double>& objective_values_a, const std::vector<double>& objective_values_b)
+            {
+                assert(objective_values_a.size() == objective_values_b.size());
+
+                auto objective_value_it           = objective_values_a.begin();
+                auto other_objective_value_it     = objective_values_b.begin();
+                const auto objective_value_end_it = objective_values_a.end();
+
+                while (objective_value_it != objective_value_end_it)
+                {
+                    if (*other_objective_value_it <= *objective_value_it)
+                    {
+                        return false;
+                    }
+
+                    ++objective_value_it;
+                    ++other_objective_value_it;
+                }
+
+                return true;
+            }
+
             template <typename genotype_type>
             struct individual
             {
@@ -33,29 +56,6 @@ namespace vi
                     : genotype(std::move(genotype)),
                       objective_values(std::move(objective_values))
                 {
-                }
-
-                bool
-                dominates(const individual& other) const
-                {
-                    assert(objective_values.size() == other.objective_values.size());
-
-                    auto objective_value_it           = objective_values.begin();
-                    auto other_objective_value_it     = other.objective_values.begin();
-                    const auto objective_value_end_it = objective_values.end();
-
-                    while (objective_value_it != objective_value_end_it)
-                    {
-                        if (*other_objective_value_it <= *objective_value_it)
-                        {
-                            return false;
-                        }
-
-                        ++objective_value_it;
-                        ++other_objective_value_it;
-                    }
-
-                    return true;
                 }
 
                 bool
@@ -193,7 +193,7 @@ namespace vi
                         const auto range_delta   = range_max[objective] - range_min[objective];
                         const auto range_scaling = range_delta != 0.0 ? 1.0 / range_delta : 1.0;
 
-                        for (typename std::vector<individual_type*>::size_type i = 1; i != front.size() - 1; ++i)
+                        for (typename std::vector<individual_type*>::size_type i = 1; i < front.size() - 1; ++i)
                         {
                             front[i]->crowding_distance += range_scaling *
                                 (front[i + 1]->objective_values[objective] -
@@ -295,12 +295,12 @@ namespace vi
                     {
                         for (auto q = p + 1; q != end; ++q)
                         {
-                            if (p->dominates(*q))
+                            if (dominates(p->objective_values, q->objective_values))
                             {
                                 p->S.push_back(&*q);
                                 ++q->n;
                             }
-                            else if (q->dominates(*p))
+                            else if (dominates(q->objective_values, p->objective_values))
                             {
                                 q->S.push_back(&*p);
                                 ++p->n;

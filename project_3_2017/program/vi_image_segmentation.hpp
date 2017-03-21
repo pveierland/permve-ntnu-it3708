@@ -159,12 +159,12 @@ namespace vi
                 {
                     if (*segment_current != *segment_below)
                     {
-                        edge_value -= 2.0 * compute_pixel_distance(*pixel_current, *pixel_below);
+                        edge_value += 2.0 * compute_pixel_distance(*pixel_current, *pixel_below);
                     }
 
                     if (*segment_current != *segment_next)
                     {
-                        edge_value -= 2.0 * compute_pixel_distance(*pixel_current, *pixel_next);
+                        edge_value += 2.0 * compute_pixel_distance(*pixel_current, *pixel_next);
                     }
 
                     ++pixel_current;
@@ -178,7 +178,7 @@ namespace vi
 
                 if (*segment_current != *segment_below)
                 {
-                    edge_value -= 2.0 * compute_pixel_distance(*pixel_current, *pixel_below);
+                    edge_value += 2.0 * compute_pixel_distance(*pixel_current, *pixel_below);
                 }
 
                 ++pixel_current;
@@ -194,7 +194,7 @@ namespace vi
             {
                 if (*segment_current != *segment_next)
                 {
-                    edge_value -= 2.0 * compute_pixel_distance(*pixel_current, *pixel_next);
+                    edge_value += 2.0 * compute_pixel_distance(*pixel_current, *pixel_next);
                 }
 
                 ++pixel_current;
@@ -718,40 +718,45 @@ namespace vi
 
         struct moea
         {
+            using genotype_type = std::pair<std::vector<vi::image_segmentation::image_direction>, vi::image_segmentation::segment_index>;
+
             template <typename random_generator_type>
             static
-            std::pair<std::vector<image_direction>, std::vector<image_direction>>
-            crossover_operator(random_generator_type&              random_generator,
-                               const std::vector<image_direction>& parent_a,
-                               const std::vector<image_direction>& parent_b)
+            std::pair<genotype_type, genotype_type>
+            crossover_operator(random_generator_type& random_generator,
+                               const genotype_type&   parent_a,
+                               const genotype_type&   parent_b)
             {
-                const auto sequence_length = static_cast<unsigned>(parent_a.size());
+                auto& parent_a_sequence = parent_a.first;
+                auto& parent_b_sequence = parent_b.first;
+
+                const auto sequence_length = static_cast<unsigned>(parent_a_sequence.size());
 
                 auto children = std::make_pair(
-                    std::vector<image_direction>(sequence_length, image_direction::unassigned),
-                    std::vector<image_direction>(sequence_length, image_direction::unassigned));
+                    std::make_pair(std::vector<image_direction>(sequence_length, image_direction::unassigned), segment_index{}),
+                    std::make_pair(std::vector<image_direction>(sequence_length, image_direction::unassigned), segment_index{}));
 
-                auto& child_a = children.first;
-                auto& child_b = children.second;
+                auto& child_a_sequence = children.first.first;
+                auto& child_b_sequence = children.second.first;
 
                 const auto crossover_point = std::uniform_int_distribution<unsigned>{
                     0U, sequence_length}(random_generator);
 
-                std::copy(parent_a.begin(),
-                          parent_a.begin() + crossover_point,
-                          child_a.begin());
+                std::copy(parent_a_sequence.begin(),
+                          parent_a_sequence.begin() + crossover_point,
+                          child_a_sequence.begin());
 
-                std::copy(parent_b.begin() + crossover_point,
-                          parent_b.end(),
-                          child_a.begin() + crossover_point);
+                std::copy(parent_b_sequence.begin() + crossover_point,
+                          parent_b_sequence.end(),
+                          child_a_sequence.begin() + crossover_point);
 
-                std::copy(parent_b.begin(),
-                          parent_b.begin() + crossover_point,
-                          child_b.begin());
+                std::copy(parent_b_sequence.begin(),
+                          parent_b_sequence.begin() + crossover_point,
+                          child_b_sequence.begin());
 
-                std::copy(parent_a.begin() + crossover_point,
-                          parent_a.end(),
-                          child_b.begin() + crossover_point);
+                std::copy(parent_a_sequence.begin() + crossover_point,
+                          parent_a_sequence.end(),
+                          child_b_sequence.begin() + crossover_point);
 
                 return children;
             }
@@ -768,18 +773,18 @@ namespace vi
             template <typename random_generator_type>
             static
             void
-            mutate_operator(random_generator_type&        random_generator,
-                            std::vector<image_direction>& genotype)
+            mutate_operator(random_generator_type& random_generator,
+                            genotype_type&         genotype)
             {
                 const auto index = std::uniform_int_distribution<unsigned>{
-                    0U, static_cast<unsigned>(genotype.size()) - 1U}(random_generator);
+                    0U, static_cast<unsigned>(genotype.first.size()) - 1U}(random_generator);
 
                 const auto value = static_cast<image_direction>(
                     std::uniform_int_distribution<unsigned>{
                         static_cast<unsigned>(image_direction::none),
                         static_cast<unsigned>(image_direction::west)}(random_generator));
 
-                genotype[index] = value;
+                genotype.first[index] = value;
             }
 
             boost::gil::rgb8_image_t input_image;
@@ -805,7 +810,7 @@ namespace vi
             }
 
             std::vector<double>
-            evaluate(const std::vector<image_direction>& genotype)
+            evaluate(genotype_type& genotype)
             {
                 std::vector<double> objective_values{};
 
@@ -813,7 +818,9 @@ namespace vi
                 segment_index              segment_count{};
 
                 std::tie(segmentation, segment_count) = compile_segmentation_graph(
-                    genotype, input_image_width, input_image_height);
+                    genotype.first, input_image_width, input_image_height);
+
+                genotype.second = segment_count;
 
                 if (evaluate_overall_deviation)
                 {
@@ -846,11 +853,11 @@ namespace vi
             }
 
             template <typename random_generator_type>
-            std::vector<image_direction>
+            genotype_type
             generate(random_generator_type& random_generator)
             {
-                return build_minimum_spanning_tree(
-                    random_generator, input_image_distances);
+                return std::make_pair(build_minimum_spanning_tree(
+                    random_generator, input_image_distances), segment_index{});
             }
         };
     }
