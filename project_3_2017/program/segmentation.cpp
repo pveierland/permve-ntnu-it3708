@@ -86,12 +86,12 @@ print_evolution_info(
                 }
                 else
                 {
-                    std::cout << termcolor::blue << "\u25B2" << termcolor::reset;
+                    std::cout << termcolor::blue << "\u2764" << termcolor::reset;
                 }
             }
             else
             {
-                std::cout << termcolor::red << "\u274C" << termcolor::reset;
+                std::cout << termcolor::red << "\u2764" << termcolor::reset;
             }
         }
     }
@@ -169,10 +169,21 @@ update_cherrypicked_solutions(
                         const auto& other          = cherrypick_solutions_hint[cherrypick_count - 1];
                         const auto  other_distance = std::abs(static_cast<int>(other.genotype.second) - hint);
 
-                        if (distance < other_distance and vi::ea::nsga2::dominates(individual.objective_values, other.objective_values))
+                        if (distance < other_distance or (distance == other_distance and vi::ea::nsga2::dominates(individual.objective_values, other.objective_values)))
                         {
                             cherrypick_solutions_hint.pop_back();
                             cherrypick_solutions_hint.push_back(individual);
+
+                            std::sort(cherrypick_solutions_hint.begin(), cherrypick_solutions_hint.end(),
+                                [hint](const auto& a, const auto& b)
+                                {
+                                    const auto distance_a = std::abs(static_cast<int>(a.genotype.second) - hint);
+                                    const auto distance_b = std::abs(static_cast<int>(b.genotype.second) - hint);
+
+                                    return ((distance_a < distance_b) or
+                                        ((distance_a == distance_b) and
+                                         (vi::ea::nsga2::dominates(a.objective_values, b.objective_values))));
+                                });
                         }
                     }
                     else
