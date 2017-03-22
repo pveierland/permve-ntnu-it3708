@@ -7,29 +7,37 @@ program="../program/segmentation --generations 250 --population 200 --tournament
 data_path="../data"
 
 mkdir -p ${data_path}
+mkdir -p ${data_path}/edge_connectivity
+mkdir -p ${data_path}/deviation_connectivity
+mkdir -p ${data_path}/deviation_edge
+mkdir -p ${data_path}/deviation_edge_connectivity
 
-eval ${program} --save_filename "${data_path}/population_edge_connectivity.txt" \
+eval ${program} --save_filename "${data_path}/edge_connectivity/population.txt" \
                 --evaluate_overall_deviation false \
                 --evaluate_edge_value true \
                 --evaluate_connectivity_measure true \
+                --render_base_path "${data_path}/edge_connectivity/" \
                 \"${image}\" &
 
-eval ${program} --save_filename "${data_path}/population_deviation_connectivity.txt" \
+eval ${program} --save_filename "${data_path}/deviation_connectivity/population.txt" \
                 --evaluate_overall_deviation true \
                 --evaluate_edge_value false \
                 --evaluate_connectivity_measure true \
+                --render_base_path "${data_path}/deviation_connectivity/" \
                 \"${image}\" &
 
-eval ${program} --save_filename "${data_path}/population_deviation_edge.txt" \
+eval ${program} --save_filename "${data_path}/deviation_edge/population.txt" \
                 --evaluate_overall_deviation true \
                 --evaluate_edge_value true \
                 --evaluate_connectivity_measure false \
+                --render_base_path "${data_path}/deviation_edge/" \
                 \"${image}\" &
 
-eval ${program} --save_filename "${data_path}/population_deviation_edge_connectivity.txt" \
+eval ${program} --save_filename "${data_path}/deviation_edge_connectivity/population.txt" \
                 --evaluate_overall_deviation true \
                 --evaluate_edge_value true \
                 --evaluate_connectivity_measure true \
+                --render_base_path "${data_path}/deviation_edge_connectivity/" \
                 \"${image}\" &
 
 wait

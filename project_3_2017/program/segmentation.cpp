@@ -239,6 +239,7 @@ main(int argc, char** argv)
             ("mutation_rate",                 po::value<double>()->default_value(0.05),                  "Mutation rate")
             ("population_size",               po::value<unsigned>()->default_value(100),                 "Population size")
             ("render",                        po::value<bool>()->default_value(true),                    "Render solutions")
+            ("render_base_path",              po::value<std::string>()->default_value(""),               "Render output base path")
             ("save",                          po::value<bool>()->default_value(true),                    "Save population information to file")
             ("save_filename",                 po::value<std::string>()->default_value("population.txt"), "Population filename")
             ("tournament_group_size",         po::value<unsigned>()->default_value(5),                   "Tournament group size")
@@ -369,7 +370,9 @@ main(int argc, char** argv)
                     vi::image_segmentation::render(
                         boost::gil::view(problem.input_image),
                         segmentation,
-                        boost::str(boost::format("render_type_1%s.pdf") % description_str.c_str()),
+                        boost::str(boost::format("%srender_type_1%s.pdf")
+                            % variables["render_base_path"].as<std::string>().c_str()
+                            % description_str.c_str()),
                         true,
                         true,
                         false);
@@ -377,7 +380,9 @@ main(int argc, char** argv)
                     vi::image_segmentation::render(
                         boost::gil::view(problem.input_image),
                         segmentation,
-                        boost::str(boost::format("render_type_2%s.pdf") % description_str.c_str()),
+                        boost::str(boost::format("%srender_type_2%s.pdf")
+                            % variables["render_base_path"].as<std::string>().c_str()
+                            % description_str.c_str()),
                         false,
                         true,
                         false);
@@ -385,7 +390,9 @@ main(int argc, char** argv)
                     vi::image_segmentation::render(
                         boost::gil::view(problem.input_image),
                         segmentation,
-                        boost::str(boost::format("render_type_3%s.pdf") % description_str.c_str()),
+                        boost::str(boost::format("%srender_type_3%s.pdf")
+                            % variables["render_base_path"].as<std::string>().c_str()
+                            % description_str.c_str()),
                         false,
                         false,
                         true);
