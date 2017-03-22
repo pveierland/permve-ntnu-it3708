@@ -12,13 +12,14 @@ mkdir -p ${data_path}/deviation_connectivity
 mkdir -p ${data_path}/deviation_edge
 mkdir -p ${data_path}/deviation_edge_connectivity
 
+# Hint of 0 necessary to render solutions as no valid solutions are found:
 eval ${program} \"${image}\" \
     --save_filename "${data_path}/edge_connectivity/population.txt" \
     --evaluate_overall_deviation false \
     --evaluate_edge_value true \
     --evaluate_connectivity_measure true \
     --render_base_path "${data_path}/edge_connectivity/" \
-    --hint 13 16 25 30 40 &
+    --hint 0 &
 
 eval ${program} \"${image}\" \
     --save_filename "${data_path}/deviation_connectivity/population.txt" \
