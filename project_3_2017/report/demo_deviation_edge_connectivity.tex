@@ -1,0 +1,106 @@
+\documentclass[paper=a4, fontsize=9pt]{scrartcl}
+\usepackage[bottom=0.9in, left=0.7in, right=0.7in, top=0.8in, foot=0.5in]{geometry}
+\usepackage{layouts}
+
+\usepackage[usenames,dvipsnames,x11names]{xcolor}
+
+\usepackage[T1]{fontenc}
+\usepackage{fourier}
+\usepackage[english]{babel}
+\usepackage{amsmath,amsfonts,amsthm}
+
+\usepackage{sectsty}
+\allsectionsfont{\centering \normalfont\scshape}
+
+\usepackage{acronym}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{fancyhdr}
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage[htt]{hyphenat}
+\usepackage{lastpage}
+\usepackage{multicol}
+\usepackage{titlesec}
+\usepackage[inline]{enumitem}
+\usepackage{algorithm, algpseudocode}
+
+\usepackage{tikz} % To generate the plot from csv
+\usepackage{pgfplots, pgfplotstable}
+\pgfplotsset{compat=1.5}
+\usepgfplotslibrary{colorbrewer}
+
+\pagestyle{fancyplain}
+\fancyhead{}
+\fancyfoot[L]{}
+\fancyfoot[C]{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+\setlength{\headheight}{13.6pt}
+
+\newcommand{\horrule}[1]{\rule{\linewidth}{#1}}
+
+\begin{document}
+
+\pgfplotsset{
+every axis/.append style={
+scale only axis,
+width=0.25\textwidth,height=0.25\textwidth,
+},
+/tikz/every picture/.append style={
+trim axis left,
+trim axis right,
+baseline
+}
+}
+
+\newcommand{\paretoscattertwodimensional}[6]{
+    \pgfplotsset{cycle list/RdYlGn-9}
+    \pgfplotstablesort[sort key=1,sort cmp=int >]{#1}{#2}
+
+    \begin{tikzpicture}
+    \begin{axis}[xlabel={#3},ylabel={#4},legend pos=south east,colormap name={RdYlGn-9}]
+    \addplot [scatter,only marks,scatter src=explicit,scatter/use mapped color={draw opacity=0,fill=mapped color},mark size=0.8pt] table[x index=#5,y index=#6,meta index=1,col sep=space] {#1};
+    \end{axis}
+    \end{tikzpicture}
+}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{cp{0.7cm}cp{0.7cm}c}
+\multicolumn{5}{c}{
+\begin{minipage}{\textwidth}
+\centering
+\begin{tabular}{cp{1cm}c}
+{
+    \pgfplotsset{cycle list/RdYlGn-9}
+    \pgfplotstablesort[sort key=1,sort cmp=int >]{\paretodatadeviationedgeconnectivityx}{population.txt}
+
+    \begin{tikzpicture}
+    \begin{axis}[xlabel={Overall deviation},ylabel={Edge value},zlabel={Connectivity measure},legend pos=south east,colormap name={RdYlGn-9},view/v=-20,view/az=-45,xlabel shift=-8pt]
+    \addplot3[scatter,only marks,scatter/use mapped color={draw opacity=0,fill=mapped color},mark size=0.8pt] table[x index=3,y index=4,z index=5,col sep=space] {\paretodatadeviationedgeconnectivityx};
+    \end{axis}
+    \end{tikzpicture}
+} & ~ &
+{
+    \pgfplotsset{cycle list/RdYlGn-9}
+    \pgfplotstablesort[sort key=1,sort cmp=int >]{\paretodatadeviationedgeconnectivityy}{population.txt}
+
+    \begin{tikzpicture}
+    \begin{axis}[xlabel={Overall deviation},ylabel={Edge value},zlabel={Connectivity measure},legend pos=south east,colormap name={RdYlGn-9},view/v=-20,view/az=45]
+    \addplot3[scatter,only marks,scatter/use mapped color={draw opacity=0,fill=mapped color},mark size=0.8pt] table[x index=3,y index=4,z index=5,col sep=space] {\paretodatadeviationedgeconnectivityy};
+    \end{axis}
+    \end{tikzpicture}
+} \\[1cm]
+(a) & ~ & (b)\\[0.25cm]
+\end{tabular}
+\end{minipage}
+}\\
+
+\paretoscattertwodimensional{\paretodatadeviationedgeconnectivitya}{population.txt}{Overall deviation}{Edge value}{3}{4} & ~ &
+\paretoscattertwodimensional{\paretodatadeviationedgeconnectivityb}{population.txt}{Edge value}{Connectivity measure}{4}{5} & ~ &
+\paretoscattertwodimensional{\paretodatadeviationedgeconnectivityc}{population.txt}{Overall deviation}{Connectivity measure}{3}{5} \\[1.5cm]
+\end{tabular}
+\end{table}
+
+\end{document}
