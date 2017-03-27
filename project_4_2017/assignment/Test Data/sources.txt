@@ -1,0 +1,7 @@
+https://www.eii.uva.es/elena/Elena%20Perez%20Vazquez_archivos/files_optimaJSSP/jobshop1.txt
+1: instance ft06 Fisher and Thompson 6x6 instance, alternate name (mt06)
+2: instance ft10 Fisher and Thompson 10x10 instance, alternate name (mt10)
+3: instance ft20 Fisher and Thompson 20x5 instance, alternate name (mt20)
+4: instance orb04 deadly 10x10 instance from Bruce Shepherd (BRS1)
+5: instance la27 Lawrence 20x10 instance (Table 8, instance 2); also called (setc2) or (C2)
+6: instance abz6 Adams, and Zawack 10x10 instance (Table 1, instance 6)
