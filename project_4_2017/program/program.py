@@ -8,8 +8,22 @@ from PyQt5.QtSvg import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtPrintSupport import *
 
-Operation = namedtuple('Operation', ['machine_index', 'time_steps'])
 Allocation = namedtuple('Allocation', ['job_index', 'sequence_index', 'start_time', 'time_steps'])
+Operation  = namedtuple('Operation', ['machine_index', 'time_steps'])
+Problem    = namedtuple('Problem', ['job_count', 'machine_count', 'jobs'])
+
+def parse_problem_file(filename):
+    with open(filename) as input_file:
+        input_lines = input_file.readlines()
+        job_count, machine_count = map(int, input_lines[0].split())
+        jobs = []
+
+        for job_index in range(job_count):
+            input_line = list(map(int, input_lines[job_index + 1].split()))
+            jobs.append([Operation(machine_index, time_steps)
+                         for machine_index, time_steps in zip(input_line[0::2], input_line[1::2])])
+
+        return Problem(job_count, machine_count, jobs)
 
 def render_gantt_chart(output_filename, allocations):
     if not allocations:
@@ -143,4 +157,5 @@ def render_gantt_chart(output_filename, allocations):
 
     painter.end()
 
-render_gantt_chart('wtf.pdf', None)
+#render_gantt_chart('wtf.pdf', None)
+print(parse_problem_file('/home/pveierland/permve-ntnu-it3708/project_4_2017/assignment/Test Data/1.txt'))
