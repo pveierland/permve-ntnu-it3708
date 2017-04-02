@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
 from collections import namedtuple
+import argparse
 import math
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import random
+import statistics
 import sys
 
 import numpy as np
@@ -50,16 +52,16 @@ class MultitypeIndividualEnchancement(object):
         temperature = start_temperature
 
         while temperature > final_temperature:
-            successor = sequence
+            successor[:] = sequence
             self.enchance(successor)
             successor_evaluation = self.evaluator(successor)
 
             delta = successor_evaluation - evaluation
 
             if delta < 0 or random.random() < min(1, math.exp(-delta / temperature)):
-                sequence   = successor
-                evaluation = successor_evaluation
-
+                sequence[:] = successor
+                evaluation  = successor_evaluation
+            
             temperature = cooling_rate * temperature
 
         return evaluation
@@ -85,11 +87,8 @@ class MultitypeIndividualEnchancementParticleSwarmOptimizer(object):
         self.individual_positions = np.random.uniform(
             config.low_value, config.high_value, (config.population_size, config.dimensions))
 
-        self.individual_velocities = np.random.rand(config.population_size, config.dimensions)
-
-        for i in range(self.config.population_size):
-            velocity_magnitude       = np.linalg.norm(self.individual_velocities[i])
-            self.individual_velocities[i] = np.random.uniform(0.0, config.max_velocity) * (self.individual_velocities[i] / velocity_magnitude)
+        self.individual_velocities = np.random.uniform(
+            -config.max_velocity, config.max_velocity, (config.population_size, config.dimensions))
 
         self.individual_evaluations = np.zeros(config.population_size)
 
@@ -99,13 +98,13 @@ class MultitypeIndividualEnchancementParticleSwarmOptimizer(object):
         self.individual_best_positions   = self.individual_positions.copy()
         self.individual_best_evaluations = self.individual_evaluations.copy()
 
-        self.global_best_position   = self.individual_positions[0]
-        self.global_best_evaluation = self.individual_evaluations[0]
+        self.global_best_position   = np.zeros(config.dimensions)
+        self.global_best_evaluation = float('inf')
 
-        for i in range(1, self.config.population_size):
+        for i in range(self.config.population_size):
             if self.individual_best_evaluations[i] < self.global_best_evaluation:
-                self.global_best_position   = self.individual_best_positions[i]
-                self.global_best_evaluation = self.individual_best_evaluations[i]
+                self.global_best_position[:] = self.individual_best_positions[i]
+                self.global_best_evaluation  = self.individual_best_evaluations[i]
 
     def evolve(self, omega):
         for i in range(self.config.population_size):
@@ -118,13 +117,18 @@ class MultitypeIndividualEnchancementParticleSwarmOptimizer(object):
                     self.config.final_temperature,
                     self.config.cooling_rate)
 
+                # random_velocity = np.random.rand(self.config.dimensions)
+                # random_velocity_magnitude = np.linalg.norm(random_velocity)
+                # self.individual_velocities[i] = (np.random.uniform(0.0, self.config.max_velocity)
+                #     * (random_velocity / random_velocity_magnitude))
+
             if self.individual_evaluations[i] < self.individual_best_evaluations[i]:
                 self.individual_best_positions[i]   = self.individual_positions[i]
                 self.individual_best_evaluations[i] = self.individual_evaluations[i]
 
                 if self.individual_evaluations[i] < self.global_best_evaluation:
-                    self.global_best_position   = self.individual_positions[i]
-                    self.global_best_evaluation = self.individual_evaluations[i]
+                    self.global_best_position[:] = self.individual_positions[i]
+                    self.global_best_evaluation  = self.individual_evaluations[i]
 
         for i in range(self.config.population_size):
             r_p = np.random.rand(self.config.dimensions)
@@ -132,12 +136,11 @@ class MultitypeIndividualEnchancementParticleSwarmOptimizer(object):
 
             position = self.individual_positions[i]
 
-            velocity = (omega * self.individual_velocities[i] +
-                self.config.phi_particle * r_p * (self.individual_best_positions[i] - position) +
-                self.config.phi_global   * r_g * (self.global_best_position - position))
-
-            velocity_magnitude = np.linalg.norm(velocity)
-            velocity           = min(self.config.max_velocity, velocity_magnitude) * (velocity / velocity_magnitude)
+            velocity = np.clip((omega * self.individual_velocities[i]) +
+                (self.config.phi_particle * r_p * (self.individual_best_positions[i] - position)) +
+                (self.config.phi_global   * r_g * (self.global_best_position - position)),
+                -self.config.max_velocity,
+                +self.config.max_velocity)
 
             position   = np.clip(position + velocity, self.config.low_value, self.config.high_value)
             evaluation = self.evaluator(position)
@@ -145,6 +148,14 @@ class MultitypeIndividualEnchancementParticleSwarmOptimizer(object):
             self.individual_positions[i]   = position
             self.individual_velocities[i]  = velocity
             self.individual_evaluations[i] = evaluation
+
+            if self.individual_evaluations[i] < self.individual_best_evaluations[i]:
+                self.individual_best_positions[i]   = self.individual_positions[i]
+                self.individual_best_evaluations[i] = self.individual_evaluations[i]
+
+                if self.individual_evaluations[i] < self.global_best_evaluation:
+                    self.global_best_position[:] = self.individual_positions[i]
+                    self.global_best_evaluation  = self.individual_evaluations[i]
 
 def allocate_operation_sequence(problem, operation_sequence):
     job_completion_times     = np.zeros(problem.job_count)
@@ -382,59 +393,98 @@ def render_gantt_chart(output_filename, allocations):
 
     painter.end()
 
-problem = parse_problem_file(sys.argv[1])
+# parser = argparse.ArgumentParser()
+# parser.add_argument('--problem', type=str)
+# parser.add_argument('--population_size', type=int, default=40)
+# parser.add_argument('--low_value', type=float, default=0.0)
+# parser.add_argument('--high_value', type=float, default=2.0)
+# parser.add_argument('--c1', type=float, default=2.0)
+# parser.add_argument('--c2', type=float, default=2.0)
+# parser.add_argument('--mie', type=float, default=0.01)
+# parser.add_argument('--generation_count', type=int, default=30)
+# parser.add_argument('--omega_start', type=float, default=0.9)
+# parser.add_argument('--omega_end', type=float, default=0.4)
+# args = parser.parse_args()
 
-#rk = np.random.rand(problem.job_count * problem.machine_count)
-#operation_sequence = decode_random_key_operation_sequence(problem, rk)
-#allocations, makespan = allocate_operation_sequence(problem, operation_sequence)
-#print(makespan)
-#render_gantt_chart('wtf.pdf', allocations)
+# problem = parse_problem_file(args.problem)
 
-# random_key = np.array([1.3, 0.7, 2.4, 1.1, 3.4, 5.3])
+# evaluator = lambda rk: allocate_operation_sequence(problem, decode_random_key_operation_sequence(problem, rk))[1]
 
-# ranks = np.empty(3 * 2, int)
-# ranks[random_key.argsort()] = np.arange(3 * 2)
+# mpso = MultitypeIndividualEnchancementParticleSwarmOptimizer(
+#     MultitypeIndividualEnchancementParticleSwarmOptimizer.Config(
+#         dimensions        = problem.job_count * problem.machine_count,
+#         population_size   = args.population_size,
+#         low_value         = 1.0,
+#         high_value        = float(problem.job_count * problem.machine_count),
+#         max_velocity      = 0.1 * float(problem.job_count * problem.machine_count),
+#         phi_particle      = args.c1,
+#         phi_global        = args.c2,
+#         p_mie             = args.mie,
+#         final_temperature = 0.1,
+#         cooling_rate      = 0.97),
+#     MultitypeIndividualEnchancement(
+#         MultitypeIndividualEnchancement.Config(
+#             p_swap=0.4,
+#             p_insert=0.4,
+#             p_invert=0.1,
+#             p_move=0.1),
+#         evaluator),
+#     evaluator)
 
-# print(ranks)
+# generation_count = 500
+# omega_start      = 1.4
+# omega_end        = 0.4
 
-# job_indexes        = ((ranks + 1) % 3) +1
+# values = []
 
-# print(job_indexes)
-# sys.exit()
+# for generation_index in range(1, generation_count + 1):
+#     omega = omega_start - generation_index * (omega_start - omega_end) / generation_count
+#     mpso.evolve(omega)
+#     #print('{} {}'.format(generation_index, mpso.global_best_evaluation))
+
+# print(mpso.global_best_evaluation)
+
+# for generation_index in range(1, generation_count + 1):
+#     omega = omega_start - generation_index * (omega_start - omega_end) / generation_count
+#     mpso.evolve(omega)
+
+#     print('{} {}'.format(generation_index, mpso.global_best_evaluation))
+
+#     #values.append(statistics.mean(np.linalg.norm(mpso.individual_velocities[i]) for i in range(mpso.config.population_size)))
+#     values.append(sum(np.std(mpso.individual_positions[:,i]) for i in range(mpso.config.dimensions)))
+
+# allocations, makespan = allocate_operation_sequence(problem, decode_random_key_operation_sequence(problem, mpso.global_best_position))
+# print('final best: {} {}'.format(makespan, mpso.global_best_position))
+# #render_gantt_chart('wtf.pdf', allocations)
+
+# plt.plot(list(range(1, generation_count + 1)), values)
+
+# plt.grid(True)
+# plt.draw()
+# plt.show()
 
 
+#import pickle
 
-evaluator = lambda rk: allocate_operation_sequence(problem, decode_random_key_operation_sequence(problem, rk))[1]
+# with open('data.pickle', 'wb') as f:
+#     pickle.dump(mpso.global_best_position, f, pickle.HIGHEST_PROTOCOL)
 
-mpso = MultitypeIndividualEnchancementParticleSwarmOptimizer(
-    MultitypeIndividualEnchancementParticleSwarmOptimizer.Config(
-        dimensions        = problem.job_count * problem.machine_count,
-        population_size   = 100,
-        low_value         = 1.0,
-        high_value        = float(problem.job_count * problem.machine_count),
-        max_velocity      = 0.1 * float(problem.job_count * problem.machine_count),
-        phi_particle      = 2.0,
-        phi_global        = 2.0,
-        p_mie             = 0.01,
-        final_temperature = 0.1,
-        cooling_rate      = 0.97),
-    MultitypeIndividualEnchancement(
-        MultitypeIndividualEnchancement.Config(
-            p_swap=0.4,
-            p_insert=0.4,
-            p_invert=0.1,
-            p_move=0.1),
-        evaluator),
-    evaluator)
+# with open('data.pickle', 'rb') as f:
+#     data = pickle.load(f)
 
-generation_count = 1000
-omega_start      = 1.4
-omega_end        = 0.4
+#     x = decode_random_key_operation_sequence(problem, data)
+#     xa, xs = allocate_operation_sequence(problem, x)
 
-for generation_index in range(1, generation_count + 1):
-    omega = omega_start - generation_index * (omega_start - omega_end) / generation_count
-    mpso.evolve(omega)
-    print('{} {}'.format(generation_index, mpso.global_best_evaluation))
+#     for _ in range(1000):
+#         y = decode_random_key_operation_sequence(problem, data)
+#         ya, ys = allocate_operation_sequence(problem, y)
+
+#         if not np.array_equal(x, y):
+#             print('rk mismatch')
+
+#         if xs != ys:
+#             print('makespan mismatch')
+
 
 # class MultitypeIndividualEnchancementParticleSwarmOptimizerAnimator(object):
 #     def __init__(self, mpso, generation_count, omega_start, omega_end):
