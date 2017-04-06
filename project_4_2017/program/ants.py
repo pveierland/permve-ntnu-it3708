@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from collections import namedtuple
+from multiprocessing.pool import ThreadPool
 import numpy as np
 import random
 import sys
@@ -202,20 +203,43 @@ class AntColonyOptimizer(object):
 
         update_pheromones_global(self.problem, self.pheromones, self.best_solution, self.config.decay)
 
-if __name__ == '__main__':
-    problem = parse_problem_file(sys.argv[1])
-    
-    aco = AntColonyOptimizer(
-        AntColonyOptimizer.Config(
-            num_ants             = 100,
-            c_greedy             = 0.5,
-            c_hist               = 0.5,
-            c_heur               = 0.5,
-            decay                = 0.1,
-            c_local_pheromone    = 0.1,
-            init_pheromone_value = 0.1),
-    problem)
+        return self.best_solution.makespan
 
-    for i in range(1000):
-        aco.iterate()
-        print('{}: {}'.format(i, aco.best_solution.makespan))
+if __name__ == '__main__':
+    def run_aco(aco):
+        return aco.iterate()
+
+    problem = parse_problem_file(sys.argv[1])
+
+    instances = 12
+
+    acos = [AntColonyOptimizer(
+            AntColonyOptimizer.Config(
+                num_ants             = 200,
+                c_greedy             = 0.5,
+                c_hist               = 2.5,
+                c_heur               = 0.5,
+                decay                = 0.2,
+                c_local_pheromone    = 0.1,
+                init_pheromone_value = 0.1),
+            problem) for _ in range(instances)]
+
+    pool = ThreadPool()
+
+    for _ in range(100):
+        print(min(pool.map(AntColonyOptimizer.iterate, acos)))
+
+
+    #tasks   = [(problem) for _ in range(12)]
+    # result = pool.apply_async(AntColonyOptimizer.iterate, , callback=wat)
+    # result.wait()
+
+    # for result in results:
+    #     result.wait()
+
+    # for i, result in enumerate(results):
+    #     result = result.get()
+    #     print('{}/{} {}'.format(i + 1, len(results), result))
+    
+    pool.close()
+    pool.join()

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 from collections import namedtuple
+import argparse
+from multiprocessing.pool import ThreadPool
 import numpy as np
 import random
 import sys
@@ -296,6 +298,8 @@ class BeesAlgorithmOptimizer(object):
         self.site_preferences, self.next_site_preferences = self.next_site_preferences, self.site_preferences
         self.site_makespans, self.next_site_makespans     = self.next_site_makespans, self.site_makespans
 
+        return min(self.site_makespans)
+
     def mutate_preference(self, preference):
         machine_index = random.randrange(self.problem.machine_count)
         first_index   = random.randrange(self.problem.job_count)
@@ -347,6 +351,8 @@ class PermutationParticleSwarmOptimizer(object):
             self.update_particle_position(self.positions[k], self.velocities[k], self.pbest_schedules[k], self.gbest_schedule)
             particle_schedule, _, particle_makespan = develop_schedule(self.problem, self.positions[k])
             self.update_particle_tracking(k, particle_schedule, particle_makespan)
+
+        return self.gbest_makespan
 
     def mutate_particle(self, position, velocity):
         machine_index = random.randrange(self.problem.machine_count)
@@ -419,50 +425,71 @@ class PermutationParticleSwarmOptimizer(object):
                 self.pbest_schedules[pbest_worst_index] = schedule
                 self.pbest_makespans[pbest_worst_index] = makespan
 
-
-
-# ppso = PermutationParticleSwarmOptimizer(
-#     PermutationParticleSwarmOptimizer.Config(
-#         swarm_size=100,
-#         c1=0.5,
-#         c2=0.3,
-#         w=0.5),
-#     problem)
-
-# try:
-#     for i in range(100000):
-#         ppso.iterate()
-#         print('{} {}'.format(i, ppso.gbest_makespan))
-# except KeyboardInterrupt:
-#     pass
-# finally:
-#     pass
-
-# ba = BeesAlgorithmOptimizer(
-#     BeesAlgorithmOptimizer.Config(
-#         num_scouts       = 1000,
-#         num_normal_sites = 20,
-#         num_elite_sites  = 10,
-#         num_normal_bees  = 50,
-#         num_elite_bees   = 25),
-#     problem)
-
 if __name__ == '__main__':
-    problem = parse_problem_file(sys.argv[1])
-    
-    ba = BeesAlgorithmOptimizer(
-        BeesAlgorithmOptimizer.Config(
-            num_scouts       = 100,
-            num_normal_sites = 10,
-            num_elite_sites  = 5,
-            num_normal_bees  = 5,
-            num_elite_bees   = 15),
-        problem)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--ba_num_scouts',  type=int, default=100)
+    parser.add_argument('--ba_num_normal_sites',  type=int, default=10)
+    parser.add_argument('--ba_num_elite_sites',  type=int, default=5)
+    parser.add_argument('--ba_num_normal_bees',  type=int, default=5)
+    parser.add_argument('--ba_num_elite_bees',  type=int, default=15)
+    parser.add_argument('--pso_swarm_size', type=int, default=100)
+    parser.add_argument('--pso_c1', type=float, default=0.5)
+    parser.add_argument('--pso_c2', type=float, default=0.3)
+    parser.add_argument('--pso_w', type=float, default=0.5)
+    parser.add_argument('--optimizer', choices=['aco', 'ba', 'pso'], required=True)
+    parser.add_argument('--problem', type=str, required=True)
+
+    args = parser.parse_args()
+
+    problem = parse_problem_file(args.problem)
+
+    instances = 12
+
+    if args.optimizer == 'ba':
+        optimizer = BeesAlgorithmOptimizer(
+            BeesAlgorithmOptimizer.Config(
+                num_scouts       = args.ba_num_scouts,
+                num_normal_sites = args.ba_num_normal_sites,
+                num_elite_sites  = args.ba_num_elite_sites,
+                num_normal_bees  = args.ba_num_normal_bees,
+                num_elite_bees   = args.ba_num_elite_bees),
+            problem)
+
+        for _ in range(1000):
+            print(optimizer.iterate())
+
+        sys.exit()
+    elif args.optimizer == 'pso':
+        # optimizers = [PermutationParticleSwarmOptimizer(
+        #     PermutationParticleSwarmOptimizer.Config(
+        #         swarm_size = args.pso_swarm_size,
+        #         c1         = args.pso_c1,
+        #         c2         = args.pso_c2,
+        #         w          = args.pso_w),
+        #     problem) for _ in range(instances)]
+
+        optimizer = PermutationParticleSwarmOptimizer(
+            PermutationParticleSwarmOptimizer.Config(
+                swarm_size = args.pso_swarm_size,
+                c1         = args.pso_c1,
+                c2         = args.pso_c2,
+                w          = args.pso_w),
+            problem)
+
+        for _ in range(1000):
+            print(optimizer.iterate())
+
+        sys.exit()
 
     try:
-        for i in range(100000):
-            ba.iterate()
-            print('{} {}'.format(i, min(ba.site_makespans)))
+        pool = ThreadPool()
+
+        for _ in range(100):
+            print(min(pool.map(lambda optimizer: optimizer.iterate(), optimizers)))
+
+        pool.close()
+        pool.join()
+
     except KeyboardInterrupt:
         pass
     finally:
