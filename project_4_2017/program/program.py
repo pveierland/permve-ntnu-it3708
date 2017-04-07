@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
 from collections import namedtuple
-import argparse
 from multiprocessing.pool import ThreadPool
+import argparse
+import math
 import numpy as np
 import random
 import sys
@@ -13,11 +14,26 @@ from PyQt5.QtSvg import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtPrintSupport import *
 
-Allocation = namedtuple('Allocation', ['sequence', 'start_time', 'operation'])
-Operation  = namedtuple('Operation', ['job', 'machine', 'time_steps'])
-Problem    = namedtuple('Problem', ['job_count', 'machine_count', 'jobs'])
+Allocation = namedtuple('Allocation', ['job_sequence_index', 'machine_sequence_index', 'start_time', 'predecessor', 'operation'])
+#Allocation        = namedtuple('Allocation', ['job_sequence_index', 'start_time', 'operation'])
+Operation         = namedtuple('Operation', ['job', 'machine', 'time_steps'])
+Problem           = namedtuple('Problem', ['job_count', 'machine_count', 'jobs'])
+Solution          = namedtuple('Solution', ['schedule', 'makespan'])
+Reorder           = namedtuple('Reorder', ['machine', 'machine_sequence_edge', 'machine_sequence_index', 'operation', 'after'])
 
-def develop_schedule(problem, preference):
+def mutate_preference(problem, preference):
+    machine_index = random.randrange(problem.machine_count)
+
+    first_index   = random.randrange(problem.job_count)
+    second_index  = random.randrange(problem.job_count)
+
+    first_job  = preference[machine_index, first_index]
+    second_job = preference[machine_index, second_index]
+
+    preference[machine_index, second_index] = first_job
+    preference[machine_index, first_index]  = second_job
+
+def develop_schedule(problem, preference, reorder=None):
     def compute_earliest_start_time(operation):
         return max(job_completion_times[operation.job], machine_completion_times[operation.machine])
 
@@ -27,8 +43,9 @@ def develop_schedule(problem, preference):
     def get_preferred_conflict_operation(conflict_set):
         for preferred_job in preference[earliest_operation.machine]:
             for conflict_operation in conflict_set:
-                if preferred_job == conflict_operation.job:
-                    return conflict_operation
+                if not reorder or not reorder.after or conflict_operation is not reorder.operation:
+                    if preferred_job == conflict_operation.job:
+                        return conflict_operation
 
     schedule    = np.full((problem.machine_count, problem.job_count), -1, int)
     allocations = [[] for _ in range(problem.machine_count)]
@@ -39,6 +56,9 @@ def develop_schedule(problem, preference):
     job_sequence_indexes     = np.zeros(problem.job_count, int)
     machine_sequence_indexes = np.zeros(problem.machine_count, int)
 
+    job_allocations     = [None for _ in range(problem.job_count)]
+    machine_allocations = [None for _ in range(problem.machine_count)]
+
     while possible:
         earliest_completion_time, earliest_operation = \
             min((compute_earliest_completion_time(operation), operation) for operation in possible)
@@ -47,7 +67,22 @@ def develop_schedule(problem, preference):
                         if operation.machine == earliest_operation.machine and
                         compute_earliest_start_time(operation) < earliest_completion_time]
 
-        selected_operation = get_preferred_conflict_operation(conflict_set)
+        if (reorder and reorder.machine == earliest_operation.machine and
+            ((not reorder.after and
+              reorder.machine_sequence_edge <= machine_sequence_indexes[earliest_operation.machine] and
+              machine_sequence_indexes[earliest_operation.machine] <= reorder.machine_sequence_index and
+              reorder.operation in conflict_set) or
+             (reorder.after and
+              (machine_sequence_indexes[earliest_operation.machine] == reorder.machine_sequence_edge or
+               (len(conflict_set) == 1 and reorder.operation in conflict_set))))):
+            selected_operation = reorder.operation
+            reorder            = None
+        else:
+            selected_operation = get_preferred_conflict_operation(conflict_set)
+
+        predecessor = (machine_allocations[selected_operation.machine]
+            if machine_completion_times[selected_operation.machine] >= job_completion_times[selected_operation.job]
+            else job_allocations[selected_operation.job])
 
         job_sequence_index = job_sequence_indexes[selected_operation.job]
         job_sequence_indexes[selected_operation.job] += 1
@@ -63,17 +98,111 @@ def develop_schedule(problem, preference):
 
         schedule[selected_operation.machine, machine_sequence_index] = selected_operation.job
 
-        allocations[selected_operation.machine].append(
-            Allocation(job_sequence_index, operation_start_time, selected_operation))
+        allocation = Allocation(job_sequence_index, machine_sequence_index, operation_start_time, predecessor, selected_operation)
 
-        possible.remove(selected_operation)
+        allocations[selected_operation.machine].append(allocation)
+
+        job_allocations[selected_operation.job]         = allocation
+        machine_allocations[selected_operation.machine] = allocation
+
+        if selected_operation in possible:
+            possible.remove(selected_operation)
 
         if job_sequence_index < problem.machine_count - 1:
             possible.append(problem.jobs[selected_operation.job][job_sequence_index + 1])
 
-    makespan = max(machine_completion_times)        
+    makespan = max(machine_completion_times)
 
     return schedule, allocations, makespan
+
+def find_reorderings(problem, allocations):
+    head = max((machine_allocation[-1].start_time + machine_allocation[-1].operation.time_steps, machine_allocation[-1])
+               for machine_allocation in allocations)[1]
+
+    reorderings  = []
+    centerpieces = []
+
+    left_edge  = None
+    right_edge = None
+    previous   = None
+
+    while head:
+        if not previous or head.operation.machine != previous.operation.machine:
+            right_edge = head
+            centerpieces.clear()
+        elif not head.predecessor or head.operation.machine != head.predecessor.operation.machine:
+            left_edge = head
+
+            for centerpiece in centerpieces:
+                reorderings.append(Reorder(
+                    centerpiece.operation.machine, left_edge.machine_sequence_index, centerpiece.machine_sequence_index, centerpiece.operation, False))
+                reorderings.append(Reorder(
+                    centerpiece.operation.machine, right_edge.machine_sequence_index, centerpiece.machine_sequence_index, centerpiece.operation, True))
+        else:
+            centerpieces.append(head)
+
+        previous = head
+        head     = head.predecessor
+
+    return reorderings
+
+# def develop_schedule(problem, preference):
+#     def compute_earliest_start_time(operation):
+#         return max(job_completion_times[operation.job], machine_completion_times[operation.machine])
+
+#     def compute_earliest_completion_time(operation):
+#         return compute_earliest_start_time(operation) + operation.time_steps
+
+#     def get_preferred_conflict_operation(conflict_set):
+#         for preferred_job in preference[earliest_operation.machine]:
+#             for conflict_operation in conflict_set:
+#                 if preferred_job == conflict_operation.job:
+#                     return conflict_operation
+
+#     schedule    = np.full((problem.machine_count, problem.job_count), -1, int)
+#     allocations = [[] for _ in range(problem.machine_count)]
+#     possible    = [operation_sequence[0] for operation_sequence in problem.jobs]
+
+#     job_completion_times     = np.zeros(problem.job_count)
+#     machine_completion_times = np.zeros(problem.machine_count)
+#     job_sequence_indexes     = np.zeros(problem.job_count, int)
+#     machine_sequence_indexes = np.zeros(problem.machine_count, int)
+
+#     while possible:
+#         earliest_completion_time, earliest_operation = \
+#             min((compute_earliest_completion_time(operation), operation) for operation in possible)
+
+#         conflict_set = [operation for operation in possible
+#                         if operation.machine == earliest_operation.machine and
+#                         compute_earliest_start_time(operation) < earliest_completion_time]
+
+#         selected_operation = get_preferred_conflict_operation(conflict_set)
+
+#         job_sequence_index = job_sequence_indexes[selected_operation.job]
+#         job_sequence_indexes[selected_operation.job] += 1
+
+#         machine_sequence_index = machine_sequence_indexes[selected_operation.machine]
+#         machine_sequence_indexes[selected_operation.machine] += 1
+
+#         operation_start_time      = compute_earliest_start_time(selected_operation)
+#         operation_completion_time = operation_start_time + selected_operation.time_steps
+
+#         job_completion_times[selected_operation.job]         = operation_completion_time
+#         machine_completion_times[selected_operation.machine] = operation_completion_time
+
+#         schedule[selected_operation.machine, machine_sequence_index] = selected_operation.job
+
+#         allocations[selected_operation.machine].append(
+#             Allocation(job_sequence_index, operation_start_time, selected_operation))
+
+#         possible.remove(selected_operation)
+
+#         if job_sequence_index < problem.machine_count - 1:
+#             possible.append(problem.jobs[selected_operation.job][job_sequence_index + 1])
+
+#     makespan = max(machine_completion_times)        
+
+#     return schedule, allocations, makespan
 
 def parse_problem_file(filename):
     with open(filename) as input_file:
@@ -121,11 +250,14 @@ def render_gantt_chart(output_filename, allocations):
     }
 
     # http://colorbrewer2.org/?type=qualitative&scheme=Set3&n=12
-    job_colors = [QColor(c) for c in ['#8dd3c7','#ffffb3','#bebada','#fb8072','#80b1d3','#fdb462','#b3de69','#fccde5','#d9d9d9','#bc80bd','#ccebc5','#ffed6f']]
+    # http://colorbrewer2.org/?type=qualitative&scheme=Paired&n=12
+    job_colors = [QColor(c) for c in [
+        '#8dd3c7','#ffffb3','#bebada','#fb8072','#80b1d3','#fdb462','#b3de69','#fccde5','#d9d9d9','#bc80bd','#ccebc5','#ffed6f',
+        '#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928']]
 
     num_machines = len(allocations)
 
-    max_time_step = max(allocation.start_time + allocation.time_steps
+    max_time_step = max(allocation.start_time + allocation.operation.time_steps
                         for machine_allocations in allocations
                         for allocation in machine_allocations)
 
@@ -197,14 +329,14 @@ def render_gantt_chart(output_filename, allocations):
             rect = QRectF(
                 float(allocation.start_time),
                 (float(machine_index) + (1.0 - configuration['block_height_ratio']) / 2.0) * configuration['cell_height'],
-                float(allocation.time_steps),
+                float(allocation.operation.time_steps),
                 configuration['block_height_ratio'] * configuration['cell_height'])
 
             painter.setPen(QPen(colors['box_line'], configuration['box_line_thickness']))
-            painter.fillRect(rect, QBrush(job_colors[allocation.job_index]))
+            painter.fillRect(rect, QBrush(job_colors[allocation.operation.job % len(job_colors)]))
             painter.drawRect(rect)
 
-            text = '({}/{})'.format(allocation.sequence_index + 1, allocation.job_index + 1)
+            text = '({}/{})'.format(allocation.job_sequence_index + 1, allocation.operation.job + 1)
             text_width = painter.fontMetrics().width(text)
             painter.setFont(regular_font)
             painter.setPen(QPen(colors['text'], configuration['box_line_thickness']))
@@ -237,6 +369,9 @@ class BeesAlgorithmOptimizer(object):
 
         self.initialize()
 
+    def best(self):
+        return self.best_solution
+
     def initialize(self):
         self.site_preferences = np.zeros((self.config.num_scouts, self.problem.machine_count, self.problem.job_count), int)
         self.site_makespans   = np.zeros(self.config.num_scouts)
@@ -250,6 +385,9 @@ class BeesAlgorithmOptimizer(object):
         self.next_site_preferences = self.site_preferences.copy()
         self.next_site_makespans   = self.site_makespans.copy()
 
+        index = np.argmin(self.site_makespans)
+        self.best_solution = Solution(self.site_preferences[index].copy(), self.site_makespans[index])
+
     def iterate(self):
         sorted_site_indexes = np.argsort(self.site_makespans)
 
@@ -259,10 +397,22 @@ class BeesAlgorithmOptimizer(object):
             best_site_preference = self.site_preferences[elite_site_index].copy()
             best_site_makespan   = self.site_makespans[elite_site_index]
 
+            original_site_schedule, original_site_allocations, original_site_makespan = develop_schedule(
+                self.problem, self.site_preferences[elite_site_index])
+
+            original_site_reorderings = find_reorderings(self.problem, original_site_allocations)
+
             for eb in range(self.config.num_elite_bees):
-                elite_site_preference = self.site_preferences[elite_site_index].copy()
-                self.mutate_preference(elite_site_preference)
-                _, _, elite_site_makespan = develop_schedule(self.problem, elite_site_preference)
+                if original_site_reorderings:
+                    reordering = random.choice(original_site_reorderings)
+                    original_site_reorderings.remove(reordering)
+
+                    elite_site_preference, _, elite_site_makespan = develop_schedule(
+                        self.problem, original_site_schedule, reordering)
+                else:
+                    elite_site_preference = self.site_preferences[elite_site_index].copy()
+                    mutate_preference(self.problem, elite_site_preference)
+                    _, _, elite_site_makespan = develop_schedule(self.problem, elite_site_preference)
 
                 if elite_site_makespan < best_site_makespan:
                     best_site_preference = elite_site_preference
@@ -278,10 +428,22 @@ class BeesAlgorithmOptimizer(object):
             best_site_preference = self.site_preferences[normal_site_index].copy()
             best_site_makespan   = self.site_makespans[normal_site_index]
 
+            original_site_schedule, original_site_allocations, original_site_makespan = develop_schedule(
+                self.problem, self.site_preferences[normal_site_index])
+
+            original_site_reorderings = find_reorderings(self.problem, original_site_allocations)
+
             for nb in range(self.config.num_normal_bees):
-                normal_site_preference = self.site_preferences[normal_site_index].copy()
-                self.mutate_preference(normal_site_preference)
-                _, _, normal_site_makespan = develop_schedule(self.problem, normal_site_preference)
+                if original_site_reorderings:
+                    reordering = random.choice(original_site_reorderings)
+                    original_site_reorderings.remove(reordering)
+
+                    normal_site_preference, _, normal_site_makespan = develop_schedule(
+                        self.problem, original_site_schedule, reordering)
+                else:
+                    normal_site_preference = self.site_preferences[normal_site_index].copy()
+                    mutate_preference(self.problem, normal_site_preference)
+                    _, _, normal_site_makespan = develop_schedule(self.problem, normal_site_preference)
 
                 if normal_site_makespan < best_site_makespan:
                     best_site_preference = normal_site_preference
@@ -298,18 +460,11 @@ class BeesAlgorithmOptimizer(object):
         self.site_preferences, self.next_site_preferences = self.next_site_preferences, self.site_preferences
         self.site_makespans, self.next_site_makespans     = self.next_site_makespans, self.site_makespans
 
+        index = np.argmin(self.site_makespans)
+        if not self.best_solution or self.site_makespans[index] < self.best_solution.makespan:
+            self.best_solution = Solution(self.site_preferences[index].copy(), self.site_makespans[index])
+
         return min(self.site_makespans)
-
-    def mutate_preference(self, preference):
-        machine_index = random.randrange(self.problem.machine_count)
-        first_index   = random.randrange(self.problem.job_count)
-        second_index  = random.randrange(self.problem.job_count)
-
-        first_job  = preference[machine_index, first_index]
-        second_job = preference[machine_index, second_index]
-
-        preference[machine_index, second_index] = first_job
-        preference[machine_index, first_index]  = second_job
 
 class PermutationParticleSwarmOptimizer(object):
     Config = namedtuple('Config', [
@@ -395,7 +550,13 @@ class PermutationParticleSwarmOptimizer(object):
                         position[machine, l_prime] = J_1
                         velocity[machine, J_1]     = True
 
-        self.mutate_particle(position, velocity)
+        schedule, allocations, makespan = develop_schedule(self.problem, position)
+        reorderings = find_reorderings(self.problem, allocations)
+
+        if reorderings:
+            position[:], _, _ = develop_schedule(problem, schedule, random.choice(reorderings))
+        else:
+            self.mutate_particle(position, velocity)
 
     def update_particle_velocity(self, velocity):
         velocity[:] = np.logical_and(velocity, np.random.rand(self.problem.machine_count, self.problem.job_count) < self.config.w)
@@ -425,27 +586,201 @@ class PermutationParticleSwarmOptimizer(object):
                 self.pbest_schedules[pbest_worst_index] = schedule
                 self.pbest_makespans[pbest_worst_index] = makespan
 
+def generate_random_preference(problem):
+    preference = np.zeros((problem.machine_count, problem.job_count))
+
+    for m in range(problem.machine_count):
+        preference[m] = np.random.permutation(problem.job_count)
+
+    return preference
+
+def generate_random_solution(problem):
+    preference = generate_random_preference(problem)
+    schedule, _, makespan = develop_schedule(problem, preference)
+    return Solution(schedule, makespan)
+
+def construct_solution(problem, pheromones, c_greedy, c_hist, c_heur):
+    def compute_earliest_start_time(operation):
+        return max(job_completion_times[operation.job], machine_completion_times[operation.machine])
+
+    def compute_earliest_completion_time(operation):
+        return compute_earliest_start_time(operation) + operation.time_steps
+
+    schedule    = np.full((problem.machine_count, problem.job_count), -1, int)
+    allocations = [[] for _ in range(problem.machine_count)]
+    possible    = [operation_sequence[0] for operation_sequence in problem.jobs]
+
+    job_completion_times     = np.zeros(problem.job_count)
+    machine_completion_times = np.zeros(problem.machine_count)
+    job_sequence_indexes     = np.zeros(problem.job_count, int)
+    machine_sequence_indexes = np.zeros(problem.machine_count, int)
+
+    job_allocations     = [None for _ in range(problem.job_count)]
+    machine_allocations = [None for _ in range(problem.machine_count)]
+
+    while possible:
+        earliest_completion_time, earliest_operation = \
+            min((compute_earliest_completion_time(operation), operation) for operation in possible)
+
+        conflict_set = [operation for operation in possible
+                        if operation.machine == earliest_operation.machine and
+                        compute_earliest_start_time(operation) < earliest_completion_time]
+
+        if random.random() < c_greedy:
+            selected_operation = earliest_operation
+        else:
+            conflict_set_probabilities = [
+                (pheromones[operation.machine, machine_sequence_indexes[operation.machine], operation.job] ** c_hist) *
+                ((1.0 / (1.0 + compute_earliest_completion_time(operation) - earliest_completion_time)) ** c_heur)
+                for operation in conflict_set
+            ]
+
+            random_selection = sum(conflict_set_probabilities) * random.random()
+
+            for i, p in enumerate(conflict_set_probabilities):
+                random_selection -= p
+                if random_selection < 0:
+                    selected_operation = conflict_set[i]
+                    break
+            else:
+                selected_operation = conlict_set[-1]
+
+        predecessor = (machine_allocations[selected_operation.machine]
+            if machine_completion_times[selected_operation.machine] >= job_completion_times[selected_operation.job]
+            else job_allocations[selected_operation.job])
+
+        job_sequence_index = job_sequence_indexes[selected_operation.job]
+        job_sequence_indexes[selected_operation.job] += 1
+
+        machine_sequence_index = machine_sequence_indexes[selected_operation.machine]
+        machine_sequence_indexes[selected_operation.machine] += 1
+
+        operation_start_time      = compute_earliest_start_time(selected_operation)
+        operation_completion_time = operation_start_time + selected_operation.time_steps
+
+        job_completion_times[selected_operation.job]         = operation_completion_time
+        machine_completion_times[selected_operation.machine] = operation_completion_time
+
+        schedule[selected_operation.machine, machine_sequence_index] = selected_operation.job
+
+        allocation = Allocation(job_sequence_index, machine_sequence_index, operation_start_time, predecessor, selected_operation)
+
+        allocations[selected_operation.machine].append(allocation)
+
+        job_allocations[selected_operation.job]         = allocation
+        machine_allocations[selected_operation.machine] = allocation
+
+        possible.remove(selected_operation)
+
+        if job_sequence_index < problem.machine_count - 1:
+            possible.append(problem.jobs[selected_operation.job][job_sequence_index + 1])
+
+    makespan = max(machine_completion_times)
+
+    return schedule, allocations, makespan
+
+def update_pheromones_local(problem, pheromones, candidate, c_local_pheromone, init_pheromone_value):
+    for m in range(problem.machine_count):
+        for j in range(problem.job_count):
+            selected_job = candidate.schedule[m, j]
+            pheromones[m, j, selected_job] = (1.0 - c_local_pheromone) * pheromones[m, j, selected_job] + c_local_pheromone * init_pheromone_value
+
+def update_pheromones_global(problem, pheromones, candidate, decay):
+    for m in range(problem.machine_count):
+        for j in range(problem.job_count):
+            selected_job = candidate.schedule[m, j]
+            pheromones[m, j, selected_job] = (1.0 - decay) * pheromones[m, j, selected_job] + decay / candidate.makespan
+
+class AntColonyOptimizer(object):
+    Config = namedtuple('Config', [
+        'num_ants',
+        'c_greedy',
+        'c_hist',
+        'c_heur',
+        'decay',
+        'c_local_pheromone',
+        'init_pheromone_value'])
+
+    def __init__(self, config, problem):
+        self.config  = config
+        self.problem = problem
+
+        self.initialize(problem)
+
+    def best(self):
+        return self.best_solution
+
+    def initialize(self, problem):
+        self.pheromones = np.full((problem.machine_count, problem.job_count, problem.job_count), self.config.init_pheromone_value)
+        self.best_solution = generate_random_solution(problem)
+
+    def iterate(self):
+        for _ in range(self.config.num_ants):
+            schedule, allocations, makespan = construct_solution(
+                self.problem, self.pheromones, self.config.c_greedy, self.config.c_hist, self.config.c_heur)
+
+            reorderings = find_reorderings(problem, allocations)
+
+            if reorderings:
+                schedule, _, makespan = develop_schedule(problem, schedule, random.choice(reorderings))
+
+            candidate = Solution(schedule, makespan)
+
+            # for i, reordering in enumerate(reorderings):
+            #     r_schedule, r_allocations, r_makespan = develop_schedule(problem, schedule, reordering)
+
+            #     if r_makespan < best_candidate_makespan:
+            #         best_candidate_schedule = r_schedule
+            #         best_candidate_makespan = r_makespan
+
+            if candidate.makespan < self.best_solution.makespan:
+                self.best_solution = candidate
+
+            update_pheromones_local(
+                self.problem, self.pheromones, candidate, self.config.c_local_pheromone, self.config.init_pheromone_value)
+
+        update_pheromones_global(self.problem, self.pheromones, self.best_solution, self.config.decay)
+
+        return self.best_solution.makespan
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--ba_num_scouts',  type=int, default=100)
-    parser.add_argument('--ba_num_normal_sites',  type=int, default=10)
-    parser.add_argument('--ba_num_elite_sites',  type=int, default=5)
-    parser.add_argument('--ba_num_normal_bees',  type=int, default=5)
-    parser.add_argument('--ba_num_elite_bees',  type=int, default=15)
-    parser.add_argument('--pso_swarm_size', type=int, default=100)
-    parser.add_argument('--pso_c1', type=float, default=0.5)
-    parser.add_argument('--pso_c2', type=float, default=0.3)
-    parser.add_argument('--pso_w', type=float, default=0.5)
-    parser.add_argument('--optimizer', choices=['aco', 'ba', 'pso'], required=True)
-    parser.add_argument('--problem', type=str, required=True)
-
+    parser.add_argument('--aco_c_greedy',             type=float, default=0.5)
+    parser.add_argument('--aco_c_heur',               type=float, default=0.5)
+    parser.add_argument('--aco_c_hist',               type=float, default=2.5)
+    parser.add_argument('--aco_c_local_pheromone',    type=float, default=0.1)
+    parser.add_argument('--aco_decay',                type=float, default=0.2)
+    parser.add_argument('--aco_init_pheromone_value', type=float, default=0.1)
+    parser.add_argument('--aco_num_ants',             type=int,   default=200)
+    parser.add_argument('--ba_num_elite_bees',        type=int,   default=15)
+    parser.add_argument('--ba_num_elite_sites',       type=int,   default=5)
+    parser.add_argument('--ba_num_normal_bees',       type=int,   default=5)
+    parser.add_argument('--ba_num_normal_sites',      type=int,   default=10)
+    parser.add_argument('--ba_num_scouts',            type=int,   default=100)
+    parser.add_argument('--iterations',               type=int,   default=100)
+    parser.add_argument('--optimizer',                choices=['aco', 'ba', 'pso'], required=True)
+    parser.add_argument('--problem',                  type=str,   required=True)
+    parser.add_argument('--pso_c1',                   type=float, default=0.5)
+    parser.add_argument('--pso_c2',                   type=float, default=0.3)
+    parser.add_argument('--pso_swarm_size',           type=int,   default=100)
+    parser.add_argument('--pso_w',                    type=float, default=0.5)
+    parser.add_argument('--script',                   action='store_true')
     args = parser.parse_args()
 
     problem = parse_problem_file(args.problem)
 
-    instances = 12
-
-    if args.optimizer == 'ba':
+    if args.optimizer == 'aco':
+        optimizer = AntColonyOptimizer(
+            AntColonyOptimizer.Config(
+                num_ants             = args.aco_num_ants,
+                c_greedy             = args.aco_c_greedy,
+                c_hist               = args.aco_c_hist,
+                c_heur               = args.aco_c_heur,
+                decay                = args.aco_decay,
+                c_local_pheromone    = args.aco_c_local_pheromone,
+                init_pheromone_value = args.aco_init_pheromone_value),
+            problem)
+    elif args.optimizer == 'ba':
         optimizer = BeesAlgorithmOptimizer(
             BeesAlgorithmOptimizer.Config(
                 num_scouts       = args.ba_num_scouts,
@@ -454,20 +789,7 @@ if __name__ == '__main__':
                 num_normal_bees  = args.ba_num_normal_bees,
                 num_elite_bees   = args.ba_num_elite_bees),
             problem)
-
-        for _ in range(1000):
-            print(optimizer.iterate())
-
-        sys.exit()
     elif args.optimizer == 'pso':
-        # optimizers = [PermutationParticleSwarmOptimizer(
-        #     PermutationParticleSwarmOptimizer.Config(
-        #         swarm_size = args.pso_swarm_size,
-        #         c1         = args.pso_c1,
-        #         c2         = args.pso_c2,
-        #         w          = args.pso_w),
-        #     problem) for _ in range(instances)]
-
         optimizer = PermutationParticleSwarmOptimizer(
             PermutationParticleSwarmOptimizer.Config(
                 swarm_size = args.pso_swarm_size,
@@ -476,21 +798,36 @@ if __name__ == '__main__':
                 w          = args.pso_w),
             problem)
 
-        for _ in range(1000):
-            print(optimizer.iterate())
+    for _ in range(args.iterations):
+        result = optimizer.iterate()
 
-        sys.exit()
+        if not args.script:
+            print(result)
 
-    try:
-        pool = ThreadPool()
+    if args.script:
+        print(result)
 
-        for _ in range(100):
-            print(min(pool.map(lambda optimizer: optimizer.iterate(), optimizers)))
+    # best = optimizer.best()
+    # schedule, allocations, makespan = develop_schedule(problem, best.schedule)
+    # render_gantt_chart('solution.pdf', allocations)
 
-        pool.close()
-        pool.join()
+    # reorderings = find_reorderings(problem, allocations)
 
-    except KeyboardInterrupt:
-        pass
-    finally:
-        pass
+    # for i, reordering in enumerate(reorderings):
+    #     r_schedule, r_allocations, r_makespan = develop_schedule(problem, optimizer.gbest_schedule, reordering)
+    #     print('{} {}'.format(i, str(reordering)))
+    #     render_gantt_chart('{}.pdf'.format(i), r_allocations)
+
+    # try:
+    #     pool = ThreadPool()
+
+    #     for _ in range(100):
+    #         print(min(pool.map(lambda optimizer: optimizer.iterate(), optimizers)))
+
+    #     pool.close()
+    #     pool.join()
+
+    # except KeyboardInterrupt:
+    #     pass
+    # finally:
+    #     pass
