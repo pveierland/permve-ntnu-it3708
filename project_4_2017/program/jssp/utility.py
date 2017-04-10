@@ -1,4 +1,5 @@
 import numpy as np
+import sys
 
 import jssp.types
 
@@ -123,6 +124,125 @@ def compute_makespan(problem, operations):
         remaining_operations.remove(operation)
 
     return max(machine_completion_times)
+
+def develop_schedule(problem, preference, reorder=None):
+    def compute_earliest_start_time(operation):
+        return max(job_completion_times[operation.job], machine_completion_times[operation.machine])
+
+    def compute_earliest_completion_time(operation):
+        return compute_earliest_start_time(operation) + operation.time_steps
+
+    def get_preferred_conflict_operation(conflict_set):
+        for preferred_job in preference[earliest_operation.machine]:
+            for conflict_operation in conflict_set:
+                if not reorder or not reorder.after or conflict_operation is not reorder.operation:
+                    if preferred_job == conflict_operation.job:
+                        return conflict_operation
+
+    schedule    = np.full((problem.machine_count, problem.job_count), -1, int)
+    allocations = [[] for _ in range(problem.machine_count)]
+    possible    = [operation_sequence[0] for operation_sequence in problem.jobs]
+
+    job_completion_times     = np.zeros(problem.job_count)
+    machine_completion_times = np.zeros(problem.machine_count)
+    job_sequence_indexes     = np.zeros(problem.job_count, int)
+    machine_sequence_indexes = np.zeros(problem.machine_count, int)
+
+    job_allocations     = [None for _ in range(problem.job_count)]
+    machine_allocations = [None for _ in range(problem.machine_count)]
+
+    while possible:
+        earliest_completion_time, earliest_operation = \
+            min((compute_earliest_completion_time(operation), operation) for operation in possible)
+
+        conflict_set = [operation for operation in possible
+                        if operation.machine == earliest_operation.machine and
+                        compute_earliest_start_time(operation) < earliest_completion_time]
+
+        if (reorder and reorder.machine == earliest_operation.machine and
+            ((not reorder.after and
+              reorder.machine_sequence_edge <= machine_sequence_indexes[earliest_operation.machine] and
+              machine_sequence_indexes[earliest_operation.machine] <= reorder.machine_sequence_index and
+              reorder.operation in conflict_set) or
+             (reorder.after and
+              (machine_sequence_indexes[earliest_operation.machine] == reorder.machine_sequence_edge or
+               (len(conflict_set) == 1 and reorder.operation in conflict_set))))):
+            selected_operation = reorder.operation
+            reorder            = None
+        else:
+            selected_operation = get_preferred_conflict_operation(conflict_set)
+
+        predecessor = (machine_allocations[selected_operation.machine]
+            if machine_completion_times[selected_operation.machine] >= job_completion_times[selected_operation.job]
+            else job_allocations[selected_operation.job])
+
+        job_sequence_index = job_sequence_indexes[selected_operation.job]
+        job_sequence_indexes[selected_operation.job] += 1
+
+        machine_sequence_index = machine_sequence_indexes[selected_operation.machine]
+        machine_sequence_indexes[selected_operation.machine] += 1
+
+        operation_start_time      = compute_earliest_start_time(selected_operation)
+        operation_completion_time = operation_start_time + selected_operation.time_steps
+
+        schedule[selected_operation.machine, machine_sequence_index] = selected_operation.job
+
+        allocation = jssp.types.Allocation(
+            job_sequence_index,
+            machine_sequence_index,
+            operation_start_time,
+            job_allocations[selected_operation.job] if job_completion_times[selected_operation.job] >= machine_completion_times[selected_operation.machine] else None,
+            machine_allocations[selected_operation.machine] if machine_completion_times[selected_operation.machine] >= job_completion_times[selected_operation.job] else None,
+            selected_operation)
+
+        allocations[selected_operation.machine].append(allocation)
+
+        job_completion_times[selected_operation.job]         = operation_completion_time
+        machine_completion_times[selected_operation.machine] = operation_completion_time
+
+        job_allocations[selected_operation.job]         = allocation
+        machine_allocations[selected_operation.machine] = allocation
+
+        if selected_operation in possible:
+            possible.remove(selected_operation)
+
+        if job_sequence_index < problem.machine_count - 1:
+            possible.append(problem.jobs[selected_operation.job][job_sequence_index + 1])
+
+    makespan = max(machine_completion_times)
+
+    return schedule, allocations, makespan
+
+def find_reorderings(problem, allocations):
+    head = max((machine_allocation[-1] for machine_allocation in allocations),
+               key=lambda allocation: allocation.start_time + allocation.operation.time_steps)
+
+    reorderings  = []
+    centerpieces = []
+
+    left_edge  = None
+    right_edge = None
+    previous   = None
+
+    while head:
+        if not previous or head.operation.machine != previous.operation.machine:
+            right_edge = head
+            centerpieces.clear()
+        elif not head.job_predecessor or head.operation.machine != head.job_predecessor.operation.machine:
+            left_edge = head
+
+            for centerpiece in centerpieces:
+                reorderings.append(jssp.types.Reorder(
+                    centerpiece.operation.machine, left_edge.machine_sequence_index, centerpiece.machine_sequence_index, centerpiece.operation, False))
+                reorderings.append(jssp.types.Reorder(
+                    centerpiece.operation.machine, right_edge.machine_sequence_index, centerpiece.machine_sequence_index, centerpiece.operation, True))
+        else:
+            centerpieces.append(head)
+
+        previous = head
+        head     = head.job_predecessor
+
+    return reorderings
 
 def get_allocations(problem, operations):
     job_completion_times     = np.zeros(problem.job_count)

@@ -15,8 +15,10 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtPrintSupport import *
 
 import jssp.aco
-import jssp.types
+import jssp.ba
 import jssp.io
+import jssp.pso
+import jssp.types
 
 # Allocation = namedtuple('Allocation', ['job_sequence_index', 'machine_sequence_index', 'start_time', 'predecessor', 'operation'])
 # #Allocation        = namedtuple('Allocation', ['job_sequence_index', 'start_time', 'operation'])
@@ -25,17 +27,7 @@ import jssp.io
 # Solution          = namedtuple('Solution', ['schedule', 'makespan'])
 # Reorder           = namedtuple('Reorder', ['machine', 'machine_sequence_edge', 'machine_sequence_index', 'operation', 'after'])
 
-# def mutate_preference(problem, preference):
-#     machine_index = random.randrange(problem.machine_count)
 
-#     first_index   = random.randrange(problem.job_count)
-#     second_index  = random.randrange(problem.job_count)
-
-#     first_job  = preference[machine_index, first_index]
-#     second_job = preference[machine_index, second_index]
-
-#     preference[machine_index, second_index] = first_job
-#     preference[machine_index, first_index]  = second_job
 
 # def develop_schedule(problem, preference, reorder=None):
 #     def compute_earliest_start_time(operation):
@@ -204,7 +196,7 @@ import jssp.io
 # #         if job_sequence_index < problem.machine_count - 1:
 # #             possible.append(problem.jobs[selected_operation.job][job_sequence_index + 1])
 
-# #     makespan = max(machine_completion_times)        
+# #     makespan = max(machine_completion_times)
 
 # #     return schedule, allocations, makespan
 
@@ -359,236 +351,9 @@ import jssp.io
 
 #     painter.end()
 
-# class BeesAlgorithmOptimizer(object):
-#     Config = namedtuple('Config', [
-#         'num_scouts',
-#         'num_normal_sites',
-#         'num_elite_sites',
-#         'num_normal_bees',
-#         'num_elite_bees',])
 
-#     def __init__(self, config, problem):
-#         self.config  = config
-#         self.problem = problem
 
-#         self.initialize()
 
-#     def best(self):
-#         return self.best_solution
-
-#     def initialize(self):
-#         self.site_preferences = np.zeros((self.config.num_scouts, self.problem.machine_count, self.problem.job_count), int)
-#         self.site_makespans   = np.zeros(self.config.num_scouts)
-
-#         for k in range(self.config.num_scouts):
-#             for m in range(self.problem.machine_count):
-#                 self.site_preferences[k, m] = np.random.permutation(self.problem.job_count)
-
-#             _, _, self.site_makespans[k] = develop_schedule(self.problem, self.site_preferences[k])
-
-#         self.next_site_preferences = self.site_preferences.copy()
-#         self.next_site_makespans   = self.site_makespans.copy()
-
-#         index = np.argmin(self.site_makespans)
-#         self.best_solution = Solution(self.site_preferences[index].copy(), self.site_makespans[index])
-
-#     def iterate(self):
-#         sorted_site_indexes = np.argsort(self.site_makespans)
-
-#         for es in range(self.config.num_elite_sites):
-#             elite_site_index = sorted_site_indexes[es]
-
-#             best_site_preference = self.site_preferences[elite_site_index].copy()
-#             best_site_makespan   = self.site_makespans[elite_site_index]
-
-#             original_site_schedule, original_site_allocations, original_site_makespan = develop_schedule(
-#                 self.problem, self.site_preferences[elite_site_index])
-
-#             original_site_reorderings = find_reorderings(self.problem, original_site_allocations)
-
-#             for eb in range(self.config.num_elite_bees):
-#                 if original_site_reorderings:
-#                     reordering = random.choice(original_site_reorderings)
-#                     original_site_reorderings.remove(reordering)
-
-#                     elite_site_preference, _, elite_site_makespan = develop_schedule(
-#                         self.problem, original_site_schedule, reordering)
-#                 else:
-#                     elite_site_preference = self.site_preferences[elite_site_index].copy()
-#                     mutate_preference(self.problem, elite_site_preference)
-#                     _, _, elite_site_makespan = develop_schedule(self.problem, elite_site_preference)
-
-#                 if elite_site_makespan < best_site_makespan:
-#                     best_site_preference = elite_site_preference
-#                     best_site_makespan   = elite_site_makespan
-
-#             self.next_site_preferences[es] = best_site_preference
-#             self.next_site_makespans[es]   = best_site_makespan
-
-#         for ns in range(self.config.num_normal_sites):
-#             i = self.config.num_elite_sites + ns
-#             normal_site_index = sorted_site_indexes[i]
-
-#             best_site_preference = self.site_preferences[normal_site_index].copy()
-#             best_site_makespan   = self.site_makespans[normal_site_index]
-
-#             original_site_schedule, original_site_allocations, original_site_makespan = develop_schedule(
-#                 self.problem, self.site_preferences[normal_site_index])
-
-#             original_site_reorderings = find_reorderings(self.problem, original_site_allocations)
-
-#             for nb in range(self.config.num_normal_bees):
-#                 if original_site_reorderings:
-#                     reordering = random.choice(original_site_reorderings)
-#                     original_site_reorderings.remove(reordering)
-
-#                     normal_site_preference, _, normal_site_makespan = develop_schedule(
-#                         self.problem, original_site_schedule, reordering)
-#                 else:
-#                     normal_site_preference = self.site_preferences[normal_site_index].copy()
-#                     mutate_preference(self.problem, normal_site_preference)
-#                     _, _, normal_site_makespan = develop_schedule(self.problem, normal_site_preference)
-
-#                 if normal_site_makespan < best_site_makespan:
-#                     best_site_preference = normal_site_preference
-#                     best_site_makespan   = normal_site_makespan
-
-#             self.next_site_preferences[i] = best_site_preference
-#             self.next_site_makespans[i]   = best_site_makespan
-
-#         for k in range(self.config.num_elite_sites + self.config.num_normal_sites, self.config.num_scouts):
-#             for m in range(self.problem.machine_count):
-#                 self.next_site_preferences[k, m] = np.random.permutation(self.problem.job_count)
-#             _, _, self.next_site_makespans[k] = develop_schedule(self.problem, self.next_site_preferences[k])
-
-#         self.site_preferences, self.next_site_preferences = self.next_site_preferences, self.site_preferences
-#         self.site_makespans, self.next_site_makespans     = self.next_site_makespans, self.site_makespans
-
-#         index = np.argmin(self.site_makespans)
-#         if not self.best_solution or self.site_makespans[index] < self.best_solution.makespan:
-#             self.best_solution = Solution(self.site_preferences[index].copy(), self.site_makespans[index])
-
-#         return min(self.site_makespans)
-
-# class PermutationParticleSwarmOptimizer(object):
-#     Config = namedtuple('Config', [
-#         'swarm_size',
-#         'c1',
-#         'c2',
-#         'w'])
-
-#     def __init__(self, config, problem):
-#         self.config  = config
-#         self.problem = problem
-
-#         self.initialize()
-
-#     def initialize(self):
-#         self.positions = np.zeros((self.config.swarm_size, self.problem.machine_count, self.problem.job_count), int)
-
-#         for k in range(self.config.swarm_size):
-#             for m in range(self.problem.machine_count):
-#                 self.positions[k, m] = np.random.permutation(self.problem.job_count)
-
-#         self.velocities = np.full((self.config.swarm_size, self.problem.machine_count, self.problem.job_count), False, bool)
-
-#         self.pbest_schedules = np.zeros((self.config.swarm_size, self.problem.machine_count, self.problem.job_count), int)
-#         self.pbest_makespans = np.zeros(self.config.swarm_size)
-
-#         for k in range(self.config.swarm_size):
-#             self.pbest_schedules[k], _, self.pbest_makespans[k] = develop_schedule(self.problem, self.positions[k])
-
-#         gbest_index = np.argmin(self.pbest_makespans)
-#         self.gbest_schedule = self.pbest_schedules[gbest_index].copy()
-#         self.gbest_makespan = self.pbest_makespans[gbest_index]
-
-#     def iterate(self):
-#         for k in range(self.config.swarm_size):
-#             self.update_particle_velocity(self.velocities[k])
-
-#         for k in range(self.config.swarm_size):
-#             self.update_particle_position(self.positions[k], self.velocities[k], self.pbest_schedules[k], self.gbest_schedule)
-#             particle_schedule, _, particle_makespan = develop_schedule(self.problem, self.positions[k])
-#             self.update_particle_tracking(k, particle_schedule, particle_makespan)
-
-#         return self.gbest_makespan
-
-#     def mutate_particle(self, position, velocity):
-#         machine_index = random.randrange(self.problem.machine_count)
-#         first_index   = random.randrange(self.problem.job_count)
-#         second_index  = random.randrange(self.problem.job_count)
-
-#         first_job  = position[machine_index, first_index]
-#         second_job = position[machine_index, second_index]
-
-#         position[machine_index, second_index] = first_job
-#         position[machine_index, first_index]  = second_job
-
-#         velocity[machine_index, first_job]  = True
-#         velocity[machine_index, second_job] = True
-
-#     def update_particle_position(self, position, velocity, pbest_schedule, gbest_schedule):
-#         for machine in range(self.problem.machine_count):
-#             l_start = random.randrange(self.problem.job_count)
-
-#             for machine_sequence_index in range(self.problem.job_count):
-#                 l = (l_start + machine_sequence_index) % self.problem.job_count
-#                 r = random.random()
-
-#                 if r <= self.config.c1:
-#                     J_1     = position[machine, l]
-#                     l_prime = pbest_schedule[machine].tolist().index(J_1)
-#                     J_2     = position[machine, l_prime]
-
-#                     if not velocity[machine, J_1] and not velocity[machine, J_2] and J_1 != J_2:
-#                         position[machine, l]       = J_2
-#                         position[machine, l_prime] = J_1
-#                         velocity[machine, J_1]     = True
-#                 elif r <= self.config.c1 + self.config.c2:
-#                     J_1     = position[machine, l]
-#                     l_prime = gbest_schedule[machine].tolist().index(J_1)
-#                     J_2     = position[machine, l_prime]
-
-#                     if not velocity[machine, J_1] and not velocity[machine, J_2] and J_1 != J_2:
-#                         position[machine, l]       = J_2
-#                         position[machine, l_prime] = J_1
-#                         velocity[machine, J_1]     = True
-
-#         schedule, allocations, makespan = develop_schedule(self.problem, position)
-#         reorderings = find_reorderings(self.problem, allocations)
-
-#         if reorderings:
-#             position[:], _, _ = develop_schedule(problem, schedule, random.choice(reorderings))
-#         else:
-#             self.mutate_particle(position, velocity)
-
-#     def update_particle_velocity(self, velocity):
-#         velocity[:] = np.logical_and(velocity, np.random.rand(self.problem.machine_count, self.problem.job_count) < self.config.w)
-
-#     def update_particle_tracking(self, index, schedule, makespan):
-#         pbest_worst_index = np.argmax(self.pbest_makespans)
-
-#         if makespan < self.gbest_makespan:
-#             self.pbest_schedules[pbest_worst_index] = self.gbest_schedule
-#             self.pbest_makespans[pbest_worst_index] = self.gbest_makespan
-#             self.gbest_schedule[:] = schedule
-#             self.gbest_makespan    = makespan
-#         elif makespan == self.gbest_makespan:
-#             self.gbest_schedule[:] = schedule
-#             self.gbest_makespan    = makespan
-#         elif makespan <= self.pbest_makespans[pbest_worst_index]:
-#             the_same = False
-
-#             for k in range(self.config.swarm_size):
-#                 if makespan == self.pbest_makespans[k]:
-#                     self.pbest_schedules[k] = schedule
-#                     self.pbest_makespans[k] = makespan
-#                     the_same = True
-#                     break
-
-#             if not the_same:
-#                 self.pbest_schedules[pbest_worst_index] = schedule
-#                 self.pbest_makespans[pbest_worst_index] = makespan
 
 # def generate_random_preference(problem):
 #     preference = np.zeros((problem.machine_count, problem.job_count))
@@ -695,78 +460,12 @@ import jssp.io
 #             selected_job = candidate.schedule[m, j]
 #             pheromones[m, j, selected_job] = (1.0 - decay) * pheromones[m, j, selected_job] + decay / candidate.makespan
 
-# class AntColonyOptimizer(object):
-#     Config = namedtuple('Config', [
-#         'num_ants',
-#         'c_greedy',
-#         'c_hist',
-#         'c_heur',
-#         'decay',
-#         'c_local_pheromone',
-#         'init_pheromone_value'])
-
-#     def __init__(self, config, problem):
-#         self.config  = config
-#         self.problem = problem
-
-#         self.initialize(problem)
-
-#     def best(self):
-#         return self.best_solution
-
-#     def initialize(self, problem):
-#         self.pheromones = np.full((problem.machine_count, problem.job_count, problem.job_count), self.config.init_pheromone_value)
-#         self.best_solution = generate_random_solution(problem)
-
-#     def iterate(self):
-#         for _ in range(self.config.num_ants):
-#             schedule, allocations, makespan = construct_solution(
-#                 self.problem, self.pheromones, self.config.c_greedy, self.config.c_hist, self.config.c_heur)
-
-#             best_local = Solution(schedule, makespan)
-
-#             for reordering in find_reorderings(problem, allocations):
-#                 s, _, m = develop_schedule(problem, schedule, reordering)
-#                 local_candidate = Solution(s, m)
-
-#                 if local_candidate.makespan < best_local.makespan:
-#                     best_local = local_candidate
-
-#             if best_local.makespan < self.best_solution.makespan:
-#                 self.best_solution = best_local
-
-#             update_pheromones_local(
-#                 self.problem, self.pheromones, best_local, self.config.c_local_pheromone, self.config.init_pheromone_value)
-
-#             #candidate = Solution(schedule, makespan)
-
-#             # for i, reordering in enumerate(reorderings):
-#             #     r_schedule, r_allocations, r_makespan = develop_schedule(problem, schedule, reordering)
-
-#             #     if r_makespan < best_candidate_makespan:
-#             #         best_candidate_schedule = r_schedule
-#             #         best_candidate_makespan = r_makespan
-
-            
-
-#         update_pheromones_global(self.problem, self.pheromones, self.best_solution, self.config.decay)
-
-#         return self.best_solution.makespan
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    # parser.add_argument('--aco_c_greedy',             type=float, default=0.1)
-    # parser.add_argument('--aco_c_heur',               type=float, default=1.0)
-    # parser.add_argument('--aco_c_hist',               type=float, default=3.0)
-    # parser.add_argument('--aco_c_local_pheromone',    type=float, default=0.2)
-    # parser.add_argument('--aco_decay',                type=float, default=0.1)
-    # parser.add_argument('--aco_init_pheromone_value', type=float, default=0.1)
-    # parser.add_argument('--aco_num_ants',             type=int,   default=50)
     parser.add_argument('--aco_evaporation_rate',        type=float, default=0.1)
     parser.add_argument('--aco_beta',                    type=float, default=10.0)
     parser.add_argument('--aco_initial_pheromone_value', type=float, default=0.5)
     parser.add_argument('--aco_tabu_search_tenure',      type=int,   default=10)
-
     parser.add_argument('--ba_num_elite_bees',        type=int,   default=15)
     parser.add_argument('--ba_num_elite_sites',       type=int,   default=5)
     parser.add_argument('--ba_num_normal_bees',       type=int,   default=5)
@@ -795,8 +494,8 @@ if __name__ == '__main__':
                 initial_pheromone_value = args.aco_initial_pheromone_value),
             problem)
     elif args.optimizer == 'ba':
-        optimizer = BeesAlgorithmOptimizer(
-            BeesAlgorithmOptimizer.Config(
+        optimizer = jssp.ba.Optimizer(
+            jssp.ba.Config(
                 num_scouts       = args.ba_num_scouts,
                 num_normal_sites = args.ba_num_normal_sites,
                 num_elite_sites  = args.ba_num_elite_sites,
@@ -804,8 +503,8 @@ if __name__ == '__main__':
                 num_elite_bees   = args.ba_num_elite_bees),
             problem)
     elif args.optimizer == 'pso':
-        optimizer = PermutationParticleSwarmOptimizer(
-            PermutationParticleSwarmOptimizer.Config(
+        optimizer = jssp.pso.Optimizer(
+            jssp.pso.Config(
                 swarm_size = args.pso_swarm_size,
                 c1         = args.pso_c1,
                 c2         = args.pso_c2,
