@@ -2,7 +2,7 @@ import numpy as np
 
 import jssp.types
 
-def apply_local_search(problem, solution, tabu_list=None):
+def apply_local_search(problem, operations, tabu_list=None):
     job_completion_times     = np.zeros(problem.job_count)
     machine_completion_times = np.zeros(problem.machine_count)
     job_sequence_indexes     = np.zeros(problem.job_count, int)
@@ -10,7 +10,7 @@ def apply_local_search(problem, solution, tabu_list=None):
     job_allocations     = [None for _ in range(problem.job_count)]
     machine_allocations = [None for _ in range(problem.machine_count)]
 
-    remaining_operations = list(solution.operations)
+    remaining_operations = list(operations)
 
     while remaining_operations:
         operation       = next(operation for operation in remaining_operations if operation.job_sequence_index == job_sequence_indexes[operation.job])
@@ -36,8 +36,9 @@ def apply_local_search(problem, solution, tabu_list=None):
 
     makespan = max(machine_completion_times)
 
-    heads = [machine_allocation for machine_allocation in machine_allocations
-                                if machine_allocation.start_time + machine_allocation.operation.time_steps == makespan]
+    heads = [(machine_allocation, True)
+             for machine_allocation in machine_allocations
+             if machine_allocation.start_time + machine_allocation.operation.time_steps == makespan]
 
     swappable = []
 
@@ -47,55 +48,52 @@ def apply_local_search(problem, solution, tabu_list=None):
 
     head = heads.pop()
 
-    is_last_block = True
-
     while head:
-        is_first_block = not head.machine_predecessor and not head.job_predecessor
+        head_allocation, is_last_block = head
+
+        is_first_block = not head_allocation.machine_predecessor and not head_allocation.job_predecessor
 
         if not previous:
-            right_edge = head
-        elif not head.machine_predecessor:
+            right_edge = head_allocation
+        elif not head_allocation.machine_predecessor:
             if right_swappable and not is_last_block:
-                swappable.append(right_swappable.operation)
+                swappable.append((right_swappable.operation, right_edge.operation))
 
             if (not is_last_block or right_swappable) and not is_first_block:
-                swappable.append(head.operation)
+                swappable.append((head_allocation.operation, previous.operation))
 
             is_first_block = False
         elif previous == right_edge:
-            right_swappable = head
+            right_swappable = head_allocation
 
-        previous = head
+        previous = head_allocation
 
-        if head.job_predecessor:
-            heads.append(head.job_predecessor)
+        if head_allocation.job_predecessor:
+            heads.append((head_allocation.job_predecessor, False))
 
-        if head.machine_predecessor:
-            head = head.machine_predecessor
+        if head_allocation.machine_predecessor:
+            head = (head_allocation.machine_predecessor, False)
         elif heads:
             head            = heads.pop()
             previous        = None
             right_swappable = None
             right_edge      = None
-            is_last_block   = False
         else:
             head = None
 
-    best_solution      = solution
+    best_solution      = jssp.types.Solution(operations, makespan)
     swapped_operations = None
 
-    for first_operation in set(swappable):
-        first_index  = solution.operations.index(first_operation)
-        second_index = next(i for i in range(first_index + 1, len(solution.operations))
-                              if solution.operations[i].machine == first_operation.machine)
-        second_operation = solution.operations[second_index]
+    for first_operation, second_operation in set(swappable):
+        first_index  = operations.index(first_operation)
+        second_index = operations.index(second_operation)
 
         swap_operation_indexes = sorted([first_operation.index, second_operation.index])
 
         if tabu_list and swap_operation_indexes in tabu_list:
             continue
 
-        modified = list(solution.operations)
+        modified = list(operations)
         modified[first_index], modified[second_index] = modified[second_index], modified[first_index]
         makespan = compute_makespan(problem, modified)
 
@@ -172,7 +170,7 @@ def tabu_search(problem, solution, iterations, tenure):
     tabu_list = []
 
     for _ in range(iterations):
-        candidate, swap = apply_local_search(problem, solution, tabu_list)
+        candidate, swap = apply_local_search(problem, solution.operations, tabu_list)
 
         if candidate is not solution:
             if candidate.makespan <= solution.makespan:

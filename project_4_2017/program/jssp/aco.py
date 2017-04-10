@@ -57,7 +57,7 @@ class Optimizer(object):
                 not_scheduled[operation.machine].append(operation)
 
         possible = [operation_sequence[0] for operation_sequence in self.problem.jobs]
-        
+
         job_completion_times     = np.zeros(self.problem.job_count)
         machine_completion_times = np.zeros(self.problem.machine_count)
         job_sequence_indexes     = np.zeros(self.problem.job_count, int)
@@ -121,7 +121,7 @@ class Optimizer(object):
 
     def iterate(self):
         iteration_solutions = [self.construct_solution(random.choice([None, 'nd'])) for _ in range(self.num_ants)]
-        iteration_solutions = [jssp.utility.apply_local_search(self.problem, iteration_solution)[0] for iteration_solution in iteration_solutions]
+        iteration_solutions = [jssp.utility.apply_local_search(self.problem, iteration_solution.operations)[0] for iteration_solution in iteration_solutions]
 
         best_solution_in_iteration = min(iteration_solutions, key=lambda solution: solution.makespan)
 
