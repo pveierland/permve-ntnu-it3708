@@ -1,9 +1,10 @@
 import numpy as np
+import random
 import sys
 
 import jssp.types
 
-def apply_local_search(problem, operations, tabu_list=None):
+def apply_local_search(problem, operations, tabu_list=None, steepest=True):
     job_completion_times     = np.zeros(problem.job_count)
     machine_completion_times = np.zeros(problem.machine_count)
     job_sequence_indexes     = np.zeros(problem.job_count, int)
@@ -85,7 +86,7 @@ def apply_local_search(problem, operations, tabu_list=None):
     best_solution      = jssp.types.Solution(operations, makespan)
     swapped_operations = None
 
-    for first_operation, second_operation in set(swappable):
+    for first_operation, second_operation in set(swappable) if steepest else [random.choice(swappable)]:
         first_index  = operations.index(first_operation)
         second_index = operations.index(second_operation)
 
@@ -104,17 +105,24 @@ def apply_local_search(problem, operations, tabu_list=None):
 
     return best_solution, swapped_operations
 
-def compute_makespan(problem, operations):
+def compute_makespan(problem, input_sequence, output_sequence=None):
     job_completion_times     = np.zeros(problem.job_count)
     machine_completion_times = np.zeros(problem.machine_count)
     job_sequence_indexes     = np.zeros(problem.job_count, int)
 
-    remaining_operations = list(operations)
+    remaining_operations = list(input_sequence)
 
     while remaining_operations:
-        operation  = next(operation for operation in remaining_operations if operation.job_sequence_index == job_sequence_indexes[operation.job])
-        start_time = max(job_completion_times[operation.job], machine_completion_times[operation.machine])
+        operation  = next(operation
+                          for operation in remaining_operations
+                          if operation.job_sequence_index == job_sequence_indexes[operation.job])
+
+        if output_sequence is not None:
+            output_sequence.append(operation)
+
+        start_time      = max(job_completion_times[operation.job], machine_completion_times[operation.machine])
         completion_time = start_time + operation.time_steps
+
         job_completion_times[operation.job]         = completion_time
         machine_completion_times[operation.machine] = completion_time
 
@@ -125,7 +133,7 @@ def compute_makespan(problem, operations):
 
     return max(machine_completion_times)
 
-def develop_schedule(problem, preference, reorder=None):
+def develop_schedule(problem, preference, reorder=None, output_sequence=None):
     def compute_earliest_start_time(operation):
         return max(job_completion_times[operation.job], machine_completion_times[operation.machine])
 
@@ -171,6 +179,13 @@ def develop_schedule(problem, preference, reorder=None):
             reorder            = None
         else:
             selected_operation = get_preferred_conflict_operation(conflict_set)
+
+        if not selected_operation:
+            print("WTF")
+            print(preference)
+
+        if output_sequence is not None:
+            output_sequence.append(selected_operation)
 
         predecessor = (machine_allocations[selected_operation.machine]
             if machine_completion_times[selected_operation.machine] >= job_completion_times[selected_operation.job]
@@ -244,6 +259,15 @@ def find_reorderings(problem, allocations):
 
     return reorderings
 
+def generate_random_solution(problem):
+    random_operation_sequence = [
+        operation for operation_sequence in problem.jobs for operation in operation_sequence]
+    random.shuffle(random_operation_sequence)
+
+    fixed_operation_sequence = []
+    makespan = compute_makespan(problem, random_operation_sequence, fixed_operation_sequence)
+    return jssp.types.Solution(fixed_operation_sequence, makespan)
+
 def get_allocations(problem, operations):
     job_completion_times     = np.zeros(problem.job_count)
     machine_completion_times = np.zeros(problem.machine_count)
@@ -286,19 +310,38 @@ def get_allocations(problem, operations):
 
     return allocations
 
+def repair_operations_sequence(problem, operation_sequence):
+    input_sequence  = list(operation_sequence)
+    output_sequence = []
+
+    job_sequence_indexes = np.zeros(problem.job_count, int)
+
+    while input_sequence:
+        operation = next(operation
+                         for operation in input_sequence
+                         if operation.job_sequence_index == job_sequence_indexes[operation.job])
+
+        job_sequence_index = job_sequence_indexes[operation.job]
+        job_sequence_indexes[operation.job] += 1
+
+        output_sequence.append(operation)
+        input_sequence.remove(operation)
+
+    return output_sequence
+
 def tabu_search(problem, solution, iterations, tenure):
     tabu_list = []
 
     for _ in range(iterations):
-        candidate, swap = apply_local_search(problem, solution.operations, tabu_list)
+        candidate, swap = apply_local_search(problem, solution.operations, tabu_list, steepest=False)
 
-        if candidate is not solution:
-            if candidate.makespan <= solution.makespan:
-                solution = candidate
+        if swap and candidate.makespan <= solution.makespan:
+            solution = candidate
 
-                if len(tabu_list) >= tenure:
-                    tabu_list.pop(0)
+            if len(tabu_list) > tenure:
+                tabu_list.pop(0)
 
+            if tenure > 0:
                 tabu_list.append(swap)
 
     return solution
