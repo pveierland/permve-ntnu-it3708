@@ -17,10 +17,12 @@ def parse_problem_file(filename):
         for job_index in range(job_count):
             input_line = list(map(int, input_lines[job_index + 1].split()))
             jobs.append([
-                jssp.types.Operation(job_index * machine_count + machine_index, job_index, machine_index, job_sequence_index, time_steps)
+                jssp.types.Operation(job_index * machine_count + job_sequence_index, job_index, machine_index, job_sequence_index, time_steps)
                 for job_sequence_index, (machine_index, time_steps) in enumerate(zip(input_line[0::2], input_line[1::2]))])
 
-        return jssp.types.Problem(job_count, machine_count, jobs)
+        operations = {operation.index: operation for job in jobs for operation in job}
+
+        return jssp.types.Problem(job_count, machine_count, jobs, operations)
 
 def render_gantt_chart(output_filename, allocations):
     if not allocations:
