@@ -86,6 +86,51 @@ def evaluate_longest_path(problem, partial_schedule, focus_operation):
         result = machine_focus_times.max()
         return result
 
+def find_neighborhood_moves(problem, allocations):
+    makespan = max(machine_allocation[-1].start_time + machine_allocation[-1].operation.time_steps
+                   for machine_allocation in allocations)
+
+    head = random.choice(list(machine_allocation[-1]
+        for machine_allocation in allocations
+        if machine_allocation[-1].start_time + machine_allocation[-1].operation.time_steps == makespan))
+
+    moves = []
+
+    is_last_block  = True
+    left_edge      = None
+    right_edge     = None
+    right_adjacent = None
+    previous       = None
+
+    while head:
+        is_first_block = not head.machine_predecessor and not head.job_predecessor
+
+        if not previous:
+            right_edge = head
+        elif not head.machine_predecessor:
+            left_edge = head
+
+            if not is_last_block:
+                moves.append(((right_adjacent if right_adjacent else left_edge).operation.index, right_edge.operation.index))
+
+            if not is_first_block and right_adjacent:
+                moves.append((left_edge.operation.index, previous.operation.index))
+        elif previous == right_edge:
+            right_adjacent = head
+
+        previous = head
+
+        if head.machine_predecessor and (not head.job_predecessor or random.random() < 0.5):
+            head = head.machine_predecessor
+        else:
+            head = head.job_predecessor
+            is_last_block  = False
+            right_edge     = None
+            right_adjacent = None
+            previous       = None
+
+    return moves
+
 def generate_schedule_insertion_algorithm(problem):
     # Step 0
     jobs_summed_processing_times = [(job, sum(operation.time_steps for operation in job)) for job in problem.jobs]
@@ -152,14 +197,11 @@ def get_allocations(problem, schedule):
         start_time      = max(job_completion_times[operation.job], machine_completion_times[operation.machine])
         completion_time = start_time + operation.time_steps
 
+        job_predecessor     = (job_allocations[operation.job] if job_completion_times[operation.job] == start_time else None)
+        machine_predecessor = (machine_allocations[operation.machine] if machine_completion_times[operation.machine] == start_time else None)
+
         job_completion_times[operation.job]         = completion_time
         machine_completion_times[operation.machine] = completion_time
-
-        job_predecessor = (job_allocations[operation.job]
-            if job_completion_times[operation.job] >= machine_completion_times[operation.machine] else None)
-
-        machine_predecessor = (machine_allocations[operation.machine]
-            if machine_completion_times[operation.machine] >= job_completion_times[operation.job] else None)
 
         allocation = jssp.types.Allocation(
             operation.job_sequence_index,
@@ -192,15 +234,12 @@ def get_allocations(problem, schedule):
     else:
         return None
 
-# TODO GENERATE NEIGHBORHOOD
+problem     = jssp.io.parse_problem_file(sys.argv[1])
+schedule    = generate_schedule_insertion_algorithm(problem)
+allocations = get_allocations(problem, schedule)
+moves       = find_neighborhood_moves(problem, allocations)
 
-problem = jssp.io.parse_problem_file(sys.argv[1])
+#jssp.io.render_gantt_chart('gantt.pdf', allocations)
 
-schedule, allocations = generate_schedule_insertion_algorithm(problem)
-
-#print(schedule)
-
-allocations2 = get_allocations(problem, schedule)
-
-jssp.io.render_gantt_chart('wtf1.pdf', allocations)
-jssp.io.render_gantt_chart('wtf2.pdf', allocations2)
+# for move in moves:
+#     print('{} VS {}'.format(problem.operations[move[0]], problem.operations[move[1]]))
