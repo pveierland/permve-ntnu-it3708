@@ -1,96 +1,206 @@
 #!/usr/bin/env python3
 
 import numpy as np
+import queue
 import random
 import sys
 
 import jssp.io
 import jssp.types
 
-def evaluate_schedule(problem, partial_schedule, focus_operation):
-    job_completion_times        = np.zeros(problem.job_count)
-    machine_completion_times    = np.zeros(problem.machine_count)
-    job_sequence_indexes        = np.full(problem.job_count, -1, int)
-    machine_sequence_indexes    = np.zeros(problem.machine_count, int)
-    machine_sequence_completion = np.full(problem.machine_count, False, bool)
+def evaluate_longest_path(problem, partial_schedule, focus_operation):
+    job_completion_times     = np.zeros(problem.job_count)
+    machine_completion_times = np.zeros(problem.machine_count)
+    job_focus_times          = np.zeros(problem.job_count)
+    machine_focus_times      = np.zeros(problem.machine_count)
+    job_sequence_indexes     = np.zeros(problem.job_count, int)
+    machine_sequence_indexes = np.zeros(problem.machine_count, int)
 
     reached_focus = False
 
-    print(partial_schedule)
+    allocations = [[] for _ in range(problem.machine_count)]
 
-    # Gotta schedule and process as queue
+    machine_frontier = [machine_schedule[0].index for machine_schedule in partial_schedule if machine_schedule]
+
+    job_schedules = [[] for _ in range(problem.job_count)]
+
+    for machine_sequence in partial_schedule:
+        for operation in machine_sequence:
+            job_schedules[operation.job].append(operation)
+
+    for job_schedule in job_schedules:
+        job_schedule.sort(key=lambda operation: operation.job_sequence_index)
+
+    job_frontier = [job_schedule[0].index for job_schedule in job_schedules if job_schedule]
 
     while True:
-        progress = False
+        for operation_index in machine_frontier:
+            if operation_index in job_frontier:
+                break
+        else:
+            break
 
-        for machine_index, machine_schedule in enumerate(partial_schedule):
-            machine_sequence_index = machine_sequence_indexes[machine_index]
+        operation = problem.operations[operation_index]
+        machine_frontier.remove(operation_index)
+        job_frontier.remove(operation_index)
 
-            if machine_sequence_index == len(machine_schedule):
-                machine_sequence_completion[machine_index] = True
-                continue
+        start_time = max(job_completion_times[operation.job], machine_completion_times[operation.machine])
+        completion_time = start_time + operation.time_steps
+        job_completion_times[operation.job]         = completion_time
+        machine_completion_times[operation.machine] = completion_time
 
-            operation = machine_schedule[machine_sequence_index]
+        allocations[operation.machine].append(jssp.types.Allocation(
+            operation.job_sequence_index,
+            machine_sequence_indexes[operation.machine],
+            start_time, None, None, operation))
 
-            print(operation)
+        focus_start_time = max(job_focus_times[operation.job], machine_focus_times[operation.machine])
 
-            if job_sequence_indexes[operation.job] < operation.job_sequence_index:
-                start_time = max(job_completion_times[operation.job], machine_completion_times[operation.machine])
+        if not reached_focus or start_time > 0:
+            focus_completion_time = start_time + operation.time_steps
 
-                print('scheduled!')
+            if operation is focus_operation:
+                job_focus_times[:]     = 0
+                machine_focus_times[:] = 0
+                reached_focus = True
 
-                if not reached_focus or start_time > 0:
-                    completion_time = start_time + operation.time_steps
+            job_focus_times[operation.job]         = focus_completion_time
+            machine_focus_times[operation.machine] = focus_completion_time
 
-                    if operation is focus_operation:
-                        job_completion_times[:]     = 0
-                        machine_completion_times[:] = 0
-                        reached_focus = True
+        machine_sequence_indexes[operation.machine] += 1
+        job_sequence_indexes[operation.job]         += 1
 
-                    job_completion_times[operation.job]         = completion_time
-                    machine_completion_times[operation.machine] = completion_time
+        next_machine_sequence_index = machine_sequence_indexes[operation.machine]
 
-                machine_sequence_indexes[operation.machine] += 1
-                job_sequence_indexes[operation.job] = operation.job_sequence_index
-                progress = True
+        if next_machine_sequence_index < len(partial_schedule[operation.machine]):
+            machine_frontier.append(partial_schedule[operation.machine][next_machine_sequence_index].index)
 
-        print(machine_sequence_completion)
-        if np.all(machine_sequence_completion):
-            return machine_completion_times.max()
-        elif not progress:
-            return None
+        next_job_sequence_index = job_sequence_indexes[operation.job]
+
+        if next_job_sequence_index < len(job_schedules[operation.job]):
+            job_frontier.append(job_schedules[operation.job][next_job_sequence_index].index)
+
+    if machine_frontier or job_frontier:
+        return None
+    else:
+        result = machine_focus_times.max()
+        return result
+
+def generate_schedule_insertion_algorithm(problem):
+    # Step 0
+    jobs_summed_processing_times = [(job, sum(operation.time_steps for operation in job)) for job in problem.jobs]
+    jobs_summed_processing_times.sort(key=(lambda x: x[1]), reverse=True)
+    max_processing_time_sum = jobs_summed_processing_times[0][1]
+    jobs_with_max_processing_time = [
+        job for job, summed_processing_time in jobs_summed_processing_times if summed_processing_time == max_processing_time_sum]
+
+    initial_job = random.choice(jobs_with_max_processing_time)
+
+    schedule = [[] for _ in range(problem.machine_count)]
+
+    for operation in initial_job:
+        schedule[operation.machine].append(operation)
+
+    # Step 1
+    operations = [operation for job in problem.jobs if job is not initial_job for operation in job]
+    random.shuffle(operations)
+    operations.sort(key=(lambda operation: operation.time_steps), reverse=True)
+
+    # Step 2
+    for operation in operations:
+        best_focus_distance     = float('inf')
+        best_insertion_schedule = None
+
+        # Step 3
+        for insertion_point in range(len(schedule[operation.machine]) + 1):
+            partial_schedule = [list(machine_schedule) for machine_schedule in schedule]
+            partial_schedule[operation.machine].insert(insertion_point, operation)
+
+            focus_distance = evaluate_longest_path(problem, partial_schedule, operation)
+
+            if focus_distance is not None and focus_distance < best_focus_distance:
+                best_insertion_schedule = partial_schedule
+
+        schedule = best_insertion_schedule
+
+    return schedule
+
+def get_allocations(problem, schedule):
+    job_completion_times     = np.zeros(problem.job_count)
+    machine_completion_times = np.zeros(problem.machine_count)
+    job_sequence_indexes     = np.zeros(problem.job_count, int)
+    machine_sequence_indexes = np.zeros(problem.machine_count, int)
+
+    allocations         = [[] for _ in range(problem.machine_count)]
+    job_allocations     = [None for _ in range(problem.job_count)]
+    machine_allocations = [None for _ in range(problem.machine_count)]
+
+    machine_frontier = [machine_schedule[0].index for machine_schedule in schedule if machine_schedule]
+    job_frontier     = [job_index * problem.machine_count for job_index in range(problem.job_count)]
+
+    while True:
+        for operation_index in machine_frontier:
+            if operation_index in job_frontier:
+                break
+        else:
+            break
+
+        operation = problem.operations[operation_index]
+        machine_frontier.remove(operation_index)
+        job_frontier.remove(operation_index)
+
+        start_time      = max(job_completion_times[operation.job], machine_completion_times[operation.machine])
+        completion_time = start_time + operation.time_steps
+
+        job_completion_times[operation.job]         = completion_time
+        machine_completion_times[operation.machine] = completion_time
+
+        job_predecessor = (job_allocations[operation.job]
+            if job_completion_times[operation.job] >= machine_completion_times[operation.machine] else None)
+
+        machine_predecessor = (machine_allocations[operation.machine]
+            if machine_completion_times[operation.machine] >= job_completion_times[operation.job] else None)
+
+        allocation = jssp.types.Allocation(
+            operation.job_sequence_index,
+            machine_sequence_indexes[operation.machine],
+            start_time,
+            job_predecessor,
+            machine_predecessor,
+            operation)
+
+        allocations[operation.machine].append(allocation)
+
+        job_allocations[operation.job]         = allocation
+        machine_allocations[operation.machine] = allocation
+
+        machine_sequence_indexes[operation.machine] += 1
+        job_sequence_indexes[operation.job]         += 1
+
+        next_machine_sequence_index = machine_sequence_indexes[operation.machine]
+
+        if next_machine_sequence_index < problem.job_count:
+            machine_frontier.append(schedule[operation.machine][next_machine_sequence_index].index)
+
+        next_job_sequence_index = job_sequence_indexes[operation.job]
+
+        if next_job_sequence_index < problem.machine_count:
+            job_frontier.append(operation.job * problem.machine_count + next_job_sequence_index)
+
+    if not (machine_frontier or job_frontier):
+        return allocations
+    else:
+        return None
+
+# TODO GENERATE NEIGHBORHOOD
 
 problem = jssp.io.parse_problem_file(sys.argv[1])
 
-# Step 0
+schedule, allocations = generate_schedule_insertion_algorithm(problem)
 
-jobs_summed_processing_times = [(job, sum(operation.time_steps for operation in job)) for job in problem.jobs]
-jobs_summed_processing_times.sort(key=(lambda x: x[1]), reverse=True)
-max_processing_time_sum = jobs_summed_processing_times[0][1]
-jobs_with_max_processing_time = [
-    job for job, summed_processing_time in jobs_summed_processing_times if summed_processing_time == max_processing_time_sum]
+#print(schedule)
 
-initial_job = random.choice(jobs_with_max_processing_time)
+allocations2 = get_allocations(problem, schedule)
 
-schedule = [[] for _ in range(problem.machine_count)]
-
-for operation in initial_job:
-    schedule[operation.machine].append(operation)
-
-# Step 1
-
-remaining_operations = [operation for job in problem.jobs if job is not initial_job for operation in job]
-random.shuffle(remaining_operations)
-remaining_operations.sort(key=(lambda operation: operation.time_steps), reverse=True)
-
-# Step 2
-for operation in remaining_operations:
-    # Step 3
-
-    for insertion_point in range(len(schedule[operation.machine]) + 1):
-        partial_schedule = [list(machine_schedule) for machine_schedule in schedule]
-        partial_schedule[operation.machine].insert(insertion_point, operation)
-
-        print(evaluate_schedule(problem, partial_schedule, operation))
-
-    break
+jssp.io.render_gantt_chart('wtf1.pdf', allocations)
+jssp.io.render_gantt_chart('wtf2.pdf', allocations2)
