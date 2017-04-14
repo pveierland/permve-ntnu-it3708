@@ -19,6 +19,7 @@ import jssp.ba
 import jssp.io
 import jssp.pso
 import jssp.types
+import jssp.utility
 
 # Allocation = namedtuple('Allocation', ['job_sequence_index', 'machine_sequence_index', 'start_time', 'predecessor', 'operation'])
 # #Allocation        = namedtuple('Allocation', ['job_sequence_index', 'start_time', 'operation'])
@@ -462,15 +463,23 @@ import jssp.types
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('--taboo_iteration_limit',    type=int, default=500)
+    parser.add_argument('--taboo_list_limit',         type=int, default=8)
+    parser.add_argument('--taboo_backtracking_limit', type=int, default=5)
+    parser.add_argument('--taboo_max_cycle_duration', type=int, default=100)
+    parser.add_argument('--taboo_max_cycle_count',    type=int, default=2)
+
+    parser.add_argument('--ba_num_elite_bees',        type=int,   default=2)
+    parser.add_argument('--ba_num_elite_sites',       type=int,   default=2)
+    parser.add_argument('--ba_num_normal_bees',       type=int,   default=2)
+    parser.add_argument('--ba_num_normal_sites',      type=int,   default=5)
+    parser.add_argument('--ba_num_scouts',            type=int,   default=10)
+
     parser.add_argument('--aco_evaporation_rate',        type=float, default=0.1)
     parser.add_argument('--aco_beta',                    type=float, default=10.0)
     parser.add_argument('--aco_initial_pheromone_value', type=float, default=0.5)
     parser.add_argument('--aco_tabu_search_tenure',      type=int,   default=10)
-    parser.add_argument('--ba_num_elite_bees',        type=int,   default=15)
-    parser.add_argument('--ba_num_elite_sites',       type=int,   default=5)
-    parser.add_argument('--ba_num_normal_bees',       type=int,   default=5)
-    parser.add_argument('--ba_num_normal_sites',      type=int,   default=10)
-    parser.add_argument('--ba_num_scouts',            type=int,   default=100)
+
     parser.add_argument('--iterations',               type=int,   default=100)
     parser.add_argument('--optimizer',                choices=['aco', 'ba', 'pso'], required=True)
     parser.add_argument('--problem',                  type=str,   required=True)
@@ -478,6 +487,7 @@ if __name__ == '__main__':
     parser.add_argument('--pso_c2',                   type=float, default=0.3)
     parser.add_argument('--pso_swarm_size',           type=int,   default=100)
     parser.add_argument('--pso_w',                    type=float, default=0.5)
+
     parser.add_argument('--script',                   action='store_true')
     parser.add_argument('--render',                   action='store_true')
     parser.add_argument('--output_filename',              type=str, default='output.pdf')
@@ -500,7 +510,13 @@ if __name__ == '__main__':
                 num_normal_sites = args.ba_num_normal_sites,
                 num_elite_sites  = args.ba_num_elite_sites,
                 num_normal_bees  = args.ba_num_normal_bees,
-                num_elite_bees   = args.ba_num_elite_bees),
+                num_elite_bees   = args.ba_num_elite_bees,
+                taboo = jssp.utility.TabooConfig(
+                    iteration_limit    = args.taboo_iteration_limit,
+                    list_limit         = args.taboo_list_limit,
+                    backtracking_limit = args.taboo_backtracking_limit,
+                    max_cycle_duration = args.taboo_max_cycle_duration,
+                    max_cycle_count    = args.taboo_max_cycle_count)),
             problem)
     elif args.optimizer == 'pso':
         optimizer = jssp.pso.Optimizer(
@@ -510,6 +526,19 @@ if __name__ == '__main__':
                 c2         = args.pso_c2,
                 w          = args.pso_w),
             problem)
+
+    # solution = jssp.utility.generate_random_solution(problem)
+
+    # while True:
+    #     next_solution, _ = jssp.utility.apply_local_search(problem, solution.operations, steepest=True)
+
+    #     print(next_solution.makespan)
+
+    #     if solution == next_solution or next_solution.makespan >= solution.makespan:
+    #         print('failure')
+    #         break
+
+    #     solution = next_solution
 
     for _ in range(args.iterations):
         result = optimizer.iterate()

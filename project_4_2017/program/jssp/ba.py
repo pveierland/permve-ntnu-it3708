@@ -1,5 +1,4 @@
 from collections import namedtuple
-import numpy as np
 import random
 
 import jssp.types
@@ -10,19 +9,8 @@ Config = namedtuple('Config', [
     'num_normal_sites',
     'num_elite_sites',
     'num_normal_bees',
-    'num_elite_bees'])
-
-def mutate_preference(problem, preference):
-    machine_index = random.randrange(problem.machine_count)
-
-    first_index   = random.randrange(problem.job_count)
-    second_index  = random.randrange(problem.job_count)
-
-    first_job  = preference[machine_index, first_index]
-    second_job = preference[machine_index, second_index]
-
-    preference[machine_index, second_index] = first_job
-    preference[machine_index, first_index]  = second_job
+    'num_elite_bees',
+    'taboo'])
 
 class Optimizer(object):
     def __init__(self, config, problem):
@@ -31,99 +19,59 @@ class Optimizer(object):
 
         self.initialize()
 
-    def best(self):
-        return self.best_solution
-
     def initialize(self):
-        self.site_preferences = np.zeros((self.config.num_scouts, self.problem.machine_count, self.problem.job_count), int)
-        self.site_makespans   = np.zeros(self.config.num_scouts)
+        self.sites = []
 
-        for k in range(self.config.num_scouts):
-            for m in range(self.problem.machine_count):
-                self.site_preferences[k, m] = np.random.permutation(self.problem.job_count)
+        for _ in range(self.config.num_scouts):
+            schedule = jssp.utility.generate_schedule_insertion_algorithm(self.problem)
+            makespan = jssp.utility.compute_makespan(self.problem, schedule)
+            self.sites.append((schedule, makespan))
 
-            _, _, self.site_makespans[k] = jssp.utility.develop_schedule(self.problem, self.site_preferences[k])
-
-        self.next_site_preferences = self.site_preferences.copy()
-        self.next_site_makespans   = self.site_makespans.copy()
-
-        index = np.argmin(self.site_makespans)
-        self.best_solution = jssp.types.Solution(self.site_preferences[index].copy(), self.site_makespans[index])
+        self.sites.sort(key=lambda site: site[1])
 
     def iterate(self):
-        sorted_site_indexes = np.argsort(self.site_makespans)
-
         for es in range(self.config.num_elite_sites):
-            elite_site_index = sorted_site_indexes[es]
+            site_index = es
+            site_schedule, site_makespan = self.sites[site_index]
 
-            best_site_preference = self.site_preferences[elite_site_index].copy()
-            best_site_makespan   = self.site_makespans[elite_site_index]
-
-            original_site_schedule, original_site_allocations, original_site_makespan = jssp.utility.develop_schedule(
-                self.problem, self.site_preferences[elite_site_index])
-
-            original_site_reorderings = jssp.utility.find_reorderings(self.problem, original_site_allocations)
+            best_site_schedule = site_schedule
+            best_site_makespan = site_makespan
 
             for eb in range(self.config.num_elite_bees):
-                if original_site_reorderings:
-                    reordering = random.choice(original_site_reorderings)
-                    original_site_reorderings.remove(reordering)
+                new_schedule, new_makespan = jssp.utility.taboo_search(
+                    self.problem, site_schedule, site_makespan, self.config.taboo)
 
-                    elite_site_preference, _, elite_site_makespan = jssp.utility.develop_schedule(
-                        self.problem, original_site_schedule, reordering)
-                else:
-                    elite_site_preference = self.site_preferences[elite_site_index].copy()
-                    mutate_preference(self.problem, elite_site_preference)
-                    _, _, elite_site_makespan = jssp.utility.develop_schedule(self.problem, elite_site_preference)
+                if new_makespan < best_site_makespan:
+                    best_site_schedule = new_schedule
+                    best_site_makespan = new_makespan
 
-                if elite_site_makespan < best_site_makespan:
-                    best_site_preference = elite_site_preference
-                    best_site_makespan   = elite_site_makespan
-
-            self.next_site_preferences[es] = best_site_preference
-            self.next_site_makespans[es]   = best_site_makespan
+            self.sites[site_index] = (best_site_schedule, best_site_makespan)
 
         for ns in range(self.config.num_normal_sites):
-            i = self.config.num_elite_sites + ns
-            normal_site_index = sorted_site_indexes[i]
+            site_index       = self.config.num_elite_sites + ns
+            site_schedule, _ = self.sites[site_index]
 
-            best_site_preference = self.site_preferences[normal_site_index].copy()
-            best_site_makespan   = self.site_makespans[normal_site_index]
+            site_allocations, site_makespan = jssp.utility.compute_allocations(self.problem, site_schedule)
+            site_moves = jssp.utility.find_neighborhood_moves(self.problem, site_allocations, site_makespan)
 
-            original_site_schedule, original_site_allocations, original_site_makespan = jssp.utility.develop_schedule(
-                self.problem, self.site_preferences[normal_site_index])
-
-            original_site_reorderings = jssp.utility.find_reorderings(self.problem, original_site_allocations)
+            best_site_schedule = site_schedule
+            best_site_makespan = site_makespan
 
             for nb in range(self.config.num_normal_bees):
-                if original_site_reorderings:
-                    reordering = random.choice(original_site_reorderings)
-                    original_site_reorderings.remove(reordering)
+                new_schedule = jssp.utility.apply_move(self.problem, site_schedule, random.choice(site_moves))
+                new_makespan = jssp.utility.compute_makespan(self.problem, new_schedule)
 
-                    normal_site_preference, _, normal_site_makespan = jssp.utility.develop_schedule(
-                        self.problem, original_site_schedule, reordering)
-                else:
-                    normal_site_preference = self.site_preferences[normal_site_index].copy()
-                    mutate_preference(self.problem, normal_site_preference)
-                    _, _, normal_site_makespan = jssp.utility.develop_schedule(self.problem, normal_site_preference)
+                if new_makespan < best_site_makespan:
+                    best_site_schedule = new_schedule
+                    best_site_makespan = new_makespan
 
-                if normal_site_makespan < best_site_makespan:
-                    best_site_preference = normal_site_preference
-                    best_site_makespan   = normal_site_makespan
-
-            self.next_site_preferences[i] = best_site_preference
-            self.next_site_makespans[i]   = best_site_makespan
+            self.sites[site_index] = (best_site_schedule, best_site_makespan)
 
         for k in range(self.config.num_elite_sites + self.config.num_normal_sites, self.config.num_scouts):
-            for m in range(self.problem.machine_count):
-                self.next_site_preferences[k, m] = np.random.permutation(self.problem.job_count)
-            _, _, self.next_site_makespans[k] = jssp.utility.develop_schedule(self.problem, self.next_site_preferences[k])
+            schedule = jssp.utility.generate_schedule_insertion_algorithm(self.problem)
+            makespan = jssp.utility.compute_makespan(self.problem, schedule)
+            self.sites[k] = (schedule, makespan)
 
-        self.site_preferences, self.next_site_preferences = self.next_site_preferences, self.site_preferences
-        self.site_makespans, self.next_site_makespans     = self.next_site_makespans, self.site_makespans
+        self.sites.sort(key=lambda site: site[1])
 
-        index = np.argmin(self.site_makespans)
-        if not self.best_solution or self.site_makespans[index] < self.best_solution.makespan:
-            self.best_solution = jssp.types.Solution(self.site_preferences[index].copy(), self.site_makespans[index])
-
-        return jssp.types.Solution(None, min(self.site_makespans))
+        return jssp.types.Solution(self.sites[0][0], self.sites[0][1])
