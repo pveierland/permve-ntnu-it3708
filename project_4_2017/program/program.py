@@ -461,6 +461,9 @@ import jssp.utility
 #             selected_job = candidate.schedule[m, j]
 #             pheromones[m, j, selected_job] = (1.0 - decay) * pheromones[m, j, selected_job] + decay / candidate.makespan
 
+def run_shit(args):
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--taboo_iteration_limit',    type=int, default=500)
@@ -474,19 +477,23 @@ if __name__ == '__main__':
     parser.add_argument('--ba_num_normal_bees',       type=int,   default=2)
     parser.add_argument('--ba_num_normal_sites',      type=int,   default=5)
     parser.add_argument('--ba_num_scouts',            type=int,   default=10)
+    parser.add_argument('--ba_iterations',            type=int,   default=100)
 
     parser.add_argument('--aco_evaporation_rate',        type=float, default=0.1)
     parser.add_argument('--aco_beta',                    type=float, default=10.0)
     parser.add_argument('--aco_initial_pheromone_value', type=float, default=0.5)
     parser.add_argument('--aco_tabu_search_tenure',      type=int,   default=10)
+    parser.add_argument('--aco_iterations',              type=int,   default=100)
 
-    parser.add_argument('--iterations',               type=int,   default=100)
+    parser.add_argument('--iterations',               type=int)
     parser.add_argument('--optimizer',                choices=['aco', 'ba', 'pso'], required=True)
     parser.add_argument('--problem',                  type=str,   required=True)
+
     parser.add_argument('--pso_c1',                   type=float, default=0.5)
     parser.add_argument('--pso_c2',                   type=float, default=0.3)
     parser.add_argument('--pso_swarm_size',           type=int,   default=100)
     parser.add_argument('--pso_w',                    type=float, default=0.5)
+    parser.add_argument('--pso_iterations',           type=int,   default=150)
 
     parser.add_argument('--script',                   action='store_true')
     parser.add_argument('--render',                   action='store_true')
@@ -494,6 +501,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     problem = jssp.io.parse_problem_file(args.problem)
+
+    magic = 12
 
     if args.optimizer == 'aco':
         optimizer = jssp.aco.Optimizer(
@@ -503,6 +512,8 @@ if __name__ == '__main__':
                 tabu_search_tenure      = args.aco_tabu_search_tenure,
                 initial_pheromone_value = args.aco_initial_pheromone_value),
             problem)
+
+        iterations = args.aco_iterations
     elif args.optimizer == 'ba':
         optimizer = jssp.ba.Optimizer(
             jssp.ba.Config(
@@ -518,14 +529,22 @@ if __name__ == '__main__':
                     max_cycle_duration = args.taboo_max_cycle_duration,
                     max_cycle_count    = args.taboo_max_cycle_count)),
             problem)
+
+        iterations = args.ba_iterations
     elif args.optimizer == 'pso':
-        optimizer = jssp.pso.Optimizer(
+        optimizers = [jssp.pso.Optimizer(
             jssp.pso.Config(
                 swarm_size = args.pso_swarm_size,
                 c1         = args.pso_c1,
                 c2         = args.pso_c2,
                 w          = args.pso_w),
             problem)
+            for _ in range(magic)]
+
+        iterations = args.pso_iterations
+
+    if args.iterations:
+        iterations = args.iterations
 
     # solution = jssp.utility.generate_random_solution(problem)
 
@@ -540,11 +559,21 @@ if __name__ == '__main__':
 
     #     solution = next_solution
 
-    for _ in range(args.iterations):
-        result = optimizer.iterate()
+    pool = ThreadPool(12)
 
-        if not args.script:
-            print(result.makespan)
+    res = [[pool.apply_async(optimizers[i].iterate) for i in range(12)] for _ in range(iterations)]
+
+
+
+    for r in res:
+        z = [x.get().makespan for x in r]
+        print(z)
+
+    # for _ in range(args.iterations):
+    #     result = optimizer.iterate()
+
+    #     if not args.script:
+    #         print(result.makespan)
 
     if args.script:
         print(result.makespan)
