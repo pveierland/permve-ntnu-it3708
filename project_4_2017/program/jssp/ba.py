@@ -20,13 +20,7 @@ class Optimizer(object):
         self.initialize()
 
     def initialize(self):
-        self.sites = []
-
-        for _ in range(self.config.num_scouts):
-            schedule = jssp.utility.generate_schedule_insertion_algorithm(self.problem)
-            makespan = jssp.utility.compute_makespan(self.problem, schedule)
-            self.sites.append((schedule, makespan))
-
+        self.sites = [jssp.utility.generate_random_solution(self.problem) for _ in range(self.config.num_scouts)]
         self.sites.sort(key=lambda site: site[1])
 
     def iterate(self):
@@ -68,9 +62,7 @@ class Optimizer(object):
             self.sites[site_index] = (best_site_schedule, best_site_makespan)
 
         for k in range(self.config.num_elite_sites + self.config.num_normal_sites, self.config.num_scouts):
-            schedule = jssp.utility.generate_schedule_insertion_algorithm(self.problem)
-            makespan = jssp.utility.compute_makespan(self.problem, schedule)
-            self.sites[k] = (schedule, makespan)
+            self.sites[k] = jssp.utility.generate_random_solution(self.problem)
 
         self.sites.sort(key=lambda site: site[1])
 

@@ -15,112 +15,90 @@ class Optimizer(object):
     def __init__(self, config, problem):
         self.config  = config
         self.problem = problem
-
         self.initialize()
 
     def initialize(self):
-        self.positions = np.zeros((self.config.swarm_size, self.problem.machine_count, self.problem.job_count), int)
-
-        for k in range(self.config.swarm_size):
-            for m in range(self.problem.machine_count):
-                self.positions[k, m] = np.random.permutation(self.problem.job_count)
-
+        self.positions  = [jssp.utility.generate_random_solution(self.problem) for _ in range(self.config.swarm_size)]
         self.velocities = np.full((self.config.swarm_size, self.problem.machine_count, self.problem.job_count), False, bool)
-
-        self.pbest_schedules = np.zeros((self.config.swarm_size, self.problem.machine_count, self.problem.job_count), int)
-        self.pbest_makespans = np.zeros(self.config.swarm_size)
-
-        for k in range(self.config.swarm_size):
-            self.pbest_schedules[k], _, self.pbest_makespans[k] = jssp.utility.develop_schedule(self.problem, self.positions[k])
-
-        gbest_index = np.argmin(self.pbest_makespans)
-        self.gbest_schedule = self.pbest_schedules[gbest_index].copy()
-        self.gbest_makespan = self.pbest_makespans[gbest_index]
+        self.pbest      = self.positions.copy()
+        self.gbest      = min(self.pbest, key=lambda solution: solution.makespan)
 
     def iterate(self):
         for k in range(self.config.swarm_size):
-            self.update_particle_velocity(self.velocities[k])
+            self.update_particle_velocity(k)
 
         for k in range(self.config.swarm_size):
-            self.update_particle_position(self.positions[k], self.velocities[k], self.pbest_schedules[k], self.gbest_schedule)
-            particle_schedule, _, particle_makespan = jssp.utility.develop_schedule(self.problem, self.positions[k])
-            self.update_particle_tracking(k, particle_schedule, particle_makespan)
+            self.update_particle_position(k)
+            self.update_particle_tracking(self.positions[k])
 
-        return jssp.types.Solution(None, self.gbest_makespan)
+        return self.gbest
 
-    def mutate_particle(self, position, velocity):
-        machine_index = random.randrange(self.problem.machine_count)
-        first_index   = random.randrange(self.problem.job_count)
-        second_index  = random.randrange(self.problem.job_count)
+    def update_particle_position(self, index):
+        position = [list(machine_schedule) for machine_schedule in self.positions[index].schedule]
+        velocity = self.velocities[index]
+        pbest    = self.pbest[index]
 
-        first_job  = position[machine_index, first_index]
-        second_job = position[machine_index, second_index]
-
-        position[machine_index, second_index] = first_job
-        position[machine_index, first_index]  = second_job
-
-        velocity[machine_index, first_job]  = True
-        velocity[machine_index, second_job] = True
-
-    def update_particle_position(self, position, velocity, pbest_schedule, gbest_schedule):
         for machine in range(self.problem.machine_count):
             l_start = random.randrange(self.problem.job_count)
 
+            position_machine = position[machine]
+            velocity_machine = velocity[machine]
+            pbest_machine    = pbest.schedule[machine]
+            gbest_machine    = self.gbest.schedule[machine]
+
             for machine_sequence_index in range(self.problem.job_count):
-                l = (l_start + machine_sequence_index) % self.problem.job_count
-                r = random.random()
+                l   = (l_start + machine_sequence_index) % self.problem.job_count
+                r   = random.random()
+                O_1 = position_machine[l]
 
                 if r <= self.config.c1:
-                    J_1     = position[machine, l]
-                    l_prime = pbest_schedule[machine].tolist().index(J_1)
-                    J_2     = position[machine, l_prime]
+                    l_prime = next(operation_index for operation_index, operation in enumerate(pbest_machine) if operation.job == O_1.job)
+                    O_2     = position_machine[l_prime]
 
-                    if not velocity[machine, J_1] and not velocity[machine, J_2] and J_1 != J_2:
-                        position[machine, l]       = J_2
-                        position[machine, l_prime] = J_1
-                        velocity[machine, J_1]     = True
+                    if not velocity_machine[O_1.job] and not velocity_machine[O_2.job] and O_1.job != O_2.job:
+                        position_machine[l]       = O_2
+                        position_machine[l_prime] = O_1
+                        velocity_machine[O_1.job] = True
                 elif r <= self.config.c1 + self.config.c2:
-                    J_1     = position[machine, l]
-                    l_prime = gbest_schedule[machine].tolist().index(J_1)
-                    J_2     = position[machine, l_prime]
+                    l_prime = next(operation_index for operation_index, operation in enumerate(gbest_machine) if operation.job == O_1.job)
+                    O_2     = position_machine[l_prime]
 
-                    if not velocity[machine, J_1] and not velocity[machine, J_2] and J_1 != J_2:
-                        position[machine, l]       = J_2
-                        position[machine, l_prime] = J_1
-                        velocity[machine, J_1]     = True
+                    if not velocity_machine[O_1.job] and not velocity_machine[O_2.job] and O_1.job != O_2.job:
+                        position_machine[l]       = O_2
+                        position_machine[l_prime] = O_1
+                        velocity_machine[O_1.job] = True
 
         schedule, allocations, makespan = jssp.utility.develop_schedule(self.problem, position)
-        reorderings = jssp.utility.find_reorderings(self.problem, allocations)
+        moves = jssp.utility.find_neighborhood_moves(self.problem, allocations, makespan)
 
-        if reorderings:
-            position[:], _, _ = jssp.utility.develop_schedule(problem, schedule, random.choice(reorderings))
-        else:
-            self.mutate_particle(position, velocity)
+        if moves:
+            move     = random.choice(moves)
+            schedule = jssp.utility.apply_move(self.problem, schedule, move)
+            makespan = jssp.utility.compute_makespan(self.problem, schedule)
 
-    def update_particle_velocity(self, velocity):
-        velocity[:] = np.logical_and(velocity, np.random.rand(self.problem.machine_count, self.problem.job_count) < self.config.w)
+            first_operation  = self.problem.operations[move[0]]
+            second_operation = self.problem.operations[move[1]]
+            velocity[first_operation.machine][first_operation.job]   = True
+            velocity[second_operation.machine][second_operation.job] = True
 
-    def update_particle_tracking(self, index, schedule, makespan):
-        pbest_worst_index = np.argmax(self.pbest_makespans)
+        self.positions[index] = jssp.types.Solution(schedule, makespan)
 
-        if makespan < self.gbest_makespan:
-            self.pbest_schedules[pbest_worst_index] = self.gbest_schedule
-            self.pbest_makespans[pbest_worst_index] = self.gbest_makespan
-            self.gbest_schedule[:] = schedule
-            self.gbest_makespan    = makespan
-        elif makespan == self.gbest_makespan:
-            self.gbest_schedule[:] = schedule
-            self.gbest_makespan    = makespan
-        elif makespan <= self.pbest_makespans[pbest_worst_index]:
-            the_same = False
+    def update_particle_velocity(self, velocity_index):
+        self.velocities[velocity_index] = np.logical_and(
+            self.velocities[velocity_index], np.random.rand(self.problem.machine_count, self.problem.job_count) < self.config.w)
 
+    def update_particle_tracking(self, particle):
+        pbest_worst_index = max((entry.makespan, pbest_index) for pbest_index, entry in enumerate(self.pbest))[1]
+
+        if particle.makespan < self.gbest.makespan:
+            self.pbest[pbest_worst_index] = self.gbest
+            self.gbest                    = particle
+        elif particle.makespan == self.gbest.makespan:
+            self.gbest = particle
+        elif particle.makespan <= self.pbest[pbest_worst_index].makespan:
             for k in range(self.config.swarm_size):
-                if makespan == self.pbest_makespans[k]:
-                    self.pbest_schedules[k] = schedule
-                    self.pbest_makespans[k] = makespan
-                    the_same = True
+                if particle.makespan == self.pbest[k].makespan:
+                    self.pbest[k] = particle
                     break
-
-            if not the_same:
-                self.pbest_schedules[pbest_worst_index] = schedule
-                self.pbest_makespans[pbest_worst_index] = makespan
+            else:
+                self.pbest[pbest_worst_index] = particle

@@ -25,15 +25,6 @@ def parse_problem_file(filename):
         return jssp.types.Problem(job_count, machine_count, jobs, operations)
 
 def render_gantt_chart(output_filename, allocations):
-    if not allocations:
-        allocations = [
-            [jssp.types.Allocation(0, 1,  6,  3), jssp.types.Allocation(3, 1, 13, 5), jssp.types.Allocation(2, 3, 18,  9), jssp.types.Allocation(5, 3, 28, 10), jssp.types.Allocation(1, 4, 38, 10), jssp.types.Allocation(4, 4, 48, 3)],
-            [jssp.types.Allocation(1, 0,  0,  8), jssp.types.Allocation(3, 0,  8, 5), jssp.types.Allocation(5, 0, 13,  3), jssp.types.Allocation(0, 2, 16,  6), jssp.types.Allocation(4, 1, 22,  3), jssp.types.Allocation(2, 4, 27, 1)],
-            [jssp.types.Allocation(2, 0,  0,  5), jssp.types.Allocation(0, 0,  5, 1), jssp.types.Allocation(1, 1,  8,  5), jssp.types.Allocation(4, 0, 13,  9), jssp.types.Allocation(3, 2, 22,  5), jssp.types.Allocation(5, 5, 49, 1)],
-            [jssp.types.Allocation(2, 1,  5,  4), jssp.types.Allocation(5, 1, 16, 3), jssp.types.Allocation(3, 3, 27,  3), jssp.types.Allocation(0, 3, 30,  7), jssp.types.Allocation(1, 5, 48,  4), jssp.types.Allocation(4, 5, 52, 1)],
-            [jssp.types.Allocation(1, 2, 13, 10), jssp.types.Allocation(4, 2, 25, 5), jssp.types.Allocation(3, 4, 30,  8), jssp.types.Allocation(2, 5, 38,  7), jssp.types.Allocation(5, 4, 45,  4), jssp.types.Allocation(0, 5, 49, 6)],
-            [jssp.types.Allocation(2, 2,  9,  8), jssp.types.Allocation(5, 2, 19, 9), jssp.types.Allocation(1, 3, 28, 10), jssp.types.Allocation(0, 4, 38,  3), jssp.types.Allocation(4, 3, 41,  4), jssp.types.Allocation(3, 5, 45, 9)]]
-
     configuration = {
         'block_height_ratio': 0.7,
         'bottom_margin': 1.5,

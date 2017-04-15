@@ -20,7 +20,7 @@ class colors:
 def run_program(optimizer, problem_file):
     try:
         result = subprocess.run(
-            ['python3', 'program.py', '--optimizer', optimizer, '--problem', problem_file, '--script', '--iterations', '200'],
+            ['python3', 'program.py', '--optimizer', optimizer, '--problem', problem_file, '--script'],
             stdout=subprocess.PIPE)
     except:
         print("failed to run optimizer '{}' with problem '{}'".format(
@@ -32,12 +32,12 @@ def run_program(optimizer, problem_file):
 problem_file_path = '../assignment/Test Data/'
 
 makespan_baseline = {
-    '1.txt': 56.0,
-    '2.txt': 1059.0,
-    '3.txt': 1276.0,
-    '4.txt': 1130.0,
-    '5.txt': 1451.0,
-    '6.txt': 979.0
+    '1.txt': 55.0,
+    '2.txt': 930.0,
+    '3.txt': 1165.0,
+    '4.txt': 1005.0,
+    '5.txt': 1235.0,
+    '6.txt': 943.0
 }
 
 problem_files = sorted(
@@ -46,7 +46,7 @@ problem_files = sorted(
 
 pool = multiprocessing.Pool(multiprocessing.cpu_count())
 
-run_count = 5
+run_count = 1
 
 optimizers = ['aco', 'ba', 'pso']
 
@@ -68,7 +68,7 @@ pool.close()
 pool.join()
 
 def format_makespan(name, value, baseline):
-    color = '' if not baseline else colors.OKGREEN if value <= baseline else colors.FAIL
+    color = '' if not baseline else colors.OKGREEN if value <= (baseline * 1.1) else colors.FAIL
     return '{}{:>6.1f} {:>5.1f}% ({}){}'.format(
         color, value, 100 * value / baseline, name, colors.ENDC)
 

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 from collections import namedtuple
 import math
 import numpy as np
@@ -11,8 +9,9 @@ import jssp.utility
 Config = namedtuple('Config', [
     'evaporation_rate',
     'beta',
-    'tabu_search_tenure',
-    'initial_pheromone_value'])
+    'initial_pheromone_value',
+    'enable_taboo',
+    'taboo'])
 
 class Optimizer(object):
     def __init__(self, config, problem):
@@ -49,7 +48,7 @@ class Optimizer(object):
         def compute_earliest_completion_time(operation):
             return compute_earliest_start_time(operation) + operation.time_steps
 
-        operations = []
+        schedule = [[] for _ in range(self.problem.machine_count)]
 
         not_scheduled = [[] for _ in range(self.problem.machine_count)]
         for operation_sequence in self.problem.jobs:
@@ -107,7 +106,7 @@ class Optimizer(object):
             job_completion_times[selected_operation.job]         = operation_completion_time
             machine_completion_times[selected_operation.machine] = operation_completion_time
 
-            operations.append(selected_operation)
+            schedule[selected_operation.machine].append(selected_operation)
 
             not_scheduled[selected_operation.machine].remove(selected_operation)
             possible.remove(selected_operation)
@@ -115,18 +114,19 @@ class Optimizer(object):
             if job_sequence_index < self.problem.machine_count - 1:
                 possible.append(self.problem.jobs[selected_operation.job][job_sequence_index + 1])
 
-        makespan = max(machine_completion_times)
+        makespan = machine_completion_times.max()
 
-        return jssp.types.Solution(operations, makespan)
+        return jssp.types.Solution(schedule, makespan)
 
     def iterate(self):
         iteration_solutions = [self.construct_solution(random.choice([None, 'nd'])) for _ in range(self.num_ants)]
-        iteration_solutions = [jssp.utility.apply_local_search(self.problem, iteration_solution.operations)[0] for iteration_solution in iteration_solutions]
+        iteration_solutions = [jssp.utility.apply_local_search(self.problem, iteration_solution.schedule) for iteration_solution in iteration_solutions]
 
         best_solution_in_iteration = min(iteration_solutions, key=lambda solution: solution.makespan)
 
-        best_solution_in_iteration = jssp.utility.tabu_search(
-            self.problem, best_solution_in_iteration, self.tabu_search_iterations, self.config.tabu_search_tenure)
+        if self.config.enable_taboo:
+            best_solution_in_iteration = jssp.types.Solution(*jssp.utility.taboo_search(
+                self.problem, best_solution_in_iteration.schedule, best_solution_in_iteration.makespan, self.config.taboo))
 
         if not self.best_solution_since_restart or best_solution_in_iteration.makespan < self.best_solution_since_restart.makespan:
             self.best_solution_since_restart = best_solution_in_iteration
@@ -149,9 +149,10 @@ class Optimizer(object):
         return self.best_solution_ever
 
     def update_pheromones(self, solution):
-        for first_index, first_operation in enumerate(solution.operations):
-            for second_index, second_operation in enumerate(solution.operations):
-                self.pheromones[first_operation.index, second_operation.index] = \
-                    np.clip(self.pheromones[first_operation.index, second_operation.index] +
-                            self.config.evaporation_rate * (float(first_index < second_index) - self.pheromones[first_operation.index, second_operation.index]),
-                            0.001, 0.999)
+        for machine_schedule in solution.schedule:
+            for first_index, first_operation in enumerate(machine_schedule):
+                for second_index, second_operation in enumerate(machine_schedule):
+                    self.pheromones[first_operation.index, second_operation.index] = \
+                        np.clip(self.pheromones[first_operation.index, second_operation.index] +
+                                self.config.evaporation_rate * (float(first_index < second_index) - self.pheromones[first_operation.index, second_operation.index]),
+                                0.001, 0.999)
