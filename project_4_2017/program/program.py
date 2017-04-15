@@ -123,7 +123,9 @@ if __name__ == '__main__':
 
             iteration_bundle = iteration_results.get(iteration, None)
 
-            if not iteration_bundle:
+            if iteration_bundle:
+                iteration_bundle.append(solution)
+            else:
                 iteration_bundle             = [solution]
                 iteration_results[iteration] = iteration_bundle
 
