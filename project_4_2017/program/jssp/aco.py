@@ -124,9 +124,8 @@ class Optimizer(object):
 
         best_solution_in_iteration = min(iteration_solutions, key=lambda solution: solution.makespan)
 
-        if self.config.enable_taboo:
-            best_solution_in_iteration = jssp.types.Solution(*jssp.utility.taboo_search(
-                self.problem, best_solution_in_iteration.schedule, best_solution_in_iteration.makespan, self.config.taboo))
+        best_solution_in_iteration = jssp.types.Solution(*jssp.utility.taboo_search(
+            self.problem, best_solution_in_iteration.schedule, best_solution_in_iteration.makespan, self.config.taboo))
 
         if not self.best_solution_since_restart or best_solution_in_iteration.makespan < self.best_solution_since_restart.makespan:
             self.best_solution_since_restart = best_solution_in_iteration

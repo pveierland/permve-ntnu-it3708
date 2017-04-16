@@ -2,6 +2,7 @@
 
 import argparse
 import multiprocessing
+import pickle
 
 import jssp.aco
 import jssp.ba
@@ -18,10 +19,11 @@ def build_optimizer(args, problem):
                 initial_pheromone_value = args.aco_initial_pheromone_value,
                 enable_taboo            = args.aco_enable_taboo,
                 taboo = jssp.utility.TabooConfig(
-                    total_iteration_limit = args.taboo_total_iteration_limit,
-                    iteration_limit       = args.taboo_iteration_limit,
-                    list_limit            = args.taboo_list_limit,
-                    backtracking_limit    = args.taboo_backtracking_limit,
+                    # Stupid lazy limiting hack
+                    total_iteration_limit = int(round(0.25 * args.taboo_total_iteration_limit)),
+                    iteration_limit       = int(round(0.25 * args.taboo_iteration_limit)),
+                    list_limit            = int(round(0.5 * args.taboo_list_limit)),
+                    backtracking_limit    = int(round(0.5 * args.taboo_backtracking_limit)),
                     max_cycle_duration    = args.taboo_max_cycle_duration,
                     max_cycle_count       = args.taboo_max_cycle_count)),
             problem)
@@ -68,17 +70,17 @@ if __name__ == '__main__':
     parser.add_argument('--aco_enable_taboo',            action='store_true')
     parser.add_argument('--aco_evaporation_rate',        type=float, default=0.1)
     parser.add_argument('--aco_initial_pheromone_value', type=float, default=0.5)
-    parser.add_argument('--aco_iterations',              type=int,   default=100)
-    parser.add_argument('--aco_tabu_search_tenure',      type=int,   default=10)
-    parser.add_argument('--ba_iterations',               type=int,   default=10)
-    parser.add_argument('--ba_num_elite_bees',           type=int,   default=2)
-    parser.add_argument('--ba_num_elite_sites',          type=int,   default=2)
+    parser.add_argument('--aco_iterations',              type=int,   default=20)
+    parser.add_argument('--ba_iterations',               type=int,   default=5)
+    parser.add_argument('--ba_num_elite_bees',           type=int,   default=1)
+    parser.add_argument('--ba_num_elite_sites',          type=int,   default=3)
     parser.add_argument('--ba_num_normal_bees',          type=int,   default=2)
     parser.add_argument('--ba_num_normal_sites',         type=int,   default=5)
     parser.add_argument('--ba_num_scouts',               type=int,   default=10)
     parser.add_argument('--iterations',                  type=int)
     parser.add_argument('--optimizer',                   choices=['aco', 'ba', 'pso'], required=True)
-    parser.add_argument('--output_filename',             type=str,   default='output.pdf')
+    parser.add_argument('--pickle',                      action='store_true')
+    parser.add_argument('--pickle_output_filename',      type=str,   default='solution.pickle')
     parser.add_argument('--problem',                     type=str,   required=True)
     parser.add_argument('--pso_c1',                      type=float, default=0.5)
     parser.add_argument('--pso_c2',                      type=float, default=0.3)
@@ -86,13 +88,14 @@ if __name__ == '__main__':
     parser.add_argument('--pso_swarm_size',              type=int,   default=100)
     parser.add_argument('--pso_w',                       type=float, default=0.5)
     parser.add_argument('--render',                      action='store_true')
+    parser.add_argument('--render_output_filename',      type=str,   default='solution.pdf')
     parser.add_argument('--script',                      action='store_true')
-    parser.add_argument('--taboo_backtracking_limit',    type=int,   default=3)
-    parser.add_argument('--taboo_iteration_limit',       type=int,   default=50)
-    parser.add_argument('--taboo_list_limit',            type=int,   default=4)
+    parser.add_argument('--taboo_backtracking_limit',    type=int,   default=8)
+    parser.add_argument('--taboo_iteration_limit',       type=int,   default=150)
+    parser.add_argument('--taboo_list_limit',            type=int,   default=5)
     parser.add_argument('--taboo_max_cycle_count',       type=int,   default=2)
     parser.add_argument('--taboo_max_cycle_duration',    type=int,   default=100)
-    parser.add_argument('--taboo_total_iteration_limit', type=int,   default=250)
+    parser.add_argument('--taboo_total_iteration_limit', type=int,   default=1000)
     args = parser.parse_args()
 
     problem = jssp.io.parse_problem_file(args.problem)
@@ -148,6 +151,9 @@ if __name__ == '__main__':
     if args.script:
         print(best_solution.makespan)
 
+    if args.pickle:
+        pickle.dump(best_solution, open(args.pickle_output_filename, 'wb'))
+
     if args.render:
         allocations, makespan = jssp.utility.compute_allocations(problem, best_solution.schedule)
-        jssp.io.render_gantt_chart(args.output_filename, allocations)
+        jssp.io.render_gantt_chart(args.render_output_filename, allocations)

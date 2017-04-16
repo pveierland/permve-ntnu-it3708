@@ -421,7 +421,7 @@ def neighborhood_searching_procedure(problem, schedule, moves, best_known_makesp
                 result_makespan = compute_makespan(problem, result_schedule)
                 break
 
-    if taboo_list:
+    if taboo_list is not None:
         taboo_list.append(invert_move(result_move))
 
     return result_move, result_schedule, result_makespan
@@ -510,5 +510,7 @@ def taboo_search(
             iteration              = 0
             save                   = True
             max_iterations         = config.iteration_limit
+
+        #print('{}: {}'.format(iteration, best_schedule_makespan))
 
     return best_schedule, best_schedule_makespan
