@@ -20,7 +20,7 @@ class colors:
 def run_program(optimizer, problem_file):
     try:
         result = subprocess.run(
-            ['python3', 'program.py', '--optimizer', optimizer, '--problem', problem_file, '--script'],
+            ['python3', str(os.path.join(os.path.dirname(__file__), '../program/program.py')), '--optimizer', optimizer, '--problem', problem_file, '--script'],
             stdout=subprocess.PIPE)
     except:
         print("failed to run optimizer '{}' with problem '{}'".format(
@@ -44,9 +44,9 @@ problem_files = sorted(
     filter(lambda filename: re.match('\d+\.txt', filename),
            os.listdir(problem_file_path)))
 
-pool = multiprocessing.Pool(multiprocessing.cpu_count())
+pool = multiprocessing.Pool(1)#multiprocessing.cpu_count())
 
-run_count = 1
+run_count = 5
 
 optimizers = ['aco', 'ba', 'pso']
 
