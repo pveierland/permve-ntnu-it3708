@@ -12,6 +12,7 @@
 \usepackage{sectsty}
 \allsectionsfont{\centering \normalfont\scshape}
 
+\usepackage{amssymb}
 \usepackage{acronym}
 \usepackage{booktabs}
 \usepackage{caption}
@@ -73,7 +74,22 @@
 
 % Representation of solutions (individual & chromosome) for each of the three algorithm representations. Using figure(s) for solution is a must. For each of the three algorithms, how do you build the schedule from respective solutions? (1.5p)
 
-Whatever.
+\section*{Schedule Representation}
+
+All three optimizers utilize the same schedule representation as shown in Figure~\ref{figure:representation}. This representation is able to represent both infeasible and feasible solutions to the \ac{JSSP}. Depending on context in the implementation, this representation either represents the job preference for each machine in a solution, or it represents a solution to the \ac{JSSP} directly. For both the \ac{PSO} and the \ac{BA}, random individuals are generated as part of the search. This is done by building a schedule with a randomly permuted job ordering for each machine. If treated as a solution directly, such a solution may be infeasible as machines can deadlock. To ensure that all created solutions are feasible, each possibly infeasible solution is ``developed'' by treating the representation as a preference description. The G\&T~algorithm as described in \cite{sha2006hybrid} details how a preference description can be used to generate an active schedule which must be feasible.
+
+The G\&T algorithm can be described in four steps:
+
+\begin{enumerate}
+    \item Initialize schedule $S=\varnothing$; $\Omega$ is initialized to contain all operations without job predecessors.
+    \item Find $o^*=\arg \min_{o \in \Omega} f_o$, where $f_o$ is the earliest completion time for operation $o$; $f_o = s_o + p_o$, where $s_o$ is the earliest starting time for operation $o$, and $p_o$ is the processing time for operation $o$.
+    \item \begin{enumerate}
+        \item Identify conflict set $C = \{ o \in \Omega \vert m_o = m_{o^*} \land s_o < f_{o^*} \}$, where $m_o$ is the machine associated with $o$.
+        \item Select $o \in C$ according to the preference specified in the encoded representation.
+        \item Add $o$ to schedule $S$.
+    \end{enumerate}
+    \item If schedule $S$ is incomplete; remove $o$ from $\Omega$ and add its immediate job successor to $\Omega$ and continue from step~2.
+\end{enumerate}
 
 {
 \vspace{0.3cm}
@@ -83,10 +99,6 @@ Whatever.
 \label{figure:representation}
 \vspace{0.3cm}
 }
-
-\section*{Schedule Representation}
-
-All three optimizers utilize the same schedule representation as shown in Figure~\ref{figure:representation}. This representation is able to represent both infeasible and feasible solutions to the \ac{JSSP}. Depending on context in the implementation, this representation either represents the job preference for each machine in a solution, or it represents a solution to the \ac{JSSP} directly. For both the \ac{PSO} and the \ac{BA}, random individuals are generated as part of the search. This is done by building a schedule with a randomly permuted job ordering for each machine. If treated as a solution directly, such a solution may be infeasible as machines can deadlock. To ensure that all created solutions are feasible, each possibly infeasible solution is ``developed'' by treating the representation as a preference description. The G\&T~algorithm as described in \cite{sha2006hybrid} details how a preference description can be used to generate an active schedule which must be feasible.
 
 \section*{\acl{PSO}}
 
@@ -98,13 +110,12 @@ All three optimizers utilize the same schedule representation as shown in Figure
 
 \section*{\acl{BA}}
 
-
-
 % TODO Figure explaining BA representation
 
-BA is the
-
 \section*{\acl{TS}}
+
+\bibliographystyle{unsrt}
+\bibliography{references.bib}
 
 {
 \begin{minipage}{\linewidth{}}
