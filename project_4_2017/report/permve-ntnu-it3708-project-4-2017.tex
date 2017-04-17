@@ -88,36 +88,36 @@ The G\&T algorithm can be described in four steps:
         \item Select $o \in C$ according to the preference specified in the encoded representation.
         \item Add $o$ to schedule $S$.
     \end{enumerate}
-    \item If schedule $S$ is incomplete; remove $o$ from $\Omega$ and add its immediate job successor to $\Omega$ and continue from step~2.
+    \item If schedule $S$ is incomplete; remove $o$ from $\Omega$, add any immediate job successor of $o$ to $\Omega$, and continue from step~2.
 \end{enumerate}
 
 {
 \vspace{0.3cm}
 \centering
 \includegraphics[scale=0.2]{figures/permve-ntnu-it3708-project-4-2017-schedule-representation}
-\captionof{figure}{A \acs{JSSP} schedule is represented as an $m \times n$ matrix of $m$ machines and $n$ jobs. \textcolor{NavyBlue}{$\text{Job~1} = \langle\,\text{O1}, \text{O2}, \text{O3}\,\rangle$}, \textcolor{Melon}{$\text{Job~2} = \langle\,\text{O4}, \text{O5}, \text{O6}\rangle$}, \textcolor{OliveGreen}{$\text{Job~3} = \langle \text{O7}, \text{O8}, \text{O9}\rangle$}. Each row $i$ encodes the ordering of operations for machine $i$; M1, M2, M3.}
+\captionof{figure}{A \acs{JSSP} schedule is represented as an $m \times n$ matrix of $m$ machines and $n$ jobs. \textcolor{NavyBlue}{$\text{Job~1} = \langle\,\text{O}_1, \text{O}_2, \text{O}_3\,\rangle$}, \textcolor{Melon}{$\text{Job~2} = \langle\,\text{O}_4, \text{O}_5, \text{O}_6\rangle$}, \textcolor{OliveGreen}{$\text{Job~3} = \langle \text{O}_7, \text{O}_8, \text{O}_9\rangle$}. Each row $i$ encodes the ordering of operations for machine $i$; $M_1, M_2, M_3$.}
 \label{figure:representation}
 \vspace{0.3cm}
 }
 
 \section*{\acl{PSO}}
 
-% TODO Figure explaining PSO representation
+\acf{PSO} is an optimization technique mostly applied to problems with continuous solution spaces, where each particle in a swarm represents a solution. To solve a discrete problem such as \ac{JSSP}, inspiration has been taken from \cite{sha2006hybrid}. The resulting algorithm uses a discrete, preference-based representation, a modified approach velocity updates, a modified approach to position updates, a diversification strategy, and a local search. The overall algorithm can be described by the following three steps:
 
-\section*{\acl{ACO}}
+\begin{enumerate}
+    \item The initial swarm population is generated, where the position of each particle $k$ is represented by a matrix of preferred machine operations $x^k$ as shown in Figure~\ref{figure:representation}. The job ordering for each machine is shuffled randomly, before the position of each particle $x^k$ is developed by the G\&T algorithm into a feasible schedule $S^k$.
+    \item For each solution $S^k$ represented by particle $k$ in the swarm, its best historical schedule, as determined by the schedule makespan, is tracked as $\text{pbest}^k$. The best solution out of all particles is tracked as $\text{gbest}$.
+    \item If the maximum number of iterations has not been reached:
+    \begin{enumerate}
+        \item Update the velocity $v^k$ for each particle $k$.
+        \item For each particle $k$ in the swarm; update its position $x^k$ and develop the position $x^k$ into the schedule $S^k$. For each schedule $S^k$, apply \ac{TS}, before updating $\text{pbest}^k$ and $\text{gbest}$ accordingly.
+    \end{enumerate}
+\end{enumerate}
 
-% TODO Figure explaining ACO representation
-
-\section*{\acl{BA}}
-
-% TODO Figure explaining BA representation
-
-\section*{\acl{TS}}
-
-\bibliographystyle{unsrt}
-\bibliography{references.bib}
+The velocity of each particle $k$ is represented by an $m \times n$ matrix, where the velocity of each operation $o_{ij}$ is denoted by $v_{ij} \in \{0,1\}$, and $o_{ij}$ is the operation of job~$j$ on machine~$i$. When $v_{ij}^k = 1$, the operation $o_{ij}$ of particle $k$ has just been moved to its current position in $x^k$, and cannot be moved. In this way, the adapted velocity mechanism imitates the behavior of continuous velocity by providing the discrete representation with momentum. The velocity $v_{ij}^k$ is randomly set to zero with a probability $(1-w)$ when updating the velocity of each particle.
 
 {
+\vspace{0.2cm}
 \begin{minipage}{\linewidth{}}
 \centering
 \begin{tabular}{lc}
@@ -136,7 +136,87 @@ Probability of not resetting velocity ($w$) &   0.5 \\
 \end{minipage}
 }
 
+Position updates relate to the discrete velocities. If $v_{ij}^k=0$, the operation $o_{ij}^k$ will be moved to the corresponding location of operation $o_{ij}^k$ in $\text{pbest}^k$ with probability $c_1$, or it will be moved to the corresponding location of $o_{ij}^k$ in $\text{gbest}$ with probability $c_2$. In this manner, the $\text{pbest}$ and $\text{gbest}$ solutions are used to guide the global \ac{PSO} search. The position update is performed as follows for each machine $i$:
+
+\begin{enumerate}
+    \item Randomly select a location $l$ in $x_i^k$.
+    \item Denote the operation at location $l$ in $x_i^k$ by $O_1$.
+    \item Find the location of operation $O_1$ in $\text{pbest}_i^k$ with probability $c_1$, or find the location of operation $O_1$ in $\text{gbest}_i$ with probability $c_2$. Denote the location found in $\text{pbest}_i^k$ or $\text{gbest}_i$ by $l'$, and denote the operation at location $l'$ in $x_i^k$ by $O_2$.
+    \item If $O_2$ has been denoted, and the velocity components $v_{i{J_1}}^k$ and $v_{i{J_2}}^k$ for jobs $J_1$ and $J_2$, associated with operations $O_1$ and $O_2$, are both zero, then swap operations $O_1$ and $O_2$ in $x_i^k$, and set $v_{i{J_1}}^k \gets 1$.
+    \item If all locations in $x_i^k$ has been considered, then the velocity update is completed. Otherwise, if $l<n$, set $l \gets l+1$, else assign $l \gets 1$, and continue from step~2.
+\end{enumerate}
+
+To prevent the \ac{PSO} search from getting stuck in local minima, a diversification strategy is used when updating $\text{pbest}^k$ and $\text{gbest}$. For each new solution $S^k$, the following update is used:
+
+\begin{enumerate}
+    \item If the makespan of $S^k$ is less than the makespan of $\text{gbest}$, set the $\text{pbest}$ solution with the worst makespan to the current $\text{gbest}$, and set $\text{gbest}$ to $S^k$.
+    \item Otherwise, if the makespan of $S^k$ is equal to the makespan of any $\text{pbest}$ or the $\text{gbest}$ solution, replace the solution with the equal makespan with $S^k$.
+    \item Otherwise, if the makespan of $S^k$ is better than the makespan of the worst $\text{pbest}$ solution, set the worst $\text{pbest}$ solution to $S^k$.
+\end{enumerate}
+
+The implemented \ac{PSO} uses Taboo search as described in \cite{nowicki1996fast} with backtracking and cycle detection. This local search, using parameters shown in Table~\ref{table:tsparams}, assists the global \ac{PSO} search aids the global \ac{PSO} search, which uses parameters shown in Table~\ref{table:psoparams}. The mutation operation described in \cite{sha2006hybrid} is not used.
+
+\section*{\acl{ACO}}
+
+\acf{ACO} is a swarm search inspired by how ants are able to locate food and direct other ants towards discovered food sources by using pheromones. The pheromone information is a central component in \ac{ACO} in guiding the search, by learning the relations between related operations as described in \cite{blum2004ant}. An operation $o_a$ is related to an operation $o_b$ if they are directly adjacent in a job sequence, or if they have to be processed by the same machine. The set of operations related to operation $o_a$ is denoted by $\mathcal{R}_a$.
+
+The pheromone information is represented as an $\vert O \vert \times \vert O \vert$ matrix $\mathcal{T}$, where an entry $\mathcal{T}_{ab}$ represents the desirability of processing operation $o_a$ before operation $o_b$ with a specific value denoted by $\tau_{ab}$. Solutions are generated from the pheromone information using an algorithm similar to G\&T, with the exception of how the conflict set $C$ is chosen in step~3a, and how an operation is selected from $C$ in step~3b. This process will always generated feasible schedules.
+
+In 50\% of cases, the conflict set is set to produce non-delay schedules; $C = \{o \in \Omega \vert s_o = \min_{o' \in \Omega} s_{o'}\}$. In the other cases, the conflict set is not limiting; $C = \Omega$.
+
+The selection of an operation from the conflict set $C$ is done by drawing randomly according to the probabilities:
+
+\begin{equation}
+p(o_a \vert \mathcal{T}) = \frac
 {
+    \min_{o_b \in \mathcal{R}_a \cap O^{+}} \tau_{ab} \cdot \eta(o_a)^\beta
+}
+{
+    \sum_{o_c \in C} \min_{o_b \in \mathcal{R}_a \cap O^{+}} \tau_{ab} \cdot \eta(o_a)^\beta
+}, \quad \forall o_a \in C
+\label{eq:acopoa}
+\end{equation}
+
+Where $O^{+}$ is the set of operations which has not yet been added to the schedule, and $\eta(o_a)$ is the heuristic information given by:
+
+\begin{equation}
+\eta(o_a) = \frac
+{
+    \frac{1}{s_{o_a} + 1}
+}
+{
+    \sum_{o_c \in C} \frac{1}{s_{o_a} + 1}
+}
+\label{eq:acoheur}
+\end{equation}
+
+The \ac{ACO} search can be described by the following four operations, which are repeated for as long as necessary:
+
+\begin{enumerate}
+    \item Generate $n_a = \max \Big\{ 10, \big\lfloor \frac{\vert O \vert}{10} \big\rfloor \Big\}$ solutions to form the generation $\mathcal{G}$, using the G\&T algorithm with modified conflict set (Equation~\ref{eq:acopoa}) and selection (Equation~\ref{eq:acoheur}), where $n_a$ is the number of ants.
+    \item Apply local search to improve each schedule in $\mathcal{G}$.
+    \item Apply \ac{TS} to the schedule with the lowest makespan in $\mathcal{G}$.
+    \item Update the pheromones according to Equation~\ref{eq:acophero}~and~\ref{eq:acodelta}, where $\eta$ is the rate of pheromone evaporation, and $S^{*}$ is the best schedule found by the \ac{ACO} search.
+\end{enumerate}
+
+\begin{equation}
+\tau_{ab} \gets \tau_{ab} + \rho \cdot \big[ \delta(o_a, o_b) - \tau_{ab} \big]
+\label{eq:acophero}
+\end{equation}
+
+\begin{equation}
+\delta(o_a, o_b) =
+\begin{cases}
+1, \text{if $o_a$ is processed before $o_b$ in $S^{*}$}\\
+0, \text{otherwise}
+\end{cases}
+\label{eq:acodelta}
+\end{equation}
+
+Pheromone values are limited to the range $[0.001, 0.999]$.
+
+{
+\vspace{0.2cm}
 \begin{minipage}{\linewidth{}}
 \centering
 \begin{tabular}{lc}
@@ -153,6 +233,25 @@ Initial pheromone value ($\tau_{\text{initial}}$) &  0.5  \\
 \label{table:acoparams}
 \end{minipage}
 }
+
+
+% construct solutions from pheromone info
+
+% apply local search to each solution
+
+% find best in iteration. apply taboo search
+
+% update pheromones
+
+
+\section*{\acl{BA}}
+
+% TODO Figure explaining BA representation
+
+\section*{\acl{TS}}
+
+\bibliographystyle{unsrt}
+\bibliography{references.bib}
 
 {
 \begin{minipage}{\linewidth{}}
