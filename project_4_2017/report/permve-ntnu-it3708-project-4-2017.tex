@@ -1,5 +1,5 @@
 \documentclass[paper=a4, fontsize=9pt]{scrartcl}
-\usepackage[bottom=0.9in, left=0.7in, right=0.7in, top=0.8in, foot=0.5in]{geometry}
+\usepackage[bottom=0.9in, left=0.7in, right=0.7in, top=0.7in, foot=0.5in]{geometry}
 \usepackage{layouts}
 
 \usepackage[usenames,dvipsnames,x11names]{xcolor}
@@ -71,7 +71,7 @@
 
 \section*{Schedule Representation}
 
-All three optimizers utilize the same schedule representation as shown in Figure~\ref{figure:representation}. This representation is able to represent both infeasible and feasible solutions to the \ac{JSSP}. Depending on context in the implementation, this representation either represents the job preference for each machine in a solution, or it represents a solution to the \ac{JSSP} directly. For both the \ac{PSO} and the \ac{BA}, random individuals are generated as part of the search. This is done by building a schedule with a randomly permuted job ordering for each machine. If treated as a solution directly, such a solution may be infeasible as machines can deadlock. To ensure that all created solutions are feasible, each possibly infeasible solution is ``developed'' by treating the representation as a preference description. The G\&T~algorithm as described in \cite{sha2006hybrid} details how a preference description can be used to generate an active schedule which must be feasible.
+All three optimizers utilize the same schedule representation as shown in Figure~\ref{figure:representation}. This representation is able to represent both infeasible and feasible solutions to the \ac{JSSP}. Depending on context in the implementation, this representation either represents the job preference for each machine in a solution, or it represents a solution to the \ac{JSSP} directly. For both the \ac{PSO} and the \ac{BA}, random individuals are generated as part of the search. This is done by building a schedule with a randomly permuted job ordering for each machine. If treated as a solution directly, such a solution may be infeasible as machines can deadlock. To ensure that all created solutions are feasible, each possibly infeasible solution is ``developed'' by treating the representation as a preference description. The G\&T~algorithm as described in~\cite{sha2006hybrid} details how a preference description can be used to generate an active schedule which must be feasible.
 
 The G\&T algorithm can be described in four steps:
 
@@ -97,7 +97,7 @@ The G\&T algorithm can be described in four steps:
 
 \section*{\acl{PSO}}
 
-\acf{PSO} is an optimization technique mostly applied to problems with continuous solution spaces, where each particle in a swarm represents a solution. To solve a discrete problem such as \ac{JSSP}, inspiration has been taken from \cite{sha2006hybrid}. The resulting algorithm uses a discrete, preference-based representation, a modified approach velocity update, a modified approach to position updates, a diversification strategy, and a local search. The overall algorithm can be described by the following three steps:
+\acf{PSO} is an optimization technique mostly applied to problems with continuous solution spaces, where each particle in a swarm represents a solution. To solve a discrete problem such as \ac{JSSP}, inspiration has been taken from~\cite{sha2006hybrid}. The resulting algorithm uses a discrete, preference-based representation, a modified approach to the velocity update, a modified approach to position updates, a diversification strategy, and a local search. The overall algorithm can be described by the following three steps:
 
 \begin{enumerate}
     \item The initial swarm population is generated, where the position of each particle $k$ is represented by a matrix of preferred machine operations $x^k$ as shown in Figure~\ref{figure:representation}. The job ordering for each machine is shuffled randomly, before the position of each particle $x^k$ is developed by the G\&T algorithm into a feasible schedule $S^k$.
@@ -105,11 +105,11 @@ The G\&T algorithm can be described in four steps:
     \item If the maximum number of iterations has not been reached:
     \begin{enumerate}
         \item Update the velocity $v^k$ for each particle $k$.
-        \item For each particle $k$ in the swarm; update its position $x^k$ and develop the position $x^k$ into the schedule $S^k$. For each schedule $S^k$, apply \ac{TS}, before updating $\textit{pbest}^k$ and \textit{gbest} accordingly.
+        \item For each particle $k$ in the swarm; update its position $x^k$ and develop the position $x^k$ into the schedule $S^k$. For each schedule $S^k$, apply a local search as described in the last section, before updating $\textit{pbest}^k$ and \textit{gbest} accordingly.
     \end{enumerate}
 \end{enumerate}
 
-The velocity of each particle $k$ is represented by an $m \times n$ matrix, where the velocity of each operation $o_{ij}$ is denoted by $v_{ij} \in \{0,1\}$, and $o_{ij}$ is the operation of job~$j$ on machine~$i$. When $v_{ij}^k = 1$, the operation $o_{ij}$ of particle $k$ has just been moved to its current position in $x^k$, and cannot be moved. In this way, the adapted velocity mechanism imitates the behavior of continuous velocity by providing the discrete representation with momentum. The velocity $v_{ij}^k$ is randomly set to zero with a probability $(1-w)$ when updating the velocity of each particle.
+The velocity of each particle $k$ is represented by an $m \times n$ matrix, where the velocity of each operation $o_{ij}$ for the particle $k$ is denoted by $v_{ij}^k \in \{0,1\}$, and $o_{ij}$ is the operation of job~$j$ on machine~$i$. When $v_{ij}^k = 1$, the operation $o_{ij}$ of particle $k$ has just been moved to its current position in $x^k$, and cannot be moved. In this way, the adapted velocity mechanism imitates the behavior of continuous velocity by providing the discrete representation with momentum. The velocity $v_{ij}^k$ is randomly set to zero with a probability $(1-w)$ when updating the velocity of each particle.
 
 {
 \vspace{0.2cm}
@@ -132,7 +132,7 @@ Probability of not resetting velocity ($w$) &   0.5 \\
 \end{minipage}
 }
 
-Position updates relate to the discrete velocities. If $v_{ij}^k=0$, the operation $o_{ij}^k$ will be moved to the corresponding location of operation $o_{ij}^k$ in $\textit{pbest}^k$ with probability $c_1$, or it will be moved to the corresponding location of $o_{ij}^k$ in \textit{gbest} with probability $c_2$. In this manner, the $\textit{pbest}$ and \textit{gbest} solutions are used to guide the global \ac{PSO} search. The position update is performed as follows for each machine $i$:
+Position updates relate to the discrete velocities. If $v_{ij}^k=0$, the operation $o_{ij}^k$ will be moved to the corresponding location of operation $o_{ij}^k$ in $\textit{pbest}^k$ with probability $c_1$, or it will be moved to the corresponding location of $o_{ij}^k$ in \textit{gbest} with probability $c_2$. In this manner, the $\textit{pbest}$ and \textit{gbest} solutions are used to guide the global \ac{PSO} search. The position update is performed as follows for each machine $i$, for each machine $k$:
 
 \begin{enumerate}
     \item Randomly select a location $l$ in $x_i^k$.
@@ -150,11 +150,11 @@ To prevent the \ac{PSO} search from getting stuck in local minima, a diversifica
     \item Otherwise, if the makespan of $S^k$ is better than the makespan of the worst $\textit{pbest}$ solution, set the worst $\textit{pbest}$ solution to $S^k$.
 \end{enumerate}
 
-The implemented \ac{PSO} uses Taboo search as described in \cite{nowicki1996fast} with backtracking and cycle detection. This local search, using parameters shown in Table~\ref{table:tsparams}, assists the global \ac{PSO} search, which uses parameters shown in Table~\ref{table:psoparams}. The mutation operation described in \cite{sha2006hybrid} is not used.
+The mutation operation described in~\cite{sha2006hybrid} is not used.
 
 \section*{\acl{ACO}}
 
-\acf{ACO} is a swarm search inspired by how ants are able to locate food and direct other ants towards discovered food sources by using pheromones. The pheromone information is a central component in \ac{ACO} by guiding the search through learning the relations between related operations as described in \cite{blum2004ant}. An operation $o_a$ is related to an operation $o_b$ if they are directly adjacent in a job sequence, or if they have to be processed by the same machine. The set of operations related to operation $o_a$ is denoted by $\mathcal{R}_a$.
+\acf{ACO} is a swarm search inspired by how ants are able to locate food and direct other ants towards discovered food sources by using pheromones. The pheromone information is a central component in \ac{ACO} by guiding the search through learning the relations between related operations as described in~\cite{blum2004ant}. An operation $o_a$ is related to an operation $o_b$ if they are directly adjacent in a job sequence, or if they have to be processed by the same machine. The set of operations related to operation $o_a$ is denoted by $\mathcal{R}_a$.
 
 The pheromone information is represented as an $\vert O \vert \times \vert O \vert$ matrix $\mathcal{T}$, where an entry $\mathcal{T}_{ab}$ represents the desirability of processing operation $o_a$ before operation $o_b$ with a specific value denoted by $\tau_{ab}$. Solutions are generated from the pheromone information using an algorithm similar to G\&T, with the exception of how the conflict set $C$ is chosen in step~3a, and how an operation is selected from $C$ in step~3b. This process will always generated feasible schedules.
 
@@ -233,7 +233,7 @@ Initial pheromone value ($\tau_{\text{initial}}$) &  0.5  \\
 
 \section*{\acl{BA}}
 
-\acf{BA} is a swarm search inspired by how bees locate and coordinate the gathering of food \cite{pham2011bees}. The implemented version of the algorithm for the \ac{JSSP} problem can be described in 2 steps:
+\acf{BA} is a swarm search inspired by how bees locate and coordinate the gathering of food~\cite{pham2011bees}. The implemented version of the algorithm for the \ac{JSSP} problem can be described in 2 steps:
 
 \begin{enumerate}
     \item A number $n$ of preference matrices are generated as shown in Figure~\ref{figure:representation}, where the job ordering for each machine is shuffled, before each preference matrix is developed by the G\&T algorithm into a schedule description. These $n$ solutions represent the sites located by the $n$ scouting bees.
@@ -245,7 +245,7 @@ Initial pheromone value ($\tau_{\text{initial}}$) &  0.5  \\
     \end{enumerate}
 \end{enumerate}
 
-The original version of the algorithm \cite{pham2011bees} is used on continuous optimization problems, and the searching behavior for the elite and normal sites are the same, with the exception that more bees are used to search elite sites compared to normal sites. In the adapted version of the algorithm for the \ac{JSSP}, a stronger local search is instead used to strengthen the search for elite sites, by employing a full \ac{TS} for elite sites, and a simpler local search for normal sites.
+The original version of the algorithm~\cite{pham2011bees} is used on continuous optimization problems, and the searching behavior for the elite and normal sites are the same, with the exception that more bees are used to search elite sites compared to normal sites. In the adapted version of the algorithm for the \ac{JSSP}, a stronger local search is instead used to strengthen the search for elite sites, by employing a full \ac{TS} for elite sites, and a simpler local search for normal sites.
 
 {
 \vspace{0.2cm}
@@ -270,9 +270,9 @@ Number of bees per normal site ($nsp$) &  2 \\
 \end{minipage}
 }
 
-\section*{\acl{TS}}
+\section*{Local search}
 
-Several papers \cite{sha2006hybrid}\cite{blum2004ant} on the \ac{JSSP} reference the \ac{TS} detailed in \cite{nowicki1996fast}. This search is based on searching the neighborhood $H(S)$ of a schedule, which is established by the set of all moves deemed ``interchanges near the borderline of blocks on a single critical path''. Given a schedule, any longest sequence of operations in the schedule is called a critical path. An arbitrary selected critical path of $S$ is considered. For this path, blocks of operations $B_1, \ldots, B_r$ which share a machine is considered. The set of considered swapping moves $V(S)$ is defined as all moves which swap the last two operations in the first block, the first or last two operations in any middle block, or the first two operations in the last block. The neighborhood of $S$ is then $H(S) = \{ Q(S, v) : v \in V(S)\}$, where $Q(S, v)$ is the schedule resulting from applying move $v$ to $S$.
+Several papers~\cite{sha2006hybrid}\cite{blum2004ant} on the \ac{JSSP} reference the \acf{TS} detailed in~\cite{nowicki1996fast}. This search is based on considering the neighborhood $H(S)$ of a schedule, which is established by the set of all moves deemed ``interchanges near the borderline of blocks on a single critical path''. Given an active schedule, any longest sequence of operations in the schedule is called a critical path. An arbitrary selected critical path of $S$ is considered. For this path, blocks of operations $B_1, \ldots, B_r$ which share a machine is considered. The set of considered swapping moves, $V(S)$, is defined as all moves which swap the last two operations in the first block $B_1$, the first or last two operations in any middle block, or the first two operations in the last block $B_r$. The neighborhood of $S$ is then $H(S) = \{ Q(S, v) : v \in V(S)\}$, where $Q(S, v)$ is the schedule resulting from applying move $v$ to $S$.
 
 {
 \vspace{0.3cm}
@@ -300,7 +300,7 @@ Central to the \ac{TS} is the \ac{NSP} which takes a schedule $S$, a set of move
     \item Set $S' \gets Q(S, v')$ and append $v'$ to $T$.
 \end{enumerate}
 
-In the case of the \ac{PSO} and \ac{BA} implementations, the local search used is to simply apply a single randomly selected move $v'$ from the neighborhood $H(S)$ of a schedule, without a taboo list. In addition to using the same local search in the case of \ac{ACO}, a full \ac{TS} is also used to improve the best solution in each iteration. The \acl{TS} consists of applying the \acl{NSP} repeatedly to a schedule for a number of iterations, while keeping track of the best schedule and makespan found. Backtracking and cycle detection was also implemented as part of the \ac{TS} as described in \cite{nowicki1996fast}.
+In the case of the \ac{PSO} and the \ac{BA} in the normal site case, the local search used is to simply apply a single randomly selected move $v'$ from the neighborhood $H(S)$ of a schedule, without a taboo list. A full \ac{TS} search is used in the case of elite sites for \ac{BA}, and for the best solution in each iteration in the case of \ac{ACO}. The \acl{TS} consists of applying the \acl{NSP} repeatedly to a schedule for a number of iterations, while keeping track of the best schedule and makespan found. Backtracking and cycle detection was also implemented as part of the \ac{TS} as described in~\cite{nowicki1996fast}.
 
 {
 \vspace{0.5cm}
@@ -340,7 +340,7 @@ Max cycle detection duration ($\max \delta$)              &   100 \\
 \includegraphics[height=40pt]{figures/solution_pso_instance_3_1_scaled}\\[0.15cm]
 \hspace{0.90909pt}\includegraphics[height=40pt]{figures/solution_pso_instance_3_2_scaled}\\[0.15cm]
 \hspace{0.90909pt}\includegraphics[height=40pt]{figures/solution_pso_instance_3_3_scaled}\\
-\multicolumn{1}{c}{\textit{Figure 1: \acf{PSO} solution with makespan 1186 for problem~3 using parameters specified in Table~\ref{table:psoparams}~and~\ref{table:tsparams}.}}\\[1.2cm]
+\multicolumn{1}{c}{\textit{Figure 1: \acf{PSO} solution with makespan 1186 for problem~3 using parameters specified in Table~\ref{table:psoparams}.}}\\[1.2cm]
 \includegraphics[height=40pt]{figures/solution_aco_instance_3_1_scaled}\\[0.15cm]
 \hspace{0.90909pt}\includegraphics[height=40pt]{figures/solution_aco_instance_3_2_scaled}\\[0.15cm]
 \hspace{0.90909pt}\includegraphics[height=40pt]{figures/solution_aco_instance_3_3_scaled}\\
